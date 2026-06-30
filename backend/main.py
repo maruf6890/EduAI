@@ -14,6 +14,7 @@ from app.routers.auth import router as auth_router
 from app.routers.classroom import router as classroom_router
 from app.routers.enrollment import router as enrollment_router
 from app.routers.assignment import router as assignment_router
+from app.routers.announcement import router as announcement_router
 
 
 @asynccontextmanager
@@ -68,6 +69,7 @@ app.include_router(auth_router,       prefix="/api/v1")
 app.include_router(classroom_router,  prefix="/api/v1")
 app.include_router(enrollment_router, prefix="/api/v1")
 app.include_router(assignment_router, prefix="/api/v1")
+app.include_router(announcement_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])
