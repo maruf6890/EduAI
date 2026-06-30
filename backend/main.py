@@ -6,11 +6,14 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.core.config import settings
-from app.db.connection import close_db_pool, get_connection, init_db_pool
+from app.db.connection import close_db_pool, init_db_pool
+import psycopg2
+import psycopg2.extras
 from app.db.migrations import run_migrations
 from app.routers.auth import router as auth_router
 from app.routers.classroom import router as classroom_router
 from app.routers.enrollment import router as enrollment_router
+from app.routers.assignment import router as assignment_router
 
 
 @asynccontextmanager
@@ -18,9 +21,20 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up...")
     init_db_pool()
 
-    # Auto-run any pending migrations
-    with get_connection() as conn:
-        run_migrations(conn)
+    # Use a dedicated raw connection for migrations (avoids pool commit conflicts)
+    from app.core.config import settings
+    migration_conn = psycopg2.connect(
+        host=settings.DB_HOST,
+        port=settings.DB_PORT,
+        dbname=settings.DB_NAME,
+        user=settings.DB_USER,
+        password=settings.DB_PASSWORD,
+        cursor_factory=psycopg2.extras.RealDictCursor,
+    )
+    try:
+        run_migrations(migration_conn)
+    finally:
+        migration_conn.close()
 
     yield
     close_db_pool()
@@ -46,13 +60,14 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled error: {exc}")
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return JSONResponse(status_code=500, content={"success": False, "message": "Internal server error"})
 
 
 
 app.include_router(auth_router,       prefix="/api/v1")
 app.include_router(classroom_router,  prefix="/api/v1")
 app.include_router(enrollment_router, prefix="/api/v1")
+app.include_router(assignment_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])
