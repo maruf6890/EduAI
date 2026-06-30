@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+from sqlalchemy import null
 
 from app.core.config import settings
 from app.core.security import (
@@ -33,11 +34,18 @@ def register(conn, email: str, full_name: str, password: str) -> dict:
     _store_refresh_token(conn, user["id"], refresh_token)
 
     return {
-        "user": {**user, "created_at": user["created_at"].isoformat()},
+    "success": True,
+    "message": "User registered successfully.",
+    "data": {
+        "user": {
+            **user,
+            "created_at": user["created_at"].isoformat(),
+        },
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-    }
+    },
+}
 
 
 def login(conn, email: str, password: str) -> dict:
@@ -60,6 +68,9 @@ def login(conn, email: str, password: str) -> dict:
     _store_refresh_token(conn, user["id"], refresh_token)
 
     return {
+    "success": True,
+    "message": "Login successful.",
+    "data": {
         "user": {
             "id": user["id"],
             "email": user["email"],
@@ -70,7 +81,8 @@ def login(conn, email: str, password: str) -> dict:
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-    }
+    },
+}
 
 
 def refresh(conn, refresh_token: str) -> dict:
@@ -100,15 +112,23 @@ def refresh(conn, refresh_token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
 
     return {
+    "success": True,
+    "message": "Token refreshed successfully.",
+    "data": {
         "access_token": create_access_token(row["user_id"]),
         "token_type": "bearer",
-    }
+    },
+}
 
 
 def logout(conn, refresh_token: str) -> dict:
     with conn.cursor() as cur:
         cur.execute("UPDATE refresh_tokens SET revoked = TRUE WHERE token = %s", (refresh_token,))
-    return {"message": "Logged out successfully"}
+    return {
+        "success": True,
+        "message": "Logged out successfully.",
+        "data": null
+    }
 
 
 
@@ -127,10 +147,14 @@ def update_profile(conn, user_id: int, full_name: str) -> dict:
         user = dict(cur.fetchone())
 
     return {
-        "user": {
-            **user,
-            "created_at": user["created_at"].isoformat(),
-            "updated_at": user["updated_at"].isoformat(),
+        "success": True,
+        "message": "Profile updated successfully.",
+        "data": {
+            "user": {
+                **user,
+                "created_at": user["created_at"].isoformat(),
+                "updated_at": user["updated_at"].isoformat(),
+            }
         }
     }
 
@@ -154,7 +178,11 @@ def change_password(conn, user_id: int, current_password: str, new_password: str
             (user_id,),
         )
 
-    return {"message": "Password changed. Please log in again."}
+    return {
+        "success": True,
+        "message": "Password changed. Please log in again.",
+        "data": null
+    }
 
 
 # ── Internal helper ──────────────────────────────────────────────────────────
