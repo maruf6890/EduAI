@@ -1,5 +1,10 @@
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
+from app.services.calendar_service import (
+    create_classroom_event,
+    update_classroom_event,
+    delete_classroom_event,
+)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,7 +55,7 @@ def _get_submission_files(conn, submission_id: int) -> list:
         return [_serialize(dict(r)) for r in cur.fetchall()]
 
 
-# ── Teacher: create assignment + optional files in one shot ──────────────────
+# ── Teacher: create assignment + optional files ───────────────────────────────
 
 async def create_assignment(
     conn,
@@ -62,7 +67,7 @@ async def create_assignment(
     due_date,
     allow_late_submission: bool,
     is_published: bool,
-    files: list,          # list of UploadFile, can be empty
+    files: list,
 ) -> dict:
     _verify_owner(conn, classroom_id, created_by)
 
@@ -79,7 +84,6 @@ async def create_assignment(
         )
         assignment = _serialize(dict(cur.fetchone()))
 
-    # Upload files to cloudinary and save records
     uploaded_files = []
     if files:
         from app.utils.cloudinary import upload_file_to_cloudinary
@@ -103,6 +107,18 @@ async def create_assignment(
 
     assignment["files"] = uploaded_files
 
+    # Auto-create calendar event if due_date is set
+    create_classroom_event(
+        conn,
+        classroom_id=classroom_id,
+        title=f"Assignment Due: {title}",
+        description=description,
+        event_date=due_date,
+        event_type="ASSIGNMENT",
+        reference_id=assignment["id"],
+        created_by=created_by,
+    )
+
     return {
         "success": True,
         "message": "Assignment created successfully",
@@ -110,7 +126,7 @@ async def create_assignment(
     }
 
 
-# ── Teacher: update assignment ───────────────────────────────────────────────
+# ── Teacher: update assignment ────────────────────────────────────────────────
 
 def update_assignment(conn, classroom_id: int, assignment_id: int, owner_id: int, **fields) -> dict:
     _verify_owner(conn, classroom_id, owner_id)
@@ -140,6 +156,16 @@ def update_assignment(conn, classroom_id: int, assignment_id: int, owner_id: int
     assignment = _serialize(dict(assignment))
     assignment["files"] = _get_assignment_files(conn, assignment["id"])
 
+    # Sync calendar if title or due_date changed
+    if "title" in updates or "due_date" in updates:
+        update_classroom_event(
+            conn,
+            reference_id=assignment_id,
+            event_type="ASSIGNMENT",
+            title=f"Assignment Due: {assignment['title']}",
+            event_date=assignment.get("due_date"),
+        )
+
     return {
         "success": True,
         "message": "Assignment updated successfully",
@@ -147,7 +173,7 @@ def update_assignment(conn, classroom_id: int, assignment_id: int, owner_id: int
     }
 
 
-# ── Teacher: delete assignment ───────────────────────────────────────────────
+# ── Teacher: delete assignment ────────────────────────────────────────────────
 
 def delete_assignment(conn, classroom_id: int, assignment_id: int, owner_id: int) -> dict:
     _verify_owner(conn, classroom_id, owner_id)
@@ -160,6 +186,9 @@ def delete_assignment(conn, classroom_id: int, assignment_id: int, owner_id: int
         if not cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
 
+    # Remove calendar event
+    delete_classroom_event(conn, reference_id=assignment_id, event_type="ASSIGNMENT")
+
     return {
         "success": True,
         "message": "Assignment deleted successfully",
@@ -167,7 +196,7 @@ def delete_assignment(conn, classroom_id: int, assignment_id: int, owner_id: int
     }
 
 
-# ── List all assignments in a classroom ──────────────────────────────────────
+# ── List all assignments ──────────────────────────────────────────────────────
 
 def get_assignments(conn, classroom_id: int, user_id: int) -> dict:
     with conn.cursor() as cur:
@@ -207,7 +236,7 @@ def get_assignments(conn, classroom_id: int, user_id: int) -> dict:
     }
 
 
-# ── Get single assignment ────────────────────────────────────────────────────
+# ── Get single assignment ─────────────────────────────────────────────────────
 
 def get_assignment(conn, classroom_id: int, assignment_id: int, user_id: int) -> dict:
     with conn.cursor() as cur:
@@ -245,7 +274,7 @@ def get_assignment(conn, classroom_id: int, assignment_id: int, user_id: int) ->
     }
 
 
-# ── Student: submit assignment (text and/or files in one shot) ───────────────
+# ── Student: submit (text and/or files in one shot) ──────────────────────────
 
 async def submit_assignment(
     conn,
@@ -258,9 +287,11 @@ async def submit_assignment(
     _verify_enrolled(conn, classroom_id, student_id)
 
     if not submission_text and not files:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide submission_text or at least one file")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide submission_text or at least one file",
+        )
 
-    # Fetch assignment
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, due_date, allow_late_submission, is_published FROM assignments WHERE id = %s AND classroom_id = %s",
@@ -274,7 +305,6 @@ async def submit_assignment(
     if not assignment["is_published"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Assignment is not published yet")
 
-    # Determine submission status
     now = datetime.now(timezone.utc)
     sub_status = "SUBMITTED"
 
@@ -284,21 +314,23 @@ async def submit_assignment(
             due = due.replace(tzinfo=timezone.utc)
         if now > due:
             if not assignment["allow_late_submission"]:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Due date has passed and late submission is not allowed")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Due date has passed and late submission is not allowed",
+                )
             sub_status = "LATE"
 
-    # Upsert submission
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO assignment_submissions (assignment_id, student_id, submission_text, status, submitted_at)
+            INSERT INTO assignment_submissions
+                (assignment_id, student_id, submission_text, status, submitted_at)
             VALUES (%s, %s, %s, %s, NOW())
-            ON CONFLICT (assignment_id, student_id)
-            DO UPDATE SET
-                submission_text = EXCLUDED.submission_text,
-                status          = EXCLUDED.status,
-                submitted_at    = NOW(),
-                updated_at      = NOW()
+            ON CONFLICT (assignment_id, student_id) DO UPDATE
+                SET submission_text = EXCLUDED.submission_text,
+                    status          = EXCLUDED.status,
+                    submitted_at    = NOW(),
+                    updated_at      = NOW()
             RETURNING id, assignment_id, student_id, submission_text,
                       marks_obtained, feedback, status, submitted_at, graded_at, created_at, updated_at
             """,
@@ -306,7 +338,6 @@ async def submit_assignment(
         )
         submission = _serialize(dict(cur.fetchone()))
 
-    # Upload files and save
     uploaded_files = []
     if files:
         from app.utils.cloudinary import upload_file_to_cloudinary
@@ -337,7 +368,7 @@ async def submit_assignment(
     }
 
 
-# ── Student: view own submission ─────────────────────────────────────────────
+# ── Student: view own submission ──────────────────────────────────────────────
 
 def get_my_submission(conn, classroom_id: int, assignment_id: int, student_id: int) -> dict:
     _verify_enrolled(conn, classroom_id, student_id)
@@ -367,7 +398,7 @@ def get_my_submission(conn, classroom_id: int, assignment_id: int, student_id: i
     }
 
 
-# ── Teacher: view all submissions ────────────────────────────────────────────
+# ── Teacher: all submissions ──────────────────────────────────────────────────
 
 def get_all_submissions(conn, classroom_id: int, assignment_id: int, owner_id: int) -> dict:
     _verify_owner(conn, classroom_id, owner_id)
@@ -409,9 +440,17 @@ def get_all_submissions(conn, classroom_id: int, assignment_id: int, owner_id: i
     }
 
 
-# ── Teacher: grade a submission ──────────────────────────────────────────────
+# ── Teacher: grade a submission ───────────────────────────────────────────────
 
-def grade_submission(conn, classroom_id: int, assignment_id: int, student_id: int, owner_id: int, marks_obtained: float, feedback) -> dict:
+def grade_submission(
+    conn,
+    classroom_id: int,
+    assignment_id: int,
+    student_id: int,
+    owner_id: int,
+    marks_obtained: float,
+    feedback,
+) -> dict:
     _verify_owner(conn, classroom_id, owner_id)
 
     with conn.cursor() as cur:
@@ -428,7 +467,8 @@ def grade_submission(conn, classroom_id: int, assignment_id: int, student_id: in
         cur.execute(
             """
             UPDATE assignment_submissions
-            SET marks_obtained = %s, feedback = %s, status = 'GRADED', graded_at = NOW(), updated_at = NOW()
+            SET marks_obtained = %s, feedback = %s, status = 'GRADED',
+                graded_at = NOW(), updated_at = NOW()
             WHERE assignment_id = %s AND student_id = %s
             RETURNING id, assignment_id, student_id, submission_text,
                       marks_obtained, feedback, status, submitted_at, graded_at, created_at, updated_at
