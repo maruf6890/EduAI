@@ -6,15 +6,22 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.core.config import settings
-from app.db.connection import close_db_pool, init_db_pool
+from app.db.connection import close_db_pool, get_connection, init_db_pool
+from app.db.migrations import run_migrations
 from app.routers.auth import router as auth_router
 from app.routers.classroom import router as classroom_router
+from app.routers.enrollment import router as enrollment_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up...")
     init_db_pool()
+
+    # Auto-run any pending migrations
+    with get_connection() as conn:
+        run_migrations(conn)
+
     yield
     close_db_pool()
     logger.info("Shut down.")
@@ -42,13 +49,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
-# ── Routes 
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(classroom_router, prefix="/api/v1")
 
-@app.get("/", tags=["Root"])
-def root():
-    return {"message": "Welcome to the AI Classroom API!"}
+app.include_router(auth_router,       prefix="/api/v1")
+app.include_router(classroom_router,  prefix="/api/v1")
+app.include_router(enrollment_router, prefix="/api/v1")
+
 
 @app.get("/health", tags=["Health"])
 def health():

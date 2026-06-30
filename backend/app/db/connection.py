@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import psycopg2
 import psycopg2.extras
 from psycopg2 import pool
@@ -30,7 +32,22 @@ def close_db_pool():
         logger.info("DB pool closed")
 
 
+@contextmanager
+def get_connection():
+    """Context manager for use outside FastAPI (e.g. migrations)."""
+    conn = _pool.getconn()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        _pool.putconn(conn)
+
+
 def get_db():
+    """FastAPI dependency."""
     conn = _pool.getconn()
     try:
         yield conn
