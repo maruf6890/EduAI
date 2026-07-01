@@ -28,13 +28,23 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    const response = await public_api_call({ path: "auth/login", method: "POST", body: { email, password, keepSignedIn } });
-    setLoading(false);
-
-    if (response.success) {
-      router.push("/dashboard");
-    } else {
-      setError(response.message || "Invalid credentials or server connection timed out.");
+    setError("");
+    try {
+      const response = await public_api_call({ path: "auth/login", method: "POST", body: { email, password } });
+      if (response.success) {
+        await setCookie('access_token', response.data.access_token);
+        await setCookie('refresh_token', response.data.refresh_token);
+        await setCookie('id', response.data.user.id.toString());
+        await setCookie('email', response.data.user.email);
+        await setCookie('name', response.data.user.full_name);
+        router.push("/dashboard");
+      } else {
+        setError(response.message || "Login failed.");
+      }
+    } catch (err: unknown) {
+      setError((err as Error).message || "Login failed.");
+    } finally {
+      setLoading(false);
     }
   };
 
