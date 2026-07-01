@@ -275,26 +275,7 @@ export default function QuizzesPage() {
     }
 
     async function handleEditQuiz(quiz: Quiz) {
-        // TODO: PUT /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}  (update_quiz)
-        // Only title, description, scheduled_at, duration_minutes, is_published are
-        // editable per UpdateQuizInput — questions are managed via the separate
-        // add-questions / delete-question endpoints below.
 
-
-
-        // const res = await private_api_call({
-        //     path: `classrooms/${classroomId}/quizzes/${quiz.id}`,
-        //     method: "PUT",
-        //     body: {
-        //         title: quiz.title,
-        //         description: quiz.description,
-        //         scheduled_at: quiz.scheduled_at
-        //             ? new Date(quiz.scheduled_at).toISOString()
-        //             : null,
-        //         duration_minutes: quiz.duration_minutes,
-        //         is_published: quiz.is_published,
-        //     }
-        // });
         setEditingQuiz(quiz);
 
         setForm({
