@@ -1,5 +1,5 @@
 import { CalendarDays, GraduationCap, Hash } from 'lucide-react';
-import type { Classroom } from '@/lib/types/classroom';
+import type { Classroom } from '@/lib/types/classrooms';
 
 export default function ClassroomHeader({ classroom }: { classroom: Classroom }) {
     return (

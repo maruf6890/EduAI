@@ -18,14 +18,14 @@ import {
     ChevronDown,
     Users,
     X,
-    Paperclip,
     FileText,
 } from "lucide-react";
 
 interface AnnouncementModalProps {
     className: string;
     onClose: () => void;
-    onPost: (content: string) => void;
+    // now returns title + content + real Files so the parent can build FormData
+    onPost: (title: string, content: string, files: File[]) => void;
 }
 
 type AttachmentType = "image" | "file" | "link";
@@ -35,6 +35,7 @@ interface Attachment {
     type: AttachmentType;
     name: string;
     url?: string;
+    file?: File; // present for "image" | "file", absent for "link"
 }
 
 type FormattingAction = "bold" | "italic" | "underline" | "list" | "clear";
@@ -52,6 +53,7 @@ export default function AnnouncementModal({
     onPost,
     className,
 }: AnnouncementModalProps) {
+    const [title, setTitle] = useState<string>("");
     const [text, setText] = useState<string>("");
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isPostMenuOpen, setIsPostMenuOpen] = useState<boolean>(false);
@@ -60,20 +62,20 @@ export default function AnnouncementModal({
     const [activeTooltip, setActiveTooltip] = useState<FormattingAction | null>(null);
 
     const modalRef = useRef<HTMLDivElement | null>(null);
+    const titleInputRef = useRef<HTMLInputElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const imageInputRef = useRef<HTMLInputElement | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const postMenuRef = useRef<HTMLDivElement | null>(null);
     const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const hasText = text.trim().length > 0;
+    // title is the required field per the API, content is optional
+    const hasTitle = title.trim().length > 0;
 
-    // Autofocus the textarea when the modal mounts.
     useEffect(() => {
-        textareaRef.current?.focus();
+        titleInputRef.current?.focus();
     }, []);
 
-    // Close on ESC.
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
@@ -85,7 +87,6 @@ export default function AnnouncementModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Close the post-options dropdown when clicking outside of it.
     useEffect(() => {
         const handleDocumentClick = (event: MouseEvent) => {
             if (
@@ -99,7 +100,6 @@ export default function AnnouncementModal({
         return () => document.removeEventListener("mousedown", handleDocumentClick);
     }, []);
 
-    // Clear any pending tooltip timeout on unmount.
     useEffect(() => {
         return () => {
             if (tooltipTimeoutRef.current) {
@@ -119,25 +119,23 @@ export default function AnnouncementModal({
     };
 
     const handleCancel = () => {
+        setTitle("");
         setText("");
         handleClose();
     };
 
     const handlePost = () => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) return;
+
         const content = text.trim();
-        if (!content) return;
+        const files = attachments
+            .filter((a): a is Attachment & { file: File } => Boolean(a.file))
+            .map((a) => a.file);
 
-        // ---- Future backend integration ----
-        // await private_api_call({
-        //     path: `classrooms/${classroomId}/announcements`,
-        //     method: "POST",
-        //     body: {
-        //         content,
-        //         attachments,
-        //     },
-        // });
+        onPost(trimmedTitle, content, files);
 
-        onPost(content);
+        setTitle("");
         setText("");
         setAttachments([]);
         setIsPostMenuOpen(false);
@@ -156,11 +154,10 @@ export default function AnnouncementModal({
             type,
             name: file.name,
             url: URL.createObjectURL(file),
+            file,
         }));
 
         setAttachments((prev) => [...prev, ...newAttachments]);
-
-        // Reset the input so selecting the same file again still fires onChange.
         event.target.value = "";
     };
 
@@ -237,6 +234,18 @@ export default function AnnouncementModal({
                             All students
                         </button>
                     </div>
+                </div>
+
+                {/* Title — required by the API */}
+                <div className="px-7 pt-5">
+                    <input
+                        ref={titleInputRef}
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Title"
+                        className="w-full bg-transparent outline-none border-b border-surface-border pb-2 text-lg font-medium text-text-main placeholder:text-brand-primary/70"
+                    />
                 </div>
 
                 {/* Textarea + formatting + attachment chips */}
@@ -388,14 +397,14 @@ export default function AnnouncementModal({
                         </button>
                         <div ref={postMenuRef} className="relative flex items-center rounded overflow-hidden ml-2">
                             <button
-                                disabled={!hasText}
+                                disabled={!hasTitle}
                                 onClick={handlePost}
                                 className="font-medium text-sm px-4 py-2 disabled:bg-surface-border disabled:text-text-secondary enabled:bg-brand-primary/10 enabled:text-brand-primary transition-colors"
                             >
                                 Post
                             </button>
                             <button
-                                disabled={!hasText}
+                                disabled={!hasTitle}
                                 onClick={() => setIsPostMenuOpen((open) => !open)}
                                 aria-label="More post options"
                                 className="px-2 py-2 border-l border-surface-border disabled:bg-surface-border disabled:text-text-secondary enabled:bg-brand-primary/10 enabled:text-brand-primary transition-colors"
@@ -403,7 +412,7 @@ export default function AnnouncementModal({
                                 <ChevronDown size={16} />
                             </button>
 
-                            {isPostMenuOpen && hasText && (
+                            {isPostMenuOpen && hasTitle && (
                                 <div className="absolute bottom-full right-0 mb-2 w-40 bg-bg-card border border-surface-border rounded-lg shadow-xl overflow-hidden z-10">
                                     <button
                                         onClick={handlePost}

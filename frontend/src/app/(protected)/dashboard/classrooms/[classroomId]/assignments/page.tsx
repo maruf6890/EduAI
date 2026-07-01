@@ -194,22 +194,22 @@ export default function AssignmentsPage() {
         // ---------------------------------------------------------------------
         // TODO: POST /api/v1/classrooms/{classroom_id}/assignments
         //
-        // const body = new FormData();
-        // body.append("title", form.title);
-        // if (form.description) body.append("description", form.description);
-        // if (form.total_marks) body.append("total_marks", form.total_marks);
-        // if (form.due_date) body.append("due_date", new Date(form.due_date).toISOString());
-        // body.append("allow_late_submission", String(form.allow_late_submission));
-        // body.append("is_published", String(form.is_published));
-        // form.files.forEach((file) => body.append("files", file));
-        //
-        // const res = await fetch(`/api/v1/classrooms/${classroomId}/assignments`, {
-        //   method: "POST",
-        //   body,
-        // });
-        // const created: Assignment = await res.json();
-        // setAssignments((prev) => [created, ...prev]);
-        // ---------------------------------------------------------------------
+        const body = new FormData();
+        body.append("title", form.title);
+        if (form.description) body.append("description", form.description);
+        if (form.total_marks) body.append("total_marks", form.total_marks);
+        if (form.due_date) body.append("due_date", new Date(form.due_date).toISOString());
+        body.append("allow_late_submission", String(form.allow_late_submission));
+        body.append("is_published", String(form.is_published));
+        form.files.forEach((file) => body.append("files", file));
+
+        const res = await fetch(`/api/v1/classrooms/${classroomId}/assignments`, {
+            method: "POST",
+            body,
+        });
+        const created: Assignment = await res.json();
+        setAssignments((prev) => [created, ...prev]);
+
 
         // Temporary local-only insert so the UI is testable without a backend.
         const localAssignment: Assignment = {

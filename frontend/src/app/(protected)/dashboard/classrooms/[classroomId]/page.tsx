@@ -1,48 +1,3 @@
-// /**
-//  * @description: Classroom Detail Page
-//  * @route: /dashboard/classrooms/[classroomId]/contains announcements and other options
-//  */
-
-// import { notFound } from 'next/navigation';
-// import { public_api_call } from "@/actions/public_api_call";
-// import ClassroomHeader from '@/components/classroom/ClassroomHeader';
-// import ClassroomTabs from '@/components/classroom/ClassroomTabs';
-
-// interface ClassroomDetailPageProps {
-//     params: {
-//         classroomId: string;
-//     };
-// }
-
-// export default async function ClassroomDetailPage({ params }: ClassroomDetailPageProps) {
-//     const { classroomId } = params;
-//     // const classroom = await public_api_call(`/classrooms/${classroomId}`);
-
-
-//     const classroom = {
-//         id: classroomId,
-//         name: `Classroom ${classroomId}`,
-//         stats: {
-//             students: 10,
-//             assignments: 5,
-//             quizzes: 3,
-//             announcements: 2,
-//             calendar: 1,
-//         }
-//     }
-//     // if (!classroom) {
-//     //     notFound();
-//     // }
-
-//     return (
-//         <div className="min-h-screen bg-bg-main text-text-main">
-//             <ClassroomHeader classroom={classroom} />
-//             <ClassroomTabs classroomId={classroom.id} />
-
-
-//         </div>
-//     );
-// }
 "use client";
 
 /**
@@ -50,21 +5,22 @@
  * @route: /dashboard/classrooms/[classroomId]/contains announcements and other options
  */
 
-import { useState } from "react";
-import { notFound } from "next/navigation";
-import { public_api_call } from "@/actions/public_api_call";
+import { useEffect, useState } from "react";
+import { private_api_call } from "@/actions/private_api_call";
 import ClassroomHeader from "@/components/classroom/ClassroomHeader";
 import ClassroomTabs from "@/components/classroom/ClassroomTabs";
-// NOTE: adjust this import path to wherever your AnnouncementModal actually lives.
 import AnnouncementModal from "@/components/classroom/Announcementmodal";
+import type { Classroom } from "@/lib/types/classrooms";
+
 
 import { MessageSquare } from "lucide-react";
+import { useParams } from "next/navigation";
 
-interface ClassroomDetailPageProps {
-    params: {
-        classroomId: string;
-    };
-}
+// interface ClassroomDetailPageProps {
+//     params: {
+//         classroomId: string;
+//     };
+// }
 
 interface Comment {
     id: string;
@@ -76,91 +32,28 @@ interface Comment {
 
 interface Announcement {
     id: string;
+    title: string;
     author: string;
     role: "Instructor" | "Student";
     content: string;
     createdAt: string;
+    files: string[];
     comments: Comment[];
 }
 
-const dummyAnnouncements: Announcement[] = [
-    {
-        id: "1",
-        author: "John Doe",
-        role: "Instructor",
-        content:
-            "Welcome to the course! I'm excited to have all of you here this semester. Please take a moment to review the syllabus under Materials and introduce yourself in the comments below.",
-        createdAt: "2 days ago",
-        comments: [
-            {
-                id: "c1",
-                author: "Aisha Khan",
-                role: "Student",
-                content: "Excited to get started! Thanks for the warm welcome.",
-                createdAt: "1 day ago",
-            },
-            {
-                id: "c2",
-                author: "Marcus Lee",
-                role: "Student",
-                content: "Looking forward to this class, Professor Doe.",
-                createdAt: "1 day ago",
-            },
-        ],
-    },
-    {
-        id: "2",
-        author: "John Doe",
-        role: "Instructor",
-        content:
-            "Reminder: Assignment 1 is due this Friday at 11:59 PM. Late submissions will lose 10% per day. Reach out if you're stuck on Problem 3 — office hours are open all week.",
-        createdAt: "1 day ago",
-        comments: [
-            {
-                id: "c3",
-                author: "Priya Nair",
-                role: "Student",
-                content: "Is the office hours schedule posted anywhere?",
-                createdAt: "22 hours ago",
-            },
-        ],
-    },
-    {
-        id: "3",
-        author: "Sarah Chen",
-        role: "Instructor",
-        content:
-            "Great work on the midterm quiz, everyone! Average score was 87%. I've posted detailed feedback for each question under Quizzes. Let's go over the trickier ones in class tomorrow.",
-        createdAt: "3 days ago",
-        comments: [],
-    },
-    {
-        id: "4",
-        author: "John Doe",
-        role: "Instructor",
-        content:
-            "Class is moved to Room 214 for next week only due to a scheduling conflict in our usual room. Same time, 10:00 AM. Sorry for the short notice!",
-        createdAt: "4 days ago",
-        comments: [
-            {
-                id: "c4",
-                author: "Diego Ramirez",
-                role: "Student",
-                content: "Thanks for the heads up, appreciate it.",
-                createdAt: "4 days ago",
-            },
-        ],
-    },
-    {
-        id: "5",
-        author: "John Doe",
-        role: "Instructor",
-        content:
-            "New reading material has been uploaded for Chapter 4. It's optional but strongly recommended if you found last week's lecture on recursion tricky.",
-        createdAt: "6 days ago",
-        comments: [],
-    },
-];
+// ---- Shape guessed from the swagger form fields (title, content, files). ----
+// Adjust field names here once you can see a real response payload —
+// this is the only place that needs to change.
+interface BackendAnnouncement {
+    id: number | string;
+    title: string;
+    content?: string | null;
+    files?: string[];
+    created_at?: string;
+    createdAt?: string;
+    teacher?: { id: number; name?: string; full_name?: string };
+    teacher_name?: string;
+}
 
 function getInitials(name: string) {
     return name
@@ -171,12 +64,52 @@ function getInitials(name: string) {
         .toUpperCase();
 }
 
-export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps) {
-    const { classroomId } = params;
+function formatRelativeTime(dateString?: string) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const diffMs = Date.now() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) return "Just now";
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+function mapAnnouncement(item: BackendAnnouncement): Announcement {
+    const authorName =
+        item.teacher?.full_name ||
+        item.teacher?.name ||
+        item.teacher_name ||
+        "Instructor";
+
+    return {
+        id: String(item.id),
+        title: item.title,
+        author: authorName,
+        role: "Instructor",
+        content: item.content ?? "",
+        createdAt: formatRelativeTime(item.created_at ?? item.createdAt),
+        files: item.files ?? [],
+        // No comment endpoints exist in the provided API surface —
+        // comments stay local/UI-only until that's added on the backend.
+        comments: [],
+    };
+}
+
+export default function ClassroomDetailPage() {
+
+    const params = useParams();
+    const classroomId = params.classroomId as string;
+    // const { classroomId } = params;
 
     // ============ BACKEND: GET classroom ============
-    // const classroom = await public_api_call(`/classrooms/${classroomId}`);
-
+    // No classroom-detail endpoint was provided, so this stays mocked.
     const classroom = {
         id: classroomId,
         name: `Classroom ${classroomId}`,
@@ -189,72 +122,99 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
         },
     };
 
-    // if (!classroom) {
-    //   notFound();
-    // }
-
-    // TODO: derive from auth/session once backend is wired up.
+    // TODO: derive from auth/session once that's wired up.
     const isTeacher = true;
 
-    const [announcements, setAnnouncements] = useState<Announcement[]>(dummyAnnouncements);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
-    // ============ BACKEND: GET announcements ============
-    // useEffect(() => {
-    //   const fetchAnnouncements = async () => {
-    //     const res = await public_api_call(`/classrooms/${classroomId}/announcements`);
-    //     setAnnouncements(res.data);
-    //   };
-    //   fetchAnnouncements();
-    // }, [classroomId]);
+    useEffect(() => {
+        let isMounted = true;
 
-    const handlePost = (content: string) => {
-        if (!content.trim()) return;
+        const fetchAnnouncements = async () => {
+            setIsLoading(true);
+            const endpoint = isTeacher
+                ? `api/v1/classrooms/${classroomId}/announcements/teacher`
+                : `api/v1/classrooms/${classroomId}/announcements/student`;
 
-        const newAnnouncement: Announcement = {
-            id: crypto.randomUUID(),
-            author: "You",
-            role: "Instructor",
-            content,
-            createdAt: "Just now",
-            comments: [],
+            const res = await private_api_call({ path: endpoint, method: "GET" });
+
+            if (!isMounted) return;
+
+            if (res.success && Array.isArray(res.data)) {
+                setAnnouncements(res.data.map(mapAnnouncement));
+            } else if (!res.success) {
+                console.error("Failed to load announcements:", res.message);
+            }
+            setIsLoading(false);
         };
 
-        setAnnouncements((prev) => [newAnnouncement, ...prev]);
-        setIsModalOpen(false);
+        fetchAnnouncements();
+        return () => {
+            isMounted = false;
+        };
+    }, [classroomId, isTeacher]);
 
-        // ============ BACKEND: POST announcement ============
-        // const res = await public_api_call(`/classrooms/${classroomId}/announcements`, {
-        //   method: "POST",
-        //   body: { content },
-        // });
-        // Once wired up, replace the optimistic entry above with res.data,
-        // or re-fetch the feed to stay in sync.
+    const handlePost = async (title: string, content: string, files: File[]) => {
+        const formData = new FormData();
+        formData.append("title", title);
+        if (content) formData.append("content", content);
+        files.forEach((file) => formData.append("files", file));
+
+        const res = await private_api_call({
+            path: `api/v1/classrooms/${classroomId}/announcements`,
+            method: "POST",
+            body: formData,
+        });
+
+        if (res.success && res.data) {
+            setAnnouncements((prev) => [mapAnnouncement(res.data), ...prev]);
+        } else {
+            console.error("Failed to post announcement:", res.message);
+        }
+
+        setIsModalOpen(false);
     };
 
-    // ============ BACKEND: DELETE announcement ============
-    // const handleDeleteAnnouncement = async (announcementId: string) => {
-    //   await public_api_call(`/classrooms/${classroomId}/announcements/${announcementId}`, {
-    //     method: "DELETE",
-    //   });
-    //   setAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
-    // };
+    const handleDeleteAnnouncement = async (announcementId: string) => {
+        const res = await private_api_call({
+            path: `api/v1/classrooms/${classroomId}/announcements/${announcementId}`,
+            method: "DELETE",
+        });
 
-    // ============ BACKEND: EDIT announcement ============
-    // const handleEditAnnouncement = async (announcementId: string, content: string) => {
-    //   await public_api_call(`/classrooms/${classroomId}/announcements/${announcementId}`, {
-    //     method: "PATCH",
-    //     body: { content },
-    //   });
-    //   setAnnouncements((prev) =>
-    //     prev.map((a) => (a.id === announcementId ? { ...a, content } : a))
-    //   );
-    // };
+        if (res.success) {
+            setAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
+        } else {
+            console.error("Failed to delete announcement:", res.message);
+        }
+    };
+
+    // Not wired to a button yet since there's no edit UI in this design —
+    // call this from wherever you add an "Edit" action.
+    const handleEditAnnouncement = async (
+        announcementId: string,
+        updates: { title?: string; content?: string },
+    ) => {
+        const res = await private_api_call({
+            path: `api/v1/classrooms/${classroomId}/announcements/${announcementId}`,
+            method: "PUT",
+            body: updates,
+        });
+
+        if (res.success && res.data) {
+            setAnnouncements((prev) =>
+                prev.map((a) => (a.id === announcementId ? mapAnnouncement(res.data) : a)),
+            );
+        } else {
+            console.error("Failed to update announcement:", res.message);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-bg-main text-text-main">
-            <ClassroomHeader classroom={classroom} />
+            {/* <ClassroomHeader classroom={classroom} /> */}
             <ClassroomTabs classroomId={classroom.id} />
 
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
@@ -271,7 +231,11 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                     </button>
                 )}
 
-                {announcements.length === 0 ? (
+                {isLoading ? (
+                    <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-10 text-center">
+                        <p className="text-sm text-zinc-500">Loading announcements…</p>
+                    </div>
+                ) : announcements.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-10 text-center">
                         <p className="text-sm text-zinc-500">
                             No announcements yet. Post something to get the conversation started.
@@ -305,22 +269,52 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                                             </div>
                                             <span className="text-xs text-zinc-500">{announcement.createdAt}</span>
                                         </div>
+
+                                        {isTeacher && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteAnnouncement(announcement.id)}
+                                                className="ml-auto text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
                                     </div>
 
+                                    {/* Title (required field from backend) */}
+                                    {announcement.title && (
+                                        <h3 className="mt-4 text-sm font-semibold text-zinc-100">
+                                            {announcement.title}
+                                        </h3>
+                                    )}
+
                                     {/* Content */}
-                                    <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-zinc-300">
-                                        {announcement.content}
-                                    </p>
+                                    {announcement.content && (
+                                        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-zinc-300">
+                                            {announcement.content}
+                                        </p>
+                                    )}
 
-                                    {/* Attachment placeholder — wire up once attachments exist */}
-                                    {/*
-                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-800/40 p-3">
-                    <Paperclip className="h-4 w-4 text-zinc-500" />
-                    <span className="text-sm text-zinc-400">attachment-name.pdf</span>
-                  </div>
-                  */}
-
-                                    {/* Comments */}
+                                    {/* Attachments from backend */}
+                                    {/* Attachments from backend */}
+                                    {announcement.files.length > 0 && (
+                                        <div className="mt-4 flex flex-col gap-2">
+                                            {announcement.files.map((fileUrl, index) => (
+                                                <a
+                                                    key={fileUrl + index}
+                                                    href={fileUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-800/40 p-3 hover:border-zinc-700 transition-colors"
+                                                >
+                                                    <span className="text-sm text-zinc-400 truncate">
+                                                        {fileUrl.split("/").pop()}
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {/* Comments — local only, no backend endpoint provided yet */}
                                     <div className="mt-3 border-t border-zinc-800 pt-3">
                                         <button
                                             type="button"
@@ -368,13 +362,6 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                                                     ))
                                                 )}
 
-                                                {/* ============ BACKEND: POST comment ============ */}
-                                                {/*
-                        const res = await public_api_call(
-                          `/classrooms/${classroomId}/announcements/${announcement.id}/comments`,
-                          { method: "POST", body: { content } }
-                        );
-                        */}
                                                 <div className="flex items-center gap-3 pt-1">
                                                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xs font-semibold text-zinc-200">
                                                         Y

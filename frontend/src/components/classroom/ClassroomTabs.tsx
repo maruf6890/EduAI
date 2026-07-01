@@ -18,6 +18,8 @@ type TabKey = (typeof TABS)[number]['key'];
 export default function ClassroomTabs({ classroomId }: { classroomId: string }) {
     const router = useRouter();
     const pathname = usePathname();
+    // console.log("ClassroomTabs classroomId:", classroomId);
+    // console.log("Current pathname:", pathname);
     // const [activeTab, setActiveTab] = useState<TabKey>('announcements');
 
     return (
