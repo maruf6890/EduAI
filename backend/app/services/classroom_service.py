@@ -5,12 +5,10 @@ from fastapi import HTTPException, status
 
 
 def _generate_join_code(length: int = 8) -> str:
-    """Generate a random alphanumeric join code e.g. 'A3FX92BT'."""
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
 def _unique_join_code(conn) -> str:
-    """Keep generating until we get one that doesn't exist yet."""
     while True:
         code = _generate_join_code()
         with conn.cursor() as cur:
@@ -20,7 +18,6 @@ def _unique_join_code(conn) -> str:
 
 
 def _serialize(row: dict) -> dict:
-    """Convert datetime fields to ISO strings for JSON response."""
     row = dict(row)
     if row.get("created_at"):
         row["created_at"] = row["created_at"].isoformat()
@@ -29,16 +26,7 @@ def _serialize(row: dict) -> dict:
     return row
 
 
-
-def create_classroom(
-    conn,
-    owner_id: int,
-    name: str,
-    course_code: str,
-    course_title: str,
-    description: str | None,
-    semester: str | None,
-) -> dict:
+def create_classroom(conn, owner_id, name, course_code, course_title, description, semester) -> dict:
     join_code = _unique_join_code(conn)
 
     with conn.cursor() as cur:
@@ -54,11 +42,14 @@ def create_classroom(
         )
         classroom = cur.fetchone()
 
-    return {"classroom": _serialize(classroom)}
+    return {
+        "success": True,
+        "message": "Classroom created successfully",
+        "data": _serialize(classroom),
+    }
 
 
 def get_my_classrooms(conn, owner_id: int) -> dict:
-    """All classrooms owned by the current user."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -72,11 +63,14 @@ def get_my_classrooms(conn, owner_id: int) -> dict:
         )
         rows = cur.fetchall()
 
-    return {"classrooms": [_serialize(r) for r in rows]}
+    return {
+        "success": True,
+        "message": "Classrooms fetched successfully",
+        "data": [_serialize(r) for r in rows],
+    }
 
 
 def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
-    """Get a single classroom — only the owner can view it."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -95,21 +89,14 @@ def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
     if classroom["owner_id"] != owner_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    return {"classroom": _serialize(classroom)}
+    return {
+        "success": True,
+        "message": "Classroom fetched successfully",
+        "data": _serialize(classroom),
+    }
 
 
-def update_classroom(
-    conn,
-    classroom_id: int,
-    owner_id: int,
-    name: str | None,
-    course_code: str | None,
-    course_title: str | None,
-    description: str | None,
-    semester: str | None,
-    is_active: bool | None,
-) -> dict:
-    # Verify ownership first
+def update_classroom(conn, classroom_id, owner_id, name, course_code, course_title, description, semester, is_active) -> dict:
     with conn.cursor() as cur:
         cur.execute("SELECT owner_id FROM classrooms WHERE id = %s", (classroom_id,))
         row = cur.fetchone()
@@ -120,7 +107,6 @@ def update_classroom(
     if row["owner_id"] != owner_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    # Build SET clause dynamically from only the fields provided
     fields = {
         "name": name,
         "course_code": course_code,
@@ -150,7 +136,11 @@ def update_classroom(
         )
         classroom = cur.fetchone()
 
-    return {"classroom": _serialize(classroom)}
+    return {
+        "success": True,
+        "message": "Classroom updated successfully",
+        "data": _serialize(classroom),
+    }
 
 
 def delete_classroom(conn, classroom_id: int, owner_id: int) -> dict:
@@ -167,11 +157,14 @@ def delete_classroom(conn, classroom_id: int, owner_id: int) -> dict:
     with conn.cursor() as cur:
         cur.execute("DELETE FROM classrooms WHERE id = %s", (classroom_id,))
 
-    return {"message": "Classroom deleted successfully"}
+    return {
+        "success": True,
+        "message": "Classroom deleted successfully",
+        "data": None,
+    }
 
 
 def regenerate_join_code(conn, classroom_id: int, owner_id: int) -> dict:
-    """Owner can get a fresh join code anytime."""
     with conn.cursor() as cur:
         cur.execute("SELECT owner_id FROM classrooms WHERE id = %s", (classroom_id,))
         row = cur.fetchone()
@@ -195,4 +188,8 @@ def regenerate_join_code(conn, classroom_id: int, owner_id: int) -> dict:
         )
         updated = cur.fetchone()
 
-    return {"join_code": updated["join_code"]}
+    return {
+        "success": True,
+        "message": "Join code regenerated successfully",
+        "data": {"join_code": updated["join_code"]},
+    }
