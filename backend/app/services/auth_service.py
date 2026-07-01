@@ -14,11 +14,11 @@ from app.core.security import (
 
 
 def register(conn, email: str, full_name: str, password: str) -> dict:
+    print(f"Registering user with email: {email}")
     with conn.cursor() as cur:
         cur.execute("SELECT id FROM users WHERE email = %s", (email,))
         if cur.fetchone():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-
         cur.execute(
             """
             INSERT INTO users (email, full_name, password_hash)
