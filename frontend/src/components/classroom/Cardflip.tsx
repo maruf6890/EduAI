@@ -1,50 +1,35 @@
+
+
+
 'use client';
 
 /**
  * @description: Premium Classroom Flip Card Component
- * @version: 2.0.0
+ * @version: 3.0.0
+ *
+ * `ClassroomCard` now lives in `lib/types/classroom.ts` as the single
+ * source of truth (see that file for the DTO -> UI mapping rationale).
+ * This component only renders it — it no longer defines or duplicates
+ * the type.
  */
 
 import { cn } from '@/lib/utils';
+import type { ClassroomCard, UpcomingItem } from '@/lib/types/classrooms';
 import {
   Bell,
   BookOpen,
   CalendarDays,
   ClipboardList,
   GraduationCap,
-  Sparkles,
   Users,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface UpcomingItem {
-  id: string;
-  title: string;
-  type: 'assignment' | 'quiz' | 'announcement';
-  dueAt: string;
-}
-
-export interface ClassroomCard {
-  id: string;
-  name: string;
-  courseCode: string;
-  instructor: string;
-  coverImage?: string;
-  /** Tailwind gradient classes used as the cover stripe when no image provided */
-  accentGradient?: string;
-  semester: string;
-  role: 'teacher' | 'student';
-  stats: {
-    students: number;
-    materials: number;
-    assignments: number;
-    quizzes: number;
-  };
-  upcoming: UpcomingItem[];
-  // aiInsight?: string;
-}
+// Re-exported for convenience so existing `import { ClassroomCard } from
+// '@/components/classroom/Cardflip'` call sites keep working during
+// migration. Prefer importing from '@/lib/types/classroom' going forward.
+export type { ClassroomCard } from '@/lib/types/classrooms';
 
 export interface CardFlipProps {
   classroom: ClassroomCard;
@@ -74,9 +59,15 @@ const upcomingLabel: Record<UpcomingItem['type'], string> = {
 
 export default function CardFlip({ classroom }: CardFlipProps) {
   const [flipped, setFlipped] = useState(false);
+  const router = useRouter();
 
   const gradient =
     classroom.accentGradient ?? 'from-indigo-600 via-violet-500 to-purple-600';
+
+  // Only show a subtitle line if courseTitle actually adds information
+  // beyond the primary name (avoids "Algorithms / Algorithms" repetition).
+  const showCourseTitle =
+    classroom.courseTitle && classroom.courseTitle !== classroom.name;
 
   return (
     <div
@@ -125,7 +116,8 @@ export default function CardFlip({ classroom }: CardFlipProps) {
             {/* Fade into card body */}
             <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#161820] to-transparent" />
 
-            {/* Role badge */}
+            {/* Role badge — dynamic per-card, since the dashboard now mixes
+                taught and enrolled classes in one grid. */}
             <span
               className={cn(
                 'absolute top-3 right-3 rounded-full border px-2.5 py-1',
@@ -151,6 +143,11 @@ export default function CardFlip({ classroom }: CardFlipProps) {
               <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-white">
                 {classroom.name}
               </h3>
+              {showCourseTitle && (
+                <p className="mt-0.5 truncate text-[12px] text-white/45">
+                  {classroom.courseTitle}
+                </p>
+              )}
               <p className="mt-0.5 font-mono text-[12px] text-white/40">
                 {classroom.courseCode}
               </p>
@@ -212,11 +209,11 @@ export default function CardFlip({ classroom }: CardFlipProps) {
           {/* Top accent line (matches front cover gradient) */}
           <div className={cn('h-1 w-full shrink-0 bg-gradient-to-r', gradient)} />
 
-          <div className="flex flex-1 flex-col gap-4 overflow-hidden px-5 py-4">
+          <div className="flex flex-1 flex-col gap-3 overflow-hidden px-5 py-4">
 
             {/* Header */}
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-[14px] font-semibold leading-snug text-white">
                   {classroom.name}
                 </h3>
@@ -230,70 +227,69 @@ export default function CardFlip({ classroom }: CardFlipProps) {
               </div>
             </div>
 
+            {/* Description — only the DB schema's `description` column, when present */}
+            {classroom.description && (
+              <p
+                className="line-clamp-2 text-[11px] leading-relaxed text-white/45 transition-all duration-500"
+                style={{
+                  opacity: flipped ? 1 : 0,
+                  transitionDelay: '100ms',
+                }}
+              >
+                {classroom.description}
+              </p>
+            )}
+
             {/* Upcoming items */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
               <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/25">
                 Upcoming
               </p>
-              {classroom.upcoming.map((item, i) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.04] px-3 py-2.5 transition-all duration-500"
-                  style={{
-                    transform: flipped ? 'translateX(0)' : 'translateX(-8px)',
-                    opacity: flipped ? 1 : 0,
-                    transitionDelay: `${i * 80 + 150}ms`,
-                  }}
-                >
-                  <span
-                    className={cn(
-                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
-                      upcomingBadgeClass[item.type],
-                    )}
+              {classroom.upcoming.length === 0 ? (
+                <p className="text-[11px] text-white/25">Nothing due right now.</p>
+              ) : (
+                classroom.upcoming.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className="flex items-start gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.04] px-3 py-2.5 transition-all duration-500"
+                    style={{
+                      transform: flipped ? 'translateX(0)' : 'translateX(-8px)',
+                      opacity: flipped ? 1 : 0,
+                      transitionDelay: `${i * 80 + 150}ms`,
+                    }}
                   >
-                    {upcomingIcon(item.type)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12px] font-medium leading-tight text-white/80">
-                      {item.title}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          'rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider',
-                          upcomingBadgeClass[item.type],
-                        )}
-                      >
-                        {upcomingLabel[item.type]}
-                      </span>
-                      <span className="text-[10px] text-white/25">{item.dueAt}</span>
+                    <span
+                      className={cn(
+                        'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
+                        upcomingBadgeClass[item.type],
+                      )}
+                    >
+                      {upcomingIcon(item.type)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12px] font-medium leading-tight text-white/80">
+                        {item.title}
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            'rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider',
+                            upcomingBadgeClass[item.type],
+                          )}
+                        >
+                          {upcomingLabel[item.type]}
+                        </span>
+                        <span className="text-[10px] text-white/25">{item.dueAt}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-
-            {/* AI Insight */}
-            {/* <div
-              className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.07] px-3.5 py-3 transition-all duration-700"
-              style={{
-                opacity: flipped ? 1 : 0,
-                transitionDelay: '420ms',
-              }}
-            >
-              <div className="mb-1.5 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400">
-                  AI Insight
-                </span>
-              </div>
-              {/* <p className="line-clamp-3 text-[11px] leading-relaxed text-white/50">
-                {classroom.aiInsight}
-              </p> */}
-            {/* </div> */}
 
             {/* Open Classroom button */}
             <button
+              onClick={() => router.push(`/dashboard/classrooms/${classroom.id}`)}
               className={cn(
                 'mt-auto w-full rounded-xl py-2.5 px-4',
                 'flex items-center justify-center gap-2',

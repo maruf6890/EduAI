@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 // import { createClassroom } from '@/src/actions/private_api_call/classrooms';
 import { private_api_call } from "@/actions/private_api_call";
-import type { Classroom } from '@/lib/types/classroom';
+import type { Classroom } from '@/lib/types/classrooms';
 
 
 
@@ -60,13 +60,6 @@ interface CreateClassroomProps {
 }
 
 export default function CreateClassroom({ open, onOpenChange, onSuccess }: CreateClassroomProps) {
-
-    //       "name": "string",
-    //   "course_code": "string",
-    //   "course_title": "string",
-    //   "description": "string",
-    //   "semester": "string"
-
 
     const [name, setName] = useState('');
     const [course_code, setCourse_code] = useState('');

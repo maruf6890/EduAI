@@ -6,24 +6,24 @@
  * assumes a superset that covers both the card list and the detail page.
  */
 
-export interface ClassroomStats {
-    students: number;
-    assignments: number;
-    quizzes: number;
-}
+// export interface ClassroomStats {
+//     students: number;
+//     assignments: number;
+//     quizzes: number;
+// }
 
-export interface ClassroomInstructor {
-    id?: string;
-    name: string;
-    avatarUrl?: string;
-}
+// export interface ClassroomInstructor {
+//     id?: string;
+//     name: string;
+//     avatarUrl?: string;
+// }
 
-export interface Classroom {
-    id: string;
-    name: string;
-    code?: string;
-    semester?: string;
-    instructor?: ClassroomInstructor;
-    coverColor?: string;
-    stats: ClassroomStats;
-}
+// export interface Classroom {
+//     id: string;
+//     name: string;
+//     code?: string;
+//     semester?: string;
+//     instructor?: ClassroomInstructor;
+//     coverColor?: string;
+//     stats: ClassroomStats;
+// }
