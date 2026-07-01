@@ -1,7 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
-from app.config import GOOGLE_API_KEY
-from app.schemas import StudentRouteDecision, TeacherRouteDecision, QuizExtraction
+from app.agents.config import GOOGLE_API_KEY
+from app.schemas.chat_schema import StudentRouteDecision, TeacherRouteDecision, QuizExtraction
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",

@@ -10,14 +10,13 @@ Invoked from app/graph/nodes.py::planner_node as:
 """
 
 from __future__ import annotations
-
 import json
 from typing import TypedDict, List, Dict, Any, Optional, Literal
 
 from langgraph.graph import StateGraph, START, END
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field,ConfigDict
 
-from app.llm import llm
+from app.agents.llm import llm
 
 NodeType = Literal["start", "topic", "practice", "assessment", "milestone", "end"]
 
@@ -29,13 +28,11 @@ class NodeModel(BaseModel):
 
 
 class EdgeModel(BaseModel):
-    from_: str
+    from_: str = Field(alias="from")
     to: str
-
-    class Config:
-        populate_by_name = True
-        fields = {"from_": "from"}
-
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
 
 class FlowModel(BaseModel):
     nodes: List[NodeModel]

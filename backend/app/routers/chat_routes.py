@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+import json
 
-from app.db import get_db
-from app import chat_store
-from app.schemas import CreateSessionRequest, ChatRequest, ChatResponse
-from app.graph.build_graph import agent_graph
+from app.agents.db import get_db
+from app.agents import chat_store
+from app.schemas.chat_schema import CreateSessionRequest, ChatRequest, ChatResponse
+from app.agents.graph.build_graph import agent_graph
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -35,7 +36,7 @@ def get_messages(session_id: int, conn=Depends(get_db)):
     return {"success": True, "message": "Messages fetched", "data": messages}
 
 
-@router.post("/sessions/{session_id}/message", response_model=ChatResponse)
+@router.post("/sessions/{session_id}/message")
 def send_message(session_id: int, payload: ChatRequest, conn=Depends(get_db)):
     session = chat_store.get_session(conn, session_id)
     if not session:
@@ -59,11 +60,15 @@ def send_message(session_id: int, payload: ChatRequest, conn=Depends(get_db)):
     answer = result.get("answer") or ""
 
     # persist both turns
-    chat_store.save_message(conn, session_id, "human", {"content": payload.question})
-    chat_store.save_message(conn, session_id, "ai", {"content": answer})
+    chat_store.save_message(conn, session_id, "human", {"content": payload.question}, tool_result=None)
+    chat_store.save_message(conn, session_id, "ai", {"content": answer}, tool_result=result.get("tool_result"))
 
-    return ChatResponse(
-        session_id=session_id,
-        answer=answer,
-        next_route=result.get("next_route"),
-    )
+    json_result = None
+    if result.get("tool_result"):
+            json_result = json.loads(result["tool_result"])
+    
+    return {
+        "session_id": session_id,
+        "answer": answer,
+        "tool_result": json_result
+    }

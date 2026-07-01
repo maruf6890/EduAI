@@ -19,6 +19,7 @@ from app.routers.calendar import router as calendar_router
 from app.routers.quiz import router as quiz_router
 from app.routers.discussion import router as discussion_router
 from app.routers.material import router as material_router
+from app.routers.chat_routes import router as chat_router
 
 
 @asynccontextmanager
@@ -78,7 +79,7 @@ app.include_router(calendar_router, prefix="/api/v1")
 app.include_router(quiz_router, prefix="/api/v1")
 app.include_router(discussion_router, prefix="/api/v1")
 app.include_router(material_router, prefix="/api/v1")
-
+app.include_router(chat_router, prefix="/api/v1")
 
 @app.get("/health", tags=["Health"])
 def health():

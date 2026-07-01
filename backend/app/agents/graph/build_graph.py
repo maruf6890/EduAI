@@ -25,8 +25,8 @@ student_route  teacher_route    <- each is an LLM call that decides next_route
 
 from langgraph.graph import StateGraph, START, END
 
-from app.state import AgentState
-from app.graph.nodes import (
+from app.agents.state import AgentState
+from app.agents.graph.nodes import (
     role_router,
     student_route_node,
     student_router,

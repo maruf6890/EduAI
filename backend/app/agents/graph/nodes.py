@@ -1,21 +1,3 @@
-"""
-Node functions for the main agent graph.
-
-This is the "merged" version: rag_node, quiz_node, and tools_node are
-thin adapters that build a sub-state dict from the shared AgentState,
-invoke the corresponding compiled subgraph (each with its own state
-schema — see app/subgraphs/), and map the result back onto AgentState.
-planner_node is new, wrapping the workflow-planning subgraph.
-
-Bugs fixed vs. the original notebook code (unchanged from before):
-- role_route split into role_router (router) with no dedicated node.
-- student_route split into student_route_node (LLM call, stores
-  next_route) + student_router (reads it back for the conditional edge).
-  Same split applied to teacher.
-- chat_route no longer mutates state in place; every node returns only
-  the new keys it produced (required for LangGraph's reducers to work
-  correctly and to avoid InvalidUpdateError on parallel branches).
-"""
 
 from __future__ import annotations
 
@@ -24,9 +6,9 @@ from typing import Dict, List
 
 from langchain_core.messages import HumanMessage, AIMessage
 
-from app.state import AgentState
-from app.llm import llm, student_router_llm, teacher_router_llm, quiz_extraction_llm
-
+from app.agents.state import AgentState
+from app.agents.llm import llm, student_router_llm, teacher_router_llm, quiz_extraction_llm
+from loguru import logger
 
 # ---------------------------------------------------------------------------
 # Role routing (student vs teacher) — routes straight off START
@@ -144,13 +126,14 @@ User Question:
 # merge + heuristic rerank + context build + answer)
 # ---------------------------------------------------------------------------
 def rag_node(state: AgentState) -> AgentState:
-    from app.subgraphs.rag_subgraph import rag_subgraph_app
-
+    from app.agents.subgraphs.rag_subgraph import rag_subgraph_app
+    logger.info(f"rag_node subgraph result: rag_subgraph_app")
     sub_result = rag_subgraph_app.invoke({
         "question": state["question"],
         "classroom_id": state.get("classroom_id"),
         "conn": state["conn"],
     })
+    
 
     answer = sub_result.get("answer", "")
     documents = [c["content"] for c in sub_result.get("reranked_results", [])]
@@ -170,7 +153,7 @@ def rag_node(state: AgentState) -> AgentState:
 # create_quiz_by_agent).
 # ---------------------------------------------------------------------------
 def quiz_node(state: AgentState) -> AgentState:
-    from app.subgraphs.quiz_subgraph import quiz_subgraph_app
+    from app.agents.subgraphs.quiz_subgraph import quiz_subgraph_app
 
     extraction = quiz_extraction_llm.invoke(
         "Extract quiz creation details from this request. If specific "
@@ -219,7 +202,7 @@ def quiz_node(state: AgentState) -> AgentState:
 # tools_node — delegates to the calendar/task ReAct tool-calling subgraph
 # ---------------------------------------------------------------------------
 def tools_node(state: AgentState) -> AgentState:
-    from app.subgraphs.calendar_tools_subgraph import build_calendar_task_agent
+    from app.agents.subgraphs.calendar_tools_subgraph import build_calendar_task_agent
 
     tool_agent = build_calendar_task_agent(
         conn=state["conn"],
@@ -240,11 +223,11 @@ def tools_node(state: AgentState) -> AgentState:
 # planner_node — delegates to the workflow-planning subgraph
 # ---------------------------------------------------------------------------
 def planner_node(state: AgentState) -> AgentState:
-    from app.subgraphs.planner_subgraph import planner_subgraph_app
+    from app.agents.subgraphs.planner_subgraph import planner_subgraph_app
 
     result = planner_subgraph_app.invoke({
         "topic": state["question"],
-        "max_attempts": 3,
+        "max_attempts": 2,
         "attempts": 0,
         "validation_errors": [],
     })

@@ -92,18 +92,18 @@ def _session_row_to_dict(row) -> dict:
 # ---------------------------------------------------------------------------
 # chat_messages
 # ---------------------------------------------------------------------------
-def save_message(conn, session_id: int, message_type: str, message: Dict[str, Any]) -> dict:
+def save_message(conn, session_id: int, message_type: str, message: Dict[str, Any], tool_result: Dict[str, Any]=None) -> dict:
     """message_type is one of 'human' | 'ai' | 'system'. `message` is a
     plain dict stored as JSONB, e.g. {"content": "..."}."""
     curr = conn.cursor()
     try:
         curr.execute(
             """
-            INSERT INTO chat_messages (session_id, message_type, message)
-            VALUES (%s, %s, %s)
-            RETURNING id, session_id, message_type, message, created_at;
+            INSERT INTO chat_messages (session_id, message_type, message, tool_result)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, session_id, message_type, message, tool_result, created_at;
             """,
-            (session_id, message_type, json.dumps(message)),
+            (session_id, message_type, json.dumps(message), json.dumps(tool_result) if tool_result else None),
         )
         row = curr.fetchone()
         conn.commit()
@@ -113,7 +113,8 @@ def save_message(conn, session_id: int, message_type: str, message: Dict[str, An
             "session_id": row[1],
             "message_type": row[2],
             "message": row[3],
-            "created_at": row[4].isoformat(),
+            "tool_result": row[4],
+            "created_at": row[5].isoformat(),
         }
     except Exception as e:
         conn.rollback()
@@ -127,7 +128,7 @@ def list_messages(conn, session_id: int) -> List[dict]:
     try:
         curr.execute(
             """
-            SELECT id, message_type, message, created_at
+            SELECT id, message_type, message, tool_result, created_at
             FROM chat_messages
             WHERE session_id = %s
             ORDER BY created_at ASC;
@@ -136,7 +137,7 @@ def list_messages(conn, session_id: int) -> List[dict]:
         )
         rows = curr.fetchall()
         return [
-            {"id": r[0], "message_type": r[1], "message": r[2], "created_at": r[3].isoformat()}
+            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": r[3], "created_at": r[4].isoformat()}
             for r in rows
         ]
     finally:
@@ -153,7 +154,7 @@ def load_messages(conn, session_id: int) -> List[BaseMessage]:
     try:
         curr.execute(
             """
-            SELECT message_type, message
+            SELECT message_type, message, tool_result
             FROM chat_messages
             WHERE session_id = %s
             ORDER BY created_at ASC;
@@ -162,7 +163,7 @@ def load_messages(conn, session_id: int) -> List[BaseMessage]:
         )
         rows = curr.fetchall()
         result: List[BaseMessage] = []
-        for message_type, message in rows:
+        for message_type, message, tool_result in rows:
             cls = _TYPE_TO_CLASS.get(message_type, HumanMessage)
             content = message.get("content", "") if isinstance(message, dict) else str(message)
             result.append(cls(content=content))

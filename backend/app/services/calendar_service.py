@@ -361,7 +361,7 @@ def create_personal_task_by_agent(
         return False
 
 
-def get_my_calendar_by_agent(conn, user_id: int) -> bool:
+def get_my_calendar_by_agent(conn, user_id: int) :
     """
     Returns True if calendar events can be retrieved successfully,
     otherwise False.
@@ -418,7 +418,7 @@ def get_my_calendar_by_agent(conn, user_id: int) -> bool:
             )
             personal_tasks = [_serialize(dict(r)) for r in cur.fetchall()]
 
-        return True
+        return owned_events + enrolled_events + personal_tasks
 
     except Exception:
         return False

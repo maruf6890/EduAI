@@ -40,4 +40,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     session_id: int
     answer: str
-    next_route: Optional[str] = None
+    tool_result: Optional[str] = None

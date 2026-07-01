@@ -24,7 +24,7 @@ from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, ValidationError, field_validator
 from rank_bm25 import BM25Okapi
 
-from app.llm import llm, embeddings
+from app.agents.llm import llm, embeddings
 
 
 # ---------------------------------------------------------------------------

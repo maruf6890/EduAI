@@ -19,108 +19,108 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.tools import tool
 from langchain_core.messages import BaseMessage, SystemMessage
-
-from app.llm import llm
+from  app.services.calendar_service import get_my_calendar, create_personal_task_by_agent
+from app.agents.llm import llm
 
 
 # ---------------------------------------------------------------------------
 # get_classroom_calendar / create_personal_task_by_agent — real DB logic
 # ---------------------------------------------------------------------------
-def get_classroom_calendar(conn, classroom_id: int, user_id: int) -> dict:
-    """Expects an `events` table:
-    events(id, classroom_id, title, description, event_date, event_type,
-           reference_id, created_by, is_personal, created_at, updated_at)
-    """
-    curr = conn.cursor()
-    try:
-        curr.execute(
-            """
-            SELECT id, classroom_id, title, description, event_date,
-                   event_type, reference_id, created_by, is_personal,
-                   created_at, updated_at
-            FROM events
-            WHERE classroom_id = %s AND is_personal = FALSE
-            ORDER BY event_date;
-            """,
-            (classroom_id,),
-        )
-        classroom_rows = curr.fetchall()
+# def get_classroom_calendar(conn, classroom_id: int, user_id: int) -> dict:
+#     """Expects an `events` table:
+#     events(id, classroom_id, title, description, event_date, event_type,
+#            reference_id, created_by, is_personal, created_at, updated_at)
+#     """
+#     curr = conn.cursor()
+#     try:
+#         curr.execute(
+#             """
+#             SELECT id, classroom_id, title, description, event_date,
+#                    event_type, reference_id, created_by, is_personal,
+#                    created_at, updated_at
+#             FROM events
+#             WHERE classroom_id = %s AND is_personal = FALSE
+#             ORDER BY event_date;
+#             """,
+#             (classroom_id,),
+#         )
+#         classroom_rows = curr.fetchall()
 
-        curr.execute(
-            """
-            SELECT id, classroom_id, title, description, event_date,
-                   event_type, reference_id, created_by, is_personal,
-                   created_at, updated_at
-            FROM events
-            WHERE classroom_id = %s AND is_personal = TRUE AND created_by = %s
-            ORDER BY event_date;
-            """,
-            (classroom_id, user_id),
-        )
-        personal_rows = curr.fetchall()
+#         curr.execute(
+#             """
+#             SELECT id, classroom_id, title, description, event_date,
+#                    event_type, reference_id, created_by, is_personal,
+#                    created_at, updated_at
+#             FROM events
+#             WHERE classroom_id = %s AND is_personal = TRUE AND created_by = %s
+#             ORDER BY event_date;
+#             """,
+#             (classroom_id, user_id),
+#         )
+#         personal_rows = curr.fetchall()
 
-        columns = [
-            "id", "classroom_id", "title", "description", "event_date",
-            "event_type", "reference_id", "created_by", "is_personal",
-            "created_at", "updated_at",
-        ]
+#         columns = [
+#             "id", "classroom_id", "title", "description", "event_date",
+#             "event_type", "reference_id", "created_by", "is_personal",
+#             "created_at", "updated_at",
+#         ]
 
-        def row_to_dict(row):
-            d = dict(zip(columns, row))
-            for key in ("event_date", "created_at", "updated_at"):
-                if isinstance(d[key], datetime):
-                    d[key] = d[key].isoformat()
-            return d
+#         def row_to_dict(row):
+#             d = dict(zip(columns, row))
+#             for key in ("event_date", "created_at", "updated_at"):
+#                 if isinstance(d[key], datetime):
+#                     d[key] = d[key].isoformat()
+#             return d
 
-        return {
-            "success": True,
-            "message": "Calendar fetched successfully",
-            "data": {
-                "classroom_events": [row_to_dict(r) for r in classroom_rows],
-                "personal_tasks": [row_to_dict(r) for r in personal_rows],
-            },
-        }
+#         return {
+#             "success": True,
+#             "message": "Calendar fetched successfully",
+#             "data": {
+#                 "classroom_events": [row_to_dict(r) for r in classroom_rows],
+#                 "personal_tasks": [row_to_dict(r) for r in personal_rows],
+#             },
+#         }
 
-    except Exception as e:
-        conn.rollback()
-        print(f"get_classroom_calendar failed, rolled back. Error: {e}")
-        return {"success": False, "message": f"Failed to fetch calendar: {e}", "data": None}
+#     except Exception as e:
+#         conn.rollback()
+#         print(f"get_classroom_calendar failed, rolled back. Error: {e}")
+#         return {"success": False, "message": f"Failed to fetch calendar: {e}", "data": None}
 
-    finally:
-        curr.close()
+#     finally:
+#         curr.close()
 
 
-def create_personal_task_by_agent(
-    conn,
-    user_id: int,
-    title: str,
-    description,
-    event_date,
-    classroom_id,
-) -> bool:
-    curr = conn.cursor()
-    try:
-        now = datetime.now(timezone.utc)
-        curr.execute(
-            """
-            INSERT INTO events (
-                classroom_id, title, description, event_date, event_type,
-                reference_id, created_by, is_personal, created_at, updated_at
-            )
-            VALUES (%s, %s, %s, %s, 'TASK', NULL, %s, TRUE, %s, %s);
-            """,
-            (classroom_id, title, description, event_date, user_id, now, now),
-        )
-        conn.commit()
-        return True
+# def create_personal_task_by_agent(
+#     conn,
+#     user_id: int,
+#     title: str,
+#     description,
+#     event_date,
+#     classroom_id,
+# ) -> bool:
+#     curr = conn.cursor()
+#     try:
+#         now = datetime.now(timezone.utc)
+#         curr.execute(
+#             """
+#             INSERT INTO events (
+#                 classroom_id, title, description, event_date, event_type,
+#                 reference_id, created_by, is_personal, created_at, updated_at
+#             )
+#             VALUES (%s, %s, %s, %s, 'TASK', NULL, %s, TRUE, %s, %s);
+#             """,
+#             (classroom_id, title, description, event_date, user_id, now, now),
+#         )
+#         conn.commit()
+#         return True
 
-    except Exception as e:
-        conn.rollback()
-        print(f"create_personal_task_by_agent failed, rolled back. Error: {e}")
-        return False
+#     except Exception as e:
+#         conn.rollback()
+#         print(f"create_personal_task_by_agent failed, rolled back. Error: {e}")
+#         return False
 
-    finally:
-        curr.close()
+#     finally:
+#         curr.close()
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ def build_tools(conn, user_id: int, classroom_id: int):
         and the current user's personal tasks for this classroom. Use this
         whenever the user asks what's on their calendar, what's due, what's
         coming up, or similar — do not guess dates from memory."""
-        result = get_classroom_calendar(conn, classroom_id=classroom_id, user_id=user_id)
+        result = get_my_calendar(conn, user_id=user_id)
         return json.dumps(result)
 
     @tool
