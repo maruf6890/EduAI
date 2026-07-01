@@ -11,7 +11,6 @@ def _serialize(row: dict) -> dict:
 
 
 def join_classroom(conn, student_id: int, join_code: str) -> dict:
-    # Find the classroom by join code
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -29,11 +28,9 @@ def join_classroom(conn, student_id: int, join_code: str) -> dict:
     if not classroom["is_active"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This classroom is no longer active")
 
-    # Owner cannot enroll in their own classroom
     if classroom["owner_id"] == student_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are the owner of this classroom")
 
-    # Check if already enrolled
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, status FROM enrollments WHERE classroom_id = %s AND student_id = %s",
@@ -45,7 +42,6 @@ def join_classroom(conn, student_id: int, join_code: str) -> dict:
         if existing["status"] == "ACTIVE":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already enrolled in this classroom")
 
-        # Was removed/inactive — re-activate
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -58,17 +54,19 @@ def join_classroom(conn, student_id: int, join_code: str) -> dict:
             enrollment = cur.fetchone()
 
         return {
+            "success": True,
             "message": "Re-joined classroom successfully",
-            "enrollment": _serialize(enrollment),
-            "classroom": {
-                "id": classroom["id"],
-                "name": classroom["name"],
-                "course_code": classroom["course_code"],
-                "course_title": classroom["course_title"],
+            "data": {
+                "enrollment": _serialize(enrollment),
+                "classroom": {
+                    "id": classroom["id"],
+                    "name": classroom["name"],
+                    "course_code": classroom["course_code"],
+                    "course_title": classroom["course_title"],
+                },
             },
         }
 
-    # Fresh enrollment
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -81,13 +79,16 @@ def join_classroom(conn, student_id: int, join_code: str) -> dict:
         enrollment = cur.fetchone()
 
     return {
+        "success": True,
         "message": "Joined classroom successfully",
-        "enrollment": _serialize(enrollment),
-        "classroom": {
-            "id": classroom["id"],
-            "name": classroom["name"],
-            "course_code": classroom["course_code"],
-            "course_title": classroom["course_title"],
+        "data": {
+            "enrollment": _serialize(enrollment),
+            "classroom": {
+                "id": classroom["id"],
+                "name": classroom["name"],
+                "course_code": classroom["course_code"],
+                "course_title": classroom["course_title"],
+            },
         },
     }
 
@@ -112,11 +113,14 @@ def leave_classroom(conn, student_id: int, classroom_id: int) -> dict:
             (classroom_id, student_id),
         )
 
-    return {"message": "Left classroom successfully"}
+    return {
+        "success": True,
+        "message": "Left classroom successfully",
+        "data": None,
+    }
 
 
 def get_my_enrolled_classrooms(conn, student_id: int) -> dict:
-    """All classrooms the current user is enrolled in (as student)."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -143,7 +147,9 @@ def get_my_enrolled_classrooms(conn, student_id: int) -> dict:
         rows = cur.fetchall()
 
     return {
-        "classrooms": [
+        "success": True,
+        "message": "Enrolled classrooms fetched successfully",
+        "data": [
             {
                 "enrollment_id": r["enrollment_id"],
                 "joined_at": r["joined_at"].isoformat(),
@@ -160,13 +166,11 @@ def get_my_enrolled_classrooms(conn, student_id: int) -> dict:
                 },
             }
             for r in rows
-        ]
+        ],
     }
 
 
 def get_classroom_students(conn, classroom_id: int, owner_id: int) -> dict:
-    """Owner views all students enrolled in their classroom."""
-    # Verify ownership
     with conn.cursor() as cur:
         cur.execute("SELECT owner_id FROM classrooms WHERE id = %s", (classroom_id,))
         classroom = cur.fetchone()
@@ -197,7 +201,9 @@ def get_classroom_students(conn, classroom_id: int, owner_id: int) -> dict:
         rows = cur.fetchall()
 
     return {
-        "students": [
+        "success": True,
+        "message": "Students fetched successfully",
+        "data": [
             {
                 "enrollment_id": r["enrollment_id"],
                 "joined_at": r["joined_at"].isoformat(),
@@ -209,12 +215,11 @@ def get_classroom_students(conn, classroom_id: int, owner_id: int) -> dict:
                 },
             }
             for r in rows
-        ]
+        ],
     }
 
 
 def remove_student(conn, classroom_id: int, student_id: int, owner_id: int) -> dict:
-    """Owner removes a student from their classroom."""
     with conn.cursor() as cur:
         cur.execute("SELECT owner_id FROM classrooms WHERE id = %s", (classroom_id,))
         classroom = cur.fetchone()
@@ -238,4 +243,8 @@ def remove_student(conn, classroom_id: int, student_id: int, owner_id: int) -> d
             (classroom_id, student_id),
         )
 
-    return {"message": "Student removed from classroom"}
+    return {
+        "success": True,
+        "message": "Student removed from classroom",
+        "data": None,
+    }

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
+from sqlalchemy import true
 from app.services.calendar_service import (
     create_classroom_event,
     update_classroom_event,
@@ -670,3 +671,96 @@ def get_my_quiz_result(conn, classroom_id: int, quiz_id: int, student_id: int) -
         "message": "Quiz result fetched successfully",
         "data": submission,
     }
+
+
+
+
+
+
+
+
+
+def create_quiz_by_agent(
+    conn,
+    classroom_id: int,
+    created_by: int,
+    title: str,
+    description: str,
+    scheduled_at,
+    duration_minutes: int,
+    is_published: bool,
+    questions: list,
+) -> bool:
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO quizzes
+                    (classroom_id, title, description, scheduled_at, duration_minutes, is_published, created_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, classroom_id, title, description, scheduled_at, duration_minutes,
+                          total_marks, is_published, status, created_by, created_at, updated_at
+                """,
+                (
+                    classroom_id,
+                    title,
+                    description,
+                    scheduled_at,
+                    duration_minutes,
+                    is_published,
+                    created_by,
+                ),
+            )
+            quiz = _serialize(dict(cur.fetchone()))
+
+        # Insert questions
+        inserted_questions = []
+        for q in questions:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO quiz_questions
+                        (quiz_id, question_text, option_a, option_b, option_c, option_d,
+                         correct_option, marks, order_index)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id, question_text, option_a, option_b, option_c, option_d,
+                              correct_option, marks, order_index
+                    """,
+                    (
+                        quiz["id"],
+                        q.question_text,
+                        q.option_a,
+                        q.option_b,
+                        q.option_c,
+                        q.option_d,
+                        q.correct_option,
+                        q.marks,
+                        q.order_index,
+                    ),
+                )
+                inserted_questions.append(dict(cur.fetchone()))
+
+        # Update total marks
+        total = _recalculate_total_marks(conn, quiz["id"])
+        quiz["total_marks"] = total
+        quiz["questions"] = inserted_questions
+
+        # Auto-create calendar event
+        create_classroom_event(
+            conn,
+            classroom_id=classroom_id,
+            title=f"Quiz: {title}",
+            description=description,
+            event_date=scheduled_at,
+            event_type="QUIZ",
+            reference_id=quiz["id"],
+            created_by=created_by,
+        )
+
+        return True
+
+    except Exception:
+        conn.rollback()
+        return False
+

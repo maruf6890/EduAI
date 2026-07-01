@@ -326,4 +326,144 @@ def get_my_calendar(conn, user_id: int) -> dict:
 
 
 
-#tools funcations 
+
+
+
+def create_personal_task_by_agent(
+    conn,
+    user_id: int,
+    title: str,
+    description,
+    event_date,
+    classroom_id,
+) -> bool:
+    try:
+        # If classroom_id provided, verify access
+        if classroom_id:
+            _verify_enrolled_or_owner(conn, classroom_id, user_id)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO calendar_events
+                    (classroom_id, title, description, event_date, event_type, created_by, is_personal)
+                VALUES (%s, %s, %s, %s, 'TASK', %s, TRUE)
+                RETURNING id
+                """,
+                (classroom_id, title, description, event_date, user_id),
+            )
+            cur.fetchone()
+
+        return True
+
+    except Exception:
+        conn.rollback()
+        return False
+
+
+def get_my_calendar_by_agent(conn, user_id: int) -> bool:
+    """
+    Returns True if calendar events can be retrieved successfully,
+    otherwise False.
+    """
+    try:
+        # Classroom events from classrooms the user owns
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT ce.id, ce.classroom_id, ce.title, ce.description, ce.event_date,
+                       ce.event_type, ce.reference_id, ce.created_by, ce.is_personal,
+                       ce.created_at, ce.updated_at, c.name AS classroom_name
+                FROM calendar_events ce
+                JOIN classrooms c ON c.id = ce.classroom_id
+                WHERE c.owner_id = %s AND ce.is_personal = FALSE
+                ORDER BY ce.event_date ASC
+                """,
+                (user_id,),
+            )
+            owned_events = [_serialize(dict(r)) for r in cur.fetchall()]
+
+        # Classroom events from classrooms the user is enrolled in
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT ce.id, ce.classroom_id, ce.title, ce.description, ce.event_date,
+                       ce.event_type, ce.reference_id, ce.created_by, ce.is_personal,
+                       ce.created_at, ce.updated_at, c.name AS classroom_name
+                FROM calendar_events ce
+                JOIN classrooms c ON c.id = ce.classroom_id
+                JOIN enrollments e ON e.classroom_id = c.id
+                WHERE e.student_id = %s
+                  AND e.status = 'ACTIVE'
+                  AND ce.is_personal = FALSE
+                ORDER BY ce.event_date ASC
+                """,
+                (user_id,),
+            )
+            enrolled_events = [_serialize(dict(r)) for r in cur.fetchall()]
+
+        # Personal tasks
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, classroom_id, title, description, event_date,
+                       event_type, reference_id, created_by, is_personal,
+                       created_at, updated_at
+                FROM calendar_events
+                WHERE created_by = %s
+                  AND is_personal = TRUE
+                ORDER BY event_date ASC
+                """,
+                (user_id,),
+            )
+            personal_tasks = [_serialize(dict(r)) for r in cur.fetchall()]
+
+        return True
+
+    except Exception:
+        return False
+
+
+def get_classroom_calendar(
+    conn,
+    classroom_id: int,
+    user_id: int,
+) -> bool:
+    try:
+        # Classroom events visible to everyone in the classroom
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, classroom_id, title, description, event_date,
+                       event_type, reference_id, created_by, is_personal,
+                       created_at, updated_at
+                FROM calendar_events
+                WHERE classroom_id = %s
+                  AND is_personal = FALSE
+                ORDER BY event_date ASC
+                """,
+                (classroom_id,),
+            )
+            classroom_events = [_serialize(dict(r)) for r in cur.fetchall()]
+
+        # Personal tasks of this user inside this classroom
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, classroom_id, title, description, event_date,
+                       event_type, reference_id, created_by, is_personal,
+                       created_at, updated_at
+                FROM calendar_events
+                WHERE classroom_id = %s
+                  AND is_personal = TRUE
+                  AND created_by = %s
+                ORDER BY event_date ASC
+                """,
+                (classroom_id, user_id),
+            )
+            personal_events = [_serialize(dict(r)) for r in cur.fetchall()]
+
+        return True
+
+    except Exception:
+        return False
