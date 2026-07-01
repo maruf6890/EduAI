@@ -35,7 +35,7 @@ def _verify_enrolled_or_owner(conn, classroom_id: int, user_id: int) -> bool:
 
 
 # ── Auto-create event (called internally by assignment/quiz services) ─────────
-
+# will be used by the agent for creating  event
 def create_classroom_event(
     conn,
     classroom_id: int,
@@ -96,6 +96,8 @@ def delete_classroom_event(conn, reference_id: int, event_type: str) -> None:
 
 # ── Student: create personal task ────────────────────────────────────────────
 
+
+#will be used  as to create personal task for agent 
 def create_personal_task(
     conn,
     user_id: int,
@@ -260,7 +262,7 @@ def get_classroom_calendar(conn, classroom_id: int, user_id: int) -> dict:
 
 
 # ── Get personal calendar (all tasks across all classrooms) ──────────────────
-
+#used as tools for agent 
 def get_my_calendar(conn, user_id: int) -> dict:
     """
     Returns all classroom events from classrooms the user belongs to
@@ -321,3 +323,7 @@ def get_my_calendar(conn, user_id: int) -> dict:
             "personal_tasks": personal_tasks,
         },
     }
+
+
+
+#tools funcations 
