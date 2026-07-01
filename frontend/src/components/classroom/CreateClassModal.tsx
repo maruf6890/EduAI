@@ -1,0 +1,148 @@
+'use client';
+
+import React, { useState } from 'react';
+// import { createClassroom } from '@/src/actions/private_api_call/classrooms';
+import { private_api_call } from "@/actions/private_api_call";
+import type { Classroom } from '@/lib/types/classroom';
+
+
+
+//   "name": "string",
+//   "course_code": "string",
+//   "course_title": "string",
+//   "description": "string",
+//   "semester": "string"
+interface FloatingFieldProps {
+    label: string;
+    required?: boolean;
+    value: string;
+    onChange: (value: string) => void;
+    autoFocus?: boolean;
+    disabled?: boolean;
+}
+
+function FloatingField({ label, required, value, onChange, autoFocus, disabled }: FloatingFieldProps) {
+    const [focused, setFocused] = useState(false);
+    const filled = value.length > 0;
+    const active = focused || filled;
+
+    return (
+        <div className="relative">
+            <div
+                className={`relative bg-bg-main rounded-t-md border-b-2 transition-colors ${focused ? 'border-brand-primary' : 'border-surface-border'
+                    }`}
+            >
+                <label
+                    className={`absolute left-4 transition-all pointer-events-none ${active ? 'top-1.5 text-[11px]' : 'top-1/2 -translate-y-1/2 text-base'
+                        } ${focused ? 'text-brand-primary' : 'text-text-main'}`}
+                >
+                    {label}
+                    {required && <span className="text-brand-primary">*</span>}
+                </label>
+                <input
+                    autoFocus={autoFocus}
+                    value={value}
+                    disabled={disabled}
+                    onChange={(e) => onChange(e.target.value)}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    className="w-full bg-transparent outline-none pt-6 pb-2 px-4 text-base text-text-main disabled:opacity-60"
+                />
+            </div>
+        </div>
+    );
+}
+
+interface CreateClassroomProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess: (classroom: Classroom) => void;
+}
+
+export default function CreateClassroom({ open, onOpenChange, onSuccess }: CreateClassroomProps) {
+
+    //       "name": "string",
+    //   "course_code": "string",
+    //   "course_title": "string",
+    //   "description": "string",
+    //   "semester": "string"
+
+
+    const [name, setName] = useState('');
+    const [course_code, setCourse_code] = useState('');
+    const [course_title, setCourse_title] = useState('');
+    const [description, setDescription] = useState('');
+    const [semester, setSemester] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!open) return null;
+
+    const resetForm = () => {
+        setName('');
+        setCourse_code('');
+        setCourse_title('');
+        setDescription('');
+        setSemester('');
+        setError(null);
+    };
+
+    const handleClose = () => {
+        if (isSubmitting) return;
+        resetForm();
+        onOpenChange(false);
+    };
+
+    const handleCreate = async () => {
+        if (!name.trim() || isSubmitting) return;
+
+        setIsSubmitting(true);
+        setError(null);
+
+        try {
+            const classroom = await private_api_call({ path: "classrooms", method: "POST", body: { name, course_code, course_title, description, semester } });
+            resetForm();
+            onSuccess(classroom.data);
+        } catch (err) {
+            setError('Something went wrong creating the class. Please try again.');
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
+            <div className="bg-bg-main rounded-2xl w-full max-w-md shadow-2xl px-7 pt-7 pb-5 border-2 border-brand-primary ">
+                <h2 className="text-2xl text-text-main mb-6">Create class</h2>
+
+                <div className="space-y-5">
+                    <FloatingField label="Class name" required value={name} onChange={setName} autoFocus disabled={isSubmitting} />
+                    <FloatingField label="Course code" value={course_code} onChange={setCourse_code} disabled={isSubmitting} />
+                    <FloatingField label="Course title" value={course_title} onChange={setCourse_title} disabled={isSubmitting} />
+                    <FloatingField label="Description" value={description} onChange={setDescription} disabled={isSubmitting} />
+                    <FloatingField label="Semester" value={semester} onChange={setSemester} disabled={isSubmitting} />
+                </div>
+
+                <p className="text-xs text-text-main mt-2 -mb-1">*Required</p>
+
+                {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
+
+                <div className="flex justify-end items-center gap-6 mt-8">
+                    <button
+                        onClick={handleClose}
+                        disabled={isSubmitting}
+                        className="text-brand-primary font-medium text-sm px-2 py-2 rounded hover:bg-brand-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        disabled={!name.trim() || isSubmitting}
+                        onClick={handleCreate}
+                        className="font-medium text-sm px-4 py-2 rounded transition-colors disabled:text-slate-400 disabled:cursor-not-allowed enabled:text-blue-700 enabled:hover:bg-blue-50"
+                    >
+                        {isSubmitting ? 'Creating…' : 'Create'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,76 @@
+'use client';
+
+/**
+ * app/admin/ai-chatbot/page.tsx  (or wherever your route lives)
+ *
+ * Drop-in Next.js App Router page. The `'use client'` directive is required
+ * because useAnimatedAIChat uses React hooks.
+ */
+
+import { ImageIcon, Component, MonitorIcon, Sparkles } from 'lucide-react';
+import AnimatedAIChat from '@/components/AnimatedAIChat';
+import { useAnimatedAIChat } from '@/hooks/useAnimatedAIChat';
+import type { CommandSuggestion, ModelOption } from '@/components/AnimatedAIChat';
+
+// ── Static config ─────────────────────────────────────────────────────────────
+
+const MODELS: ModelOption[] = [
+  { id: 'gpt-4o',     name: 'GPT-4o' },
+  { id: 'claude-3-5', name: 'Claude 3.5 Sonnet' },
+  { id: 'gemini-1-5', name: 'Gemini 1.5 Pro' },
+];
+
+const COMMANDS: CommandSuggestion[] = [
+  {
+    icon: <ImageIcon className="h-4 w-4" />,
+    label: 'Clone UI',
+    description: 'Clone existing intake snapshots',
+    prefix: '/clone',
+  },
+  {
+    icon: <Component className="h-4 w-4" />,
+    label: 'Import Patient',
+    description: 'Fetch patient summary details',
+    prefix: '/import',
+  },
+  {
+    icon: <MonitorIcon className="h-4 w-4" />,
+    label: 'Triage Check',
+    description: 'Perform active vital scans',
+    prefix: '/triage',
+  },
+  {
+    icon: <Sparkles className="h-4 w-4" />,
+    label: 'Optimize Vitals',
+    description: 'Compute precise threshold flags',
+    prefix: '/vitals',
+  },
+];
+
+// ── Page component ────────────────────────────────────────────────────────────
+// Must be a named function (or named const) — anonymous arrow functions as
+// default exports can confuse Next.js's component detection in some versions.
+
+function AIChatbotPage() {
+  const chatProps = useAnimatedAIChat({
+    models: MODELS,
+    defaultModel: 'gpt-4o',
+    commandSuggestions: COMMANDS,
+    placeholderText: 'Ask Niramoy AI a question...',
+    minHeight: 60,
+    maxHeight: 200,
+    onSubmit: async (message, attachments) => {
+      // Replace with your real API call:
+      console.log('Sending:', message, attachments);
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, attachments }),
+      });
+    },
+  });
+
+  return <AnimatedAIChat {...chatProps} />;
+}
+
+export default AIChatbotPage;
