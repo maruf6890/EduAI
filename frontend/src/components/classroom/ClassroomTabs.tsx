@@ -10,6 +10,7 @@ const TABS = [
     { key: 'assignments', label: 'Assignments' },
     { key: 'quizzes', label: 'Quizzes' },
     { key: 'people', label: 'People' },
+    { key: 'discussion', label: 'Discussion' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -46,6 +47,7 @@ export default function ClassroomTabs({ classroomId }: { classroomId: string }) 
                 {pathname === `/dashboard/classrooms/${classroomId}/assignments` && <PlaceholderPanel label="Assignments" />}
                 {pathname === `/dashboard/classrooms/${classroomId}/quizzes` && <PlaceholderPanel label="Quizzes" />}
                 {pathname === `/dashboard/classrooms/${classroomId}/people` && <PlaceholderPanel label="People" />}
+                {pathname === `/dashboard/classrooms/${classroomId}/discussion` && <PlaceholderPanel label='Discussion' />}
             </div>
         </div>
     );

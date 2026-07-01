@@ -1,4 +1,4 @@
-import type { ClassroomCard } from "@/components/mvpblocks/Cardflip"
+import type { ClassroomCard } from "@/components/classroom/Cardflip"
 
 
 

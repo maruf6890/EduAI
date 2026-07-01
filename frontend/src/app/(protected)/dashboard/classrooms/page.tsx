@@ -131,7 +131,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { BookOpen, CalendarDays, ClipboardList, GraduationCap, Plus, Users } from 'lucide-react';
-import CardFlip, { ClassroomCard } from '@/components/mvpblocks/Cardflip';
+import CardFlip, { ClassroomCard } from '@/components/classroom/Cardflip';
 import CreateClassroom from '@/components/classroom/CreateClassModal';
 import { cn } from '@/lib/utils';
 import { dummyClassrooms } from '@/lib/dummy/classroom';
