@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Stethoscope, Eye, EyeOff, Mail, Lock, AirVent, AtSignIcon, Airplay } from "lucide-react";
 import { public_api_call } from "@/actions/public_api_call";
 import { Particles } from "@/components/ui/particles";
-import AIChatbotPage from "@/app/dashboard/ai-chatbot/page";
 import { setCookie } from "@/lib/cookies";
 
 export default function LoginPage() {
@@ -33,10 +32,10 @@ export default function LoginPage() {
 
     if (response.success) {
       await setCookie('access_token', response.data.access_token);
-        await setCookie('refresh_token', response.data.refresh_token);
-        await setCookie('id', response.data.user.id.toString());
-        await setCookie('email', response.data.user.email);
-        await setCookie('name', response.data.user.full_name);
+      await setCookie('refresh_token', response.data.refresh_token);
+      await setCookie('id', response.data.user.id.toString());
+      await setCookie('email', response.data.user.email);
+      await setCookie('name', response.data.user.full_name);
       router.push("/dashboard");
     } else {
       setError(response.message || "Invalid credentials or server connection timed out.");

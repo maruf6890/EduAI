@@ -15,7 +15,7 @@ export const private_api_call = async (
 ) => {
   try {
     console.log("Initiating API call with parameters:", { path, method, body });
-    const token = await getCookie("token");
+    const token = await getCookie("access_token");
     console.log("Token from cookie:", token);
     if (!token) {
       return {

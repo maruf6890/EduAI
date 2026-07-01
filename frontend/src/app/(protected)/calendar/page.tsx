@@ -101,10 +101,10 @@ export default function Home() {
         <main className="min-h-screen p-4 md:p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold mb-2">Basic Calendar Scheduler</h1>
+                    <h1 className="text-3xl font-bold mb-2">Academic Calendar
+                    </h1>
                     <p className="text-muted-foreground">
-                        A lightweight React calendar component with month, week, and day views.
-                    </p>
+                        Manage your teaching schedule, deadlines, quizzes, and classroom activities.                    </p>
                 </div>
 
                 <div className="h-[700px] border rounded-lg overflow-hidden">
