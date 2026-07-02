@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import AttractButton from '@/components/mvpblocks/attract-button';
 
+
 // ─── Nav links ────────────────────────────────────────────────────────────────
 
 
@@ -61,24 +62,22 @@ export function Navbar() {
           {/* Brand bolt container */}
           <span
             className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-xl',
-              'bg-brand-primary/10 ring-1 ring-brand-primary/20',
-              'group-hover:bg-brand-primary/20 group-hover:ring-brand-primary/40',
+              'flex h-14 w-14 items-center justify-center',
               'transition-all duration-200',
             )}
           >
-            <img width="64" height="64" src="https://img.icons8.com/nolan/64/cursor-ai.png" alt="cursor-ai" />
+            <img width="250" height="250" src="./LOGO.png" alt="cursor-ai" />
+            <span className="text-[15px] font-semibold tracking-tight text-brand-primary group-hover:text-brand-accent transition-colors duration-150">
+              EduAI
+            </span>
           </span>
 
           {/* Text stack */}
-          <span className="flex flex-col leading-none">
-            <span className="text-[15px] font-semibold tracking-tight text-text-main group-hover:text-brand-primary transition-colors duration-150">
-              ClassMind AI
-            </span>
+          {/* <span className="flex flex-col leading-none">
             <span className="text-[9px] font-medium tracking-[0.14em] text-text-main/60 uppercase">
               AI-Powered Classroom Platform
             </span>
-          </span>
+          </span> */}
         </Link>
 
         {/* ── CENTER: Nav links (desktop) ──────────────────────────────────── */}

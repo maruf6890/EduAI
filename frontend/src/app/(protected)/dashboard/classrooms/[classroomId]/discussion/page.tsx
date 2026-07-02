@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Plus,
     MessageSquare,
@@ -17,6 +17,8 @@ import {
     ChevronDown,
     ChevronUp,
 } from "lucide-react";
+import { private_api_call } from "@/actions/private_api_call";
+import ClassroomTabs from "@/components/classroom/ClassroomTabs";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -88,102 +90,7 @@ interface EditPostFormState {
 
 const emptyPostForm: PostFormState = { title: "", content: "" };
 
-/* =========================================================================
-   DUMMY DATA — same field names as get_posts's `data` array. Swap
-   `useState(dummyPosts)` for the fetched `json.data` and nothing else
-   needs to change.
-   ========================================================================= */
 
-const dummyPosts: Post[] = [
-    {
-        id: 301,
-        classroom_id: 1,
-        title: "Welcome to Biology 101! 🌱",
-        content:
-            "Excited to have you all this term. Use this space to ask questions, share resources, and discuss anything related to the course. Be kind and constructive.",
-        is_active: true,
-        created_at: "2026-06-20T09:00:00.000Z",
-        updated_at: "2026-06-20T09:00:00.000Z",
-        created_by: CURRENT_USER,
-        comments: [
-            {
-                id: 4001,
-                post_id: 301,
-                parent_id: null,
-                content: "Looking forward to it! Is the textbook required from day one?",
-                created_at: "2026-06-20T10:15:00.000Z",
-                updated_at: "2026-06-20T10:15:00.000Z",
-                created_by: { id: 22, full_name: "Amara Chen", email: "amara.chen@school.edu" },
-                replies: [
-                    {
-                        id: 4002,
-                        post_id: 301,
-                        parent_id: 4001,
-                        content: "Yes, please bring it starting next class — we'll use it for the lab reading.",
-                        created_at: "2026-06-20T11:00:00.000Z",
-                        updated_at: "2026-06-20T11:00:00.000Z",
-                        created_by: CURRENT_USER,
-                        replies: [],
-                    },
-                ],
-            },
-            {
-                id: 4003,
-                post_id: 301,
-                parent_id: null,
-                content: "Thank you! Can't wait for the first lab session.",
-                created_at: "2026-06-20T12:30:00.000Z",
-                updated_at: "2026-06-20T12:30:00.000Z",
-                created_by: { id: 23, full_name: "Diego Ramirez", email: "diego.ramirez@school.edu" },
-                replies: [],
-            },
-        ],
-    },
-    {
-        id: 302,
-        classroom_id: 1,
-        title: "Question about the genetics assignment",
-        content: "For question 4, do we need to show our Punnett square work or just the final ratio?",
-        is_active: true,
-        created_at: "2026-06-27T14:00:00.000Z",
-        updated_at: "2026-06-27T14:00:00.000Z",
-        created_by: { id: 22, full_name: "Amara Chen", email: "amara.chen@school.edu" },
-        comments: [
-            {
-                id: 4004,
-                post_id: 302,
-                parent_id: null,
-                content: "Please show your full Punnett square — partial credit depends on it.",
-                created_at: "2026-06-27T15:00:00.000Z",
-                updated_at: "2026-06-27T15:00:00.000Z",
-                created_by: CURRENT_USER,
-                replies: [],
-            },
-        ],
-    },
-    {
-        id: 303,
-        classroom_id: 1,
-        title: "Extra credit reading recommendations",
-        content: null,
-        is_active: true,
-        created_at: "2026-06-29T08:00:00.000Z",
-        updated_at: "2026-06-29T08:00:00.000Z",
-        created_by: CURRENT_USER,
-        comments: [],
-    },
-    {
-        id: 304,
-        classroom_id: 1,
-        title: "Last term's field trip photos",
-        content: "Archiving this old thread — see the new pinned post for this term's trip info instead.",
-        is_active: false,
-        created_at: "2026-05-10T09:00:00.000Z",
-        updated_at: "2026-06-15T09:00:00.000Z",
-        created_by: CURRENT_USER,
-        comments: [],
-    },
-];
 
 /* =========================================================================
    HELPERS
@@ -208,7 +115,9 @@ function countComments(comments: Comment[]): number {
     return comments.reduce((sum, c) => sum + 1 + countComments(c.replies), 0);
 }
 
-function initials(name: string): string {
+function initials(name?: string | null): string {
+    if (!name) return "?";
+
     return name
         .split(" ")
         .map((n) => n[0])
@@ -251,7 +160,7 @@ export default function DiscussionsPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
 
-    const [posts, setPosts] = useState<Post[]>(dummyPosts);
+    const [posts, setPosts] = useState<Post[]>([]);
     const [expandedPostId, setExpandedPostId] = useState<number | null>(null);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
@@ -272,38 +181,20 @@ export default function DiscussionsPage() {
     async function handleCreatePost(postTitle: string, postContent: string) {
         setIsSubmittingPost(true);
 
-        // ---------------------------------------------------------------------
-        // TODO: POST /api/v1/classrooms/{classroom_id}/discussions  (create_post)
-        //
-        // const res = await fetch(`/api/v1/classrooms/${classroomId}/discussions`, {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({
-        //     title: postTitle,
-        //     content: postContent || null,
-        //   }),
-        // });
-        // const json = await res.json(); // { success, message, data: Post }
-        // setPosts((prev) => [json.data, ...prev]);
-        // ---------------------------------------------------------------------
 
-        const localPost: Post = {
-            id: Date.now(),
-            classroom_id: Number(classroomId) || 0,
-            title: postTitle,
-            content: postContent || null,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            created_by: CURRENT_USER,
-            comments: [],
-        };
 
-        setTimeout(() => {
-            setPosts((prev) => [localPost, ...prev]);
-            setIsSubmittingPost(false);
-            setIsCreateModalOpen(false);
-        }, 300);
+        const res = await private_api_call({
+            method: "POST",
+            path: `classrooms/${classroomId}/discussions`,
+            body: {
+                title: postTitle,
+                content: postContent || null,
+            },
+        });
+        const json = res;
+        setPosts((prev) => [json.data, ...prev]);
+        setIsSubmittingPost(false);
+        setIsCreateModalOpen(false);
     }
 
     function handleOpenEditModal(post: Post) {
@@ -315,6 +206,23 @@ export default function DiscussionsPage() {
     async function handleUpdatePost(postTitle: string, postContent: string, isActive: boolean) {
         if (!editingPost) return;
 
+
+
+        const res = await private_api_call({
+            method: "PUT",
+            path: `classrooms/${classroomId}/discussions/${editingPost.id}`,
+            body: {
+                title: postTitle,
+                content: postContent || null,
+                is_active: isActive,
+            },
+        });
+        const json = res;
+        setPosts((prev) =>
+            prev.map((p) =>
+                p.id === editingPost.id ? json.data : p
+            )
+        );
         // ---------------------------------------------------------------------
         // TODO: PUT /api/v1/classrooms/{classroom_id}/discussions/{post_id}  (update_post)
         //
@@ -347,24 +255,35 @@ export default function DiscussionsPage() {
         setEditingPost(null);
     }
 
-    function handleDeletePost(post: Post) {
+    async function handleDeletePost(post: Post) {
         // TODO: DELETE /api/v1/classrooms/{classroom_id}/discussions/{post_id}  (delete_post)
         // await fetch(`/api/v1/classrooms/${classroomId}/discussions/${post.id}`, { method: "DELETE" });
+
+        const res = await private_api_call({
+            method: "DELETE",
+            path: `classrooms/${classroomId}/discussions/${post.id}`,
+        });
+        const json = res;
         setPosts((prev) => prev.filter((p) => p.id !== post.id));
         setOpenMenuId(null);
         if (expandedPostId === post.id) setExpandedPostId(null);
     }
 
-    function handleToggleExpand(postId: number) {
+    async function handleToggleExpand(postId: number) {
         // TODO: GET /api/v1/classrooms/{classroom_id}/discussions/{post_id}  (get_post)
         // Could lazy-load the single post + comment tree here instead of relying
         // on the list response already containing `comments`.
+        const res = await private_api_call({
+            method: "GET",
+            path: `classrooms/${classroomId}/discussions/${postId}`,
+        });
+        const json = res;
         setExpandedPostId((prev) => (prev === postId ? null : postId));
     }
 
     /* ---------------------------- comment handlers ---------------------------- */
 
-    function handleAddComment(postId: number, parentId: number | null, content: string) {
+    async function handleAddComment(postId: number, parentId: number | null, content: string) {
         // ---------------------------------------------------------------------
         // TODO: POST /api/v1/classrooms/{classroom_id}/discussions/{post_id}/comments  (create_comment)
         //
@@ -379,6 +298,15 @@ export default function DiscussionsPage() {
         // ));
         // ---------------------------------------------------------------------
 
+        const res = await private_api_call({
+            method: "POST",
+            path: `classrooms/${classroomId}/discussions/${postId}/comments`,
+            body: {
+                content,
+                parent_id: parentId,
+            },
+        });
+        const json = res;
         const localComment: Comment = {
             id: Date.now(),
             post_id: postId,
@@ -397,9 +325,20 @@ export default function DiscussionsPage() {
         );
     }
 
-    function handleUpdateComment(postId: number, commentId: number, content: string) {
+    async function handleUpdateComment(postId: number, commentId: number, content: string) {
         // TODO: PUT /api/v1/classrooms/{classroom_id}/discussions/{post_id}/comments/{comment_id}  (update_comment)
         // Backend enforces the caller owns the comment.
+
+        const res = await private_api_call({
+            method: "PUT",
+            path: `classrooms/${classroomId}/discussions/${postId}/comments/${commentId}`,
+            body: {
+                content,
+            },
+        });
+        const json = res;
+
+
         setPosts((prev) =>
             prev.map((p) =>
                 p.id === postId ? { ...p, comments: updateCommentTree(p.comments, commentId, content) } : p
@@ -407,9 +346,15 @@ export default function DiscussionsPage() {
         );
     }
 
-    function handleDeleteComment(postId: number, commentId: number) {
+    async function handleDeleteComment(postId: number, commentId: number) {
         // TODO: DELETE /api/v1/classrooms/{classroom_id}/discussions/{post_id}/comments/{comment_id}  (delete_comment)
         // Backend allows: comment owner, or the classroom owner (can delete any comment).
+
+        const res = await private_api_call({
+            method: "DELETE",
+            path: `classrooms/${classroomId}/discussions/${postId}/comments/${commentId}`,
+        });
+        const json = res;
         setPosts((prev) =>
             prev.map((p) => (p.id === postId ? { ...p, comments: removeCommentTree(p.comments, commentId) } : p))
         );
@@ -418,14 +363,17 @@ export default function DiscussionsPage() {
     // ---------------------------------------------------------------------
     // TODO: GET /api/v1/classrooms/{classroom_id}/discussions  (initial load)
     //
-    // useEffect(() => {
-    //   async function loadPosts() {
-    //     const res = await fetch(`/api/v1/classrooms/${classroomId}/discussions`);
-    //     const json = await res.json(); // { success, message, data: Post[] }
-    //     setPosts(json.data);
-    //   }
-    //   loadPosts();
-    // }, [classroomId]);
+    useEffect(() => {
+        async function loadPosts() {
+            const res = await private_api_call({
+                method: "GET",
+                path: `classrooms/${classroomId}/discussions`,
+            });
+            const json = res;
+            setPosts(json.data);
+        }
+        loadPosts();
+    }, [classroomId]);
     //
     // Note: students only receive posts where is_active is true — the backend
     // filters this server-side (get_posts), so no client-side filtering needed.
@@ -561,7 +509,8 @@ function PostCard({
             {/* Post header */}
             <div className="flex items-start gap-3 p-4 sm:p-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-secondary/15 text-xs font-semibold text-brand-secondary">
-                    {initials(post.created_by.full_name)}
+                    {initials(post.created_by?.full_name || "User")}
+
                 </div>
 
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggleExpand}>

@@ -193,3 +193,21 @@ def regenerate_join_code(conn, classroom_id: int, owner_id: int) -> dict:
         "message": "Join code regenerated successfully",
         "data": {"join_code": updated["join_code"]},
     }
+
+
+def get_join_code(conn, classroom_id: int, owner_id: int) -> dict:
+    with conn.cursor() as cur:
+        cur.execute("SELECT owner_id, join_code FROM classrooms WHERE id = %s", (classroom_id,))
+        row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    if row["owner_id"] != owner_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    return {
+        "success": True,
+        "message": "Join code fetched successfully",
+        "data": {"join_code": row["join_code"]},
+    }

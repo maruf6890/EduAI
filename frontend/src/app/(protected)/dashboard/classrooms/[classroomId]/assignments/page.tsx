@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Plus,
     FileText,
@@ -17,6 +17,7 @@ import {
     CircleDashed,
     Clock,
 } from "lucide-react";
+import { private_api_call } from "@/actions/private_api_call";
 
 /* =========================================================================
    TYPES — mirrors backend contract EXACTLY (see POST /assignments screenshot)
@@ -74,58 +75,58 @@ const emptyForm: AssignmentFormState = {
    DUMMY DATA — same field names as backend response, swap for `response.data`
    ========================================================================= */
 
-const dummyAssignments: Assignment[] = [
-    {
-        id: 101,
-        classroom_id: 1,
-        title: "Photosynthesis Lab Report",
-        description:
-            "Write up your findings from the leaf pigment chromatography experiment. Include your hypothesis, method, results table, and a conclusion paragraph.",
-        total_marks: 50,
-        due_date: "2026-07-08T23:59:00.000Z",
-        allow_late_submission: true,
-        is_published: true,
-        files: ["lab_report_template.docx"],
-        created_at: "2026-06-24T09:00:00.000Z",
-    },
-    {
-        id: 102,
-        classroom_id: 1,
-        title: "Chapter 4 Reading Reflection",
-        description:
-            "Read chapter 4 of 'Cell Biology Essentials' and write a one-page reflection connecting it to last week's mitosis lecture.",
-        total_marks: 20,
-        due_date: "2026-07-03T23:59:00.000Z",
-        allow_late_submission: false,
-        is_published: true,
-        files: [],
-        created_at: "2026-06-22T14:30:00.000Z",
-    },
-    {
-        id: 103,
-        classroom_id: 1,
-        title: "Group Project Proposal",
-        description: null,
-        total_marks: 0,
-        due_date: null,
-        allow_late_submission: false,
-        is_published: false,
-        files: ["proposal_guidelines.pdf", "rubric.pdf"],
-        created_at: "2026-06-29T11:15:00.000Z",
-    },
-    {
-        id: 104,
-        classroom_id: 1,
-        title: "Weekly Quiz — Genetics",
-        description: "Short quiz covering Punnett squares and dominant/recessive traits.",
-        total_marks: 10,
-        due_date: "2026-06-30T23:59:00.000Z",
-        allow_late_submission: true,
-        is_published: true,
-        files: [],
-        created_at: "2026-06-20T08:00:00.000Z",
-    },
-];
+// const dummyAssignments: Assignment[] = [
+//     {
+//         id: 101,
+//         classroom_id: 1,
+//         title: "Photosynthesis Lab Report",
+//         description:
+//             "Write up your findings from the leaf pigment chromatography experiment. Include your hypothesis, method, results table, and a conclusion paragraph.",
+//         total_marks: 50,
+//         due_date: "2026-07-08T23:59:00.000Z",
+//         allow_late_submission: true,
+//         is_published: true,
+//         files: ["lab_report_template.docx"],
+//         created_at: "2026-06-24T09:00:00.000Z",
+//     },
+//     {
+//         id: 102,
+//         classroom_id: 1,
+//         title: "Chapter 4 Reading Reflection",
+//         description:
+//             "Read chapter 4 of 'Cell Biology Essentials' and write a one-page reflection connecting it to last week's mitosis lecture.",
+//         total_marks: 20,
+//         due_date: "2026-07-03T23:59:00.000Z",
+//         allow_late_submission: false,
+//         is_published: true,
+//         files: [],
+//         created_at: "2026-06-22T14:30:00.000Z",
+//     },
+//     {
+//         id: 103,
+//         classroom_id: 1,
+//         title: "Group Project Proposal",
+//         description: null,
+//         total_marks: 0,
+//         due_date: null,
+//         allow_late_submission: false,
+//         is_published: false,
+//         files: ["proposal_guidelines.pdf", "rubric.pdf"],
+//         created_at: "2026-06-29T11:15:00.000Z",
+//     },
+//     {
+//         id: 104,
+//         classroom_id: 1,
+//         title: "Weekly Quiz — Genetics",
+//         description: "Short quiz covering Punnett squares and dominant/recessive traits.",
+//         total_marks: 10,
+//         due_date: "2026-06-30T23:59:00.000Z",
+//         allow_late_submission: true,
+//         is_published: true,
+//         files: [],
+//         created_at: "2026-06-20T08:00:00.000Z",
+//     },
+// ];
 
 /* =========================================================================
    HELPERS
@@ -161,7 +162,7 @@ export default function AssignmentsPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
 
-    const [assignments, setAssignments] = useState<Assignment[]>(dummyAssignments);
+    const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form, setForm] = useState<AssignmentFormState>(emptyForm);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
@@ -194,6 +195,7 @@ export default function AssignmentsPage() {
         // ---------------------------------------------------------------------
         // TODO: POST /api/v1/classrooms/{classroom_id}/assignments
         //
+
         const body = new FormData();
         body.append("title", form.title);
         if (form.description) body.append("description", form.description);
@@ -203,11 +205,12 @@ export default function AssignmentsPage() {
         body.append("is_published", String(form.is_published));
         form.files.forEach((file) => body.append("files", file));
 
-        const res = await fetch(`/api/v1/classrooms/${classroomId}/assignments`, {
+        const res = await private_api_call({
             method: "POST",
+            path: `classrooms/${classroomId}/assignments`,
             body,
         });
-        const created: Assignment = await res.json();
+        const created: Assignment = res.data;
         setAssignments((prev) => [created, ...prev]);
 
 
@@ -232,22 +235,44 @@ export default function AssignmentsPage() {
         }, 400);
     }
 
-    function handleViewAssignment(assignment: Assignment) {
+    async function handleViewAssignment(assignment: Assignment) {
         // TODO: GET /api/v1/classrooms/{classroom_id}/assignments/{assignment.id}
         // router.push(`/dashboard/classrooms/${classroomId}/assignments/${assignment.id}`);
-        console.log("View assignment", assignment.id);
+        const res = await private_api_call({
+            method: "GET",
+            path: `classrooms/${classroomId}/assignments/${assignment.id}`,
+        });
+        // setAssignment(res.data);
         setOpenMenuId(null);
     }
 
-    function handleEditAssignment(assignment: Assignment) {
+    async function handleEditAssignment(assignment: Assignment) {
         // TODO: PATCH /api/v1/classrooms/{classroom_id}/assignments/{assignment.id}
+        const res = await private_api_call({
+            method: "PUT",
+            path: `classrooms/${classroomId}/assignments/${assignment.id}`,
+            body: {
+                title: assignment.title,
+                description: assignment.description,
+                total_marks: assignment.total_marks,
+                due_date: assignment.due_date,
+                allow_late_submission: assignment.allow_late_submission,
+                is_published: assignment.is_published,
+            },
+        });
+        setAssignments((prev) => prev.map((a) => (a.id === assignment.id ? res.data : a)));
         console.log("Edit assignment", assignment.id);
         setOpenMenuId(null);
     }
 
-    function handleDeleteAssignment(assignment: Assignment) {
+    async function handleDeleteAssignment(assignment: Assignment) {
         // TODO: DELETE /api/v1/classrooms/{classroom_id}/assignments/{assignment.id}
         // await fetch(`/api/v1/classrooms/${classroomId}/assignments/${assignment.id}`, { method: "DELETE" });
+
+        const res = await private_api_call({
+            method: "DELETE",
+            path: `classrooms/${classroomId}/assignments/${assignment.id}`,
+        });
         setAssignments((prev) => prev.filter((a) => a.id !== assignment.id));
         setOpenMenuId(null);
     }
@@ -255,14 +280,16 @@ export default function AssignmentsPage() {
     // ---------------------------------------------------------------------
     // TODO: GET /api/v1/classrooms/{classroom_id}/assignments  (initial load)
     //
-    // useEffect(() => {
-    //   async function loadAssignments() {
-    //     const res = await fetch(`/api/v1/classrooms/${classroomId}/assignments`);
-    //     const data: Assignment[] = await res.json();
-    //     setAssignments(data);
-    //   }
-    //   loadAssignments();
-    // }, [classroomId]);
+    useEffect(() => {
+        async function loadAssignments() {
+            const res = await private_api_call({
+                method: "GET",
+                path: `classrooms/${classroomId}/assignments`,
+            });
+            setAssignments(res.data);
+        }
+        loadAssignments();
+    }, [classroomId]);
     // ---------------------------------------------------------------------
 
     /* -------------------------------- render ------------------------------- */

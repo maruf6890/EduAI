@@ -83,17 +83,15 @@ export default function LoginPage() {
         <div className="flex items-center justify-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-brand-primary/50" />
           <span className="text-[11px] font-medium text-text-main/50 tracking-widest uppercase">
-            ClassMind AI
+            Edu-AI
           </span>
           <span className="w-1.5 h-1.5 rounded-full bg-brand-primary/50" />
         </div>
 
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="w-14 h-14 rounded-[var(--radius-md)] bg-brand-primary/10
-                        border border-brand-primary/25 flex items-center justify-center
-                        shadow-[var(--shadow-glow)]">
-            <img width="64" height="64" src="https://img.icons8.com/nolan/64/cursor-ai.png" alt="cursor-ai" />
+          <div className="flex items-center justify-center">
+            <img width="150" height="150" src="./LOGO.png" alt="cursor-ai" />
           </div>
         </div>
 
@@ -105,9 +103,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
-            <div className="p-3 rounded-[var(--radius-sm)] bg-danger/10 border border-danger/20
-                          text-xs font-semibold text-danger">
-              ⚠️ {error}
+            <div className="p-3 text-xs font-semibold text-danger flex items-center gap-2">
+              <img width="25" height="25" src="https://img.icons8.com/sci-fi/48/cancel.png" alt="cancel" />
+              {error}
             </div>
           )}
 

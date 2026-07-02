@@ -7,8 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { private_api_call } from "@/actions/private_api_call";
-import ClassroomHeader from "@/components/classroom/ClassroomHeader";
-import ClassroomTabs from "@/components/classroom/ClassroomTabs";
+
 import AnnouncementModal from "@/components/classroom/Announcementmodal";
 import type { Classroom } from "@/lib/types/classrooms";
 
@@ -124,11 +123,15 @@ export default function ClassroomDetailPage() {
 
     // TODO: derive from auth/session once that's wired up.
     const isTeacher = true;
+    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+
 
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [joinCode, setJoinCode] = useState("");
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -136,8 +139,8 @@ export default function ClassroomDetailPage() {
         const fetchAnnouncements = async () => {
             setIsLoading(true);
             const endpoint = isTeacher
-                ? `api/v1/classrooms/${classroomId}/announcements/teacher`
-                : `api/v1/classrooms/${classroomId}/announcements/student`;
+                ? `classrooms/${classroomId}/announcements/teacher`
+                : `classrooms/${classroomId}/announcements/student`;
 
             const res = await private_api_call({ path: endpoint, method: "GET" });
 
@@ -164,7 +167,7 @@ export default function ClassroomDetailPage() {
         files.forEach((file) => formData.append("files", file));
 
         const res = await private_api_call({
-            path: `api/v1/classrooms/${classroomId}/announcements`,
+            path: `classrooms/${classroomId}/announcements`,
             method: "POST",
             body: formData,
         });
@@ -178,9 +181,26 @@ export default function ClassroomDetailPage() {
         setIsModalOpen(false);
     };
 
+    const handleOpenCreateModal = () => {
+        setEditingAnnouncement(null);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEditModal = (announcement: Announcement) => {
+        setEditingAnnouncement(announcement);
+        setIsModalOpen(true);
+    };
+
+    const handleUpdateSubmit = async (title: string, content: string) => {
+        if (!editingAnnouncement) return;
+        await handleEditAnnouncement(editingAnnouncement.id, { title, content });
+        setIsModalOpen(false);
+        setEditingAnnouncement(null);
+    };
+
     const handleDeleteAnnouncement = async (announcementId: string) => {
         const res = await private_api_call({
-            path: `api/v1/classrooms/${classroomId}/announcements/${announcementId}`,
+            path: `classrooms/${classroomId}/announcements/${announcementId}`,
             method: "DELETE",
         });
 
@@ -193,12 +213,40 @@ export default function ClassroomDetailPage() {
 
     // Not wired to a button yet since there's no edit UI in this design —
     // call this from wherever you add an "Edit" action.
+
+
+    useEffect(() => {
+        async function loadJoinCode() {
+            const res = await private_api_call({
+                method: "GET",
+                path: `classrooms/${classroomId}/join-code`,
+            });
+
+            if (res.success) {
+                setJoinCode(res.data.join_code);
+            }
+        }
+
+        loadJoinCode();
+    }, [classroomId]);
+
+    async function handleCopyCode() {
+        await navigator.clipboard.writeText(joinCode);
+
+        setCopied(true);
+
+        setTimeout(() => {
+            setCopied(false);
+        }, 2000);
+    }
+
+
     const handleEditAnnouncement = async (
         announcementId: string,
         updates: { title?: string; content?: string },
     ) => {
         const res = await private_api_call({
-            path: `api/v1/classrooms/${classroomId}/announcements/${announcementId}`,
+            path: `classrooms/${classroomId}/announcements/${announcementId}`,
             method: "PUT",
             body: updates,
         });
@@ -212,22 +260,42 @@ export default function ClassroomDetailPage() {
         }
     };
 
+
     return (
         <div className="min-h-screen bg-bg-main text-text-main">
             {/* <ClassroomHeader classroom={classroom} /> */}
-            <ClassroomTabs classroomId={classroom.id} />
+            {/* <ClassroomTabs classroomId={classroom.id} /> */}
 
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+
+                <div className="rounded-xl border border-white/10 bg-bg-card p-5">
+                    <p className="text-xs uppercase tracking-wider text-text-muted">
+                        Classroom Code
+                    </p>
+
+                    <div className="mt-3 flex items-center justify-between">
+                        <span className="text-2xl font-bold tracking-[0.25em]">
+                            {joinCode}
+                        </span>
+
+                        <button
+                            onClick={handleCopyCode}
+                            className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white transition hover:opacity-90"
+                        >
+                            {copied ? "Copied!" : "Copy"}
+                        </button>
+                    </div>
+                </div>
                 {isTeacher && (
                     <button
                         type="button"
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={handleOpenCreateModal}
                         className="flex w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-4 text-left shadow-sm transition-colors hover:border-zinc-700 hover:bg-zinc-900"
                     >
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-semibold text-indigo-300">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-sm font-semibold text-brand-primary">
                             Y
                         </div>
-                        <span className="text-sm text-zinc-400">Announce something to your class</span>
+                        <span className="text-sm text-text-main">Announce something to your class</span>
                     </button>
                 )}
 
@@ -253,7 +321,7 @@ export default function ClassroomDetailPage() {
                                 >
                                     {/* Header */}
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-semibold text-indigo-300">
+                                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-sm font-semibold text-brand-primary">
                                             {getInitials(announcement.author)}
                                         </div>
                                         <div className="min-w-0">
@@ -262,22 +330,30 @@ export default function ClassroomDetailPage() {
                                                     {announcement.author}
                                                 </span>
                                                 {announcement.role === "Instructor" && (
-                                                    <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-400">
+                                                    <span className="rounded-full bg-brand-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-primary">
                                                         Instructor
                                                     </span>
                                                 )}
                                             </div>
                                             <span className="text-xs text-zinc-500">{announcement.createdAt}</span>
                                         </div>
-
                                         {isTeacher && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDeleteAnnouncement(announcement.id)}
-                                                className="ml-auto text-xs text-zinc-500 hover:text-red-400 transition-colors"
-                                            >
-                                                Delete
-                                            </button>
+                                            <div className="ml-auto flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEditModal(announcement)}
+                                                    className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteAnnouncement(announcement.id)}
+                                                    className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
@@ -315,7 +391,7 @@ export default function ClassroomDetailPage() {
                                         </div>
                                     )}
                                     {/* Comments — local only, no backend endpoint provided yet */}
-                                    <div className="mt-3 border-t border-zinc-800 pt-3">
+                                    {/* <div className="mt-3 border-t border-zinc-800 pt-3">
                                         <button
                                             type="button"
                                             onClick={() => setExpandedId(isExpanded ? null : announcement.id)}
@@ -374,19 +450,24 @@ export default function ClassroomDetailPage() {
                                                 </div>
                                             </div>
                                         )}
-                                    </div>
+                                    </div> */}
                                 </div>
                             );
                         })}
                     </div>
                 )}
             </div>
-
             {isModalOpen && (
                 <AnnouncementModal
                     className={classroom.name}
-                    onClose={() => setIsModalOpen(false)}
-                    onPost={handlePost}
+                    mode={editingAnnouncement ? "edit" : "create"}
+                    initialTitle={editingAnnouncement?.title ?? ""}
+                    initialContent={editingAnnouncement?.content ?? ""}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setEditingAnnouncement(null);
+                    }}
+                    onPost={editingAnnouncement ? handleUpdateSubmit : handlePost}
                 />
             )}
         </div>

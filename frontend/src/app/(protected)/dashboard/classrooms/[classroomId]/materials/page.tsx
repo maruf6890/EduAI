@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Plus,
     FolderOpen,
@@ -19,6 +19,7 @@ import {
     Upload,
     Inbox,
 } from "lucide-react";
+import { private_api_call } from "@/actions/private_api_call";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -99,76 +100,6 @@ const CURRENT_USER_ID = 101;
 // gates CENTRAL uploads server-side. Toggle in the header below for demo.
 const dummyIsClassroomOwner = true;
 
-const dummyCentral: Material[] = [
-    {
-        id: 1,
-        classroom_id: 1,
-        title: "Week 3 — Linear Algebra Notes",
-        description: "Vector spaces, basis, and dimension. Read before Thursday's lecture.",
-        visibility: "CENTRAL",
-        uploaded_by: 55,
-        uploader_name: "Dr. Farhan Kabir",
-        created_at: "2026-06-24T09:15:00.000Z",
-        updated_at: "2026-06-24T09:15:00.000Z",
-        files: [
-            { id: 1, file_name: "linear-algebra-week3.pdf", file_url: "#", file_type: "pdf", uploaded_at: "2026-06-24T09:15:00.000Z" },
-            { id: 2, file_name: "practice-set-3.pdf", file_url: "#", file_type: "pdf", uploaded_at: "2026-06-24T09:15:00.000Z" },
-        ],
-    },
-    {
-        id: 2,
-        classroom_id: 1,
-        title: "Midterm Syllabus",
-        description: "Covers chapters 1 through 6. Closed-book, 90 minutes.",
-        visibility: "CENTRAL",
-        uploaded_by: 55,
-        uploader_name: "Dr. Farhan Kabir",
-        created_at: "2026-06-18T14:02:00.000Z",
-        updated_at: "2026-06-18T14:02:00.000Z",
-        files: [{ id: 3, file_name: "midterm-syllabus.docx", file_url: "#", file_type: "docx", uploaded_at: "2026-06-18T14:02:00.000Z" }],
-    },
-    {
-        id: 3,
-        classroom_id: 1,
-        title: "Recommended Reading List",
-        description: null,
-        visibility: "CENTRAL",
-        uploaded_by: 55,
-        uploader_name: "Dr. Farhan Kabir",
-        created_at: "2026-06-10T11:30:00.000Z",
-        updated_at: "2026-06-10T11:30:00.000Z",
-        files: [
-            { id: 4, file_name: "reading-list.pdf", file_url: "#", file_type: "pdf", uploaded_at: "2026-06-10T11:30:00.000Z" },
-            { id: 5, file_name: "supplementary-links.txt", file_url: "#", file_type: "txt", uploaded_at: "2026-06-10T11:30:00.000Z" },
-            { id: 6, file_name: "chapter-summaries.pdf", file_url: "#", file_type: "pdf", uploaded_at: "2026-06-10T11:30:00.000Z" },
-        ],
-    },
-];
-
-const dummyPrivate: Material[] = [
-    {
-        id: 4,
-        classroom_id: 1,
-        title: "My revision flashcards",
-        description: "Personal notes, not shared with the class.",
-        visibility: "PRIVATE",
-        uploaded_by: CURRENT_USER_ID,
-        created_at: "2026-06-27T20:41:00.000Z",
-        updated_at: "2026-06-27T20:41:00.000Z",
-        files: [{ id: 7, file_name: "flashcards-ch1-3.pdf", file_url: "#", file_type: "pdf", uploaded_at: "2026-06-27T20:41:00.000Z" }],
-    },
-    {
-        id: 5,
-        classroom_id: 1,
-        title: "Draft essay outline",
-        description: null,
-        visibility: "PRIVATE",
-        uploaded_by: CURRENT_USER_ID,
-        created_at: "2026-06-20T08:05:00.000Z",
-        updated_at: "2026-06-20T08:05:00.000Z",
-        files: [{ id: 8, file_name: "essay-outline-v2.docx", file_url: "#", file_type: "docx", uploaded_at: "2026-06-20T08:05:00.000Z" }],
-    },
-];
 
 /* =========================================================================
    HELPERS
@@ -203,8 +134,8 @@ export default function MaterialsPage() {
     const classroomId = params?.classroomId as string;
 
     const [tab, setTab] = useState<MaterialVisibility>("CENTRAL");
-    const [central, setCentral] = useState<Material[]>(dummyCentral);
-    const [privateMats, setPrivateMats] = useState<Material[]>(dummyPrivate);
+    const [central, setCentral] = useState<Material[]>([]);
+    const [privateMats, setPrivateMats] = useState<Material[]>([]);
     const [isClassroomOwner, setIsClassroomOwner] = useState(dummyIsClassroomOwner);
 
     const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -235,6 +166,22 @@ export default function MaterialsPage() {
         e.preventDefault();
         setIsUploading(true);
 
+        const res = await private_api_call({
+            method: "POST",
+            path: `classrooms/${classroomId}/materials`, body: uploadForm
+        });
+
+        const json = res;
+
+        if (uploadForm.visibility === "CENTRAL") {
+            setCentral((prev) => [json.data, ...prev]);
+        } else {
+            setPrivateMats((prev) => [json.data, ...prev]);
+        }
+        setIsUploading(false);
+        setIsUploadOpen(false);
+
+
         // ---------------------------------------------------------------------
         // TODO: POST /api/v1/classrooms/{classroom_id}/materials  (upload_material)
         // multipart/form-data — do NOT set Content-Type manually, let the
@@ -258,36 +205,36 @@ export default function MaterialsPage() {
         // }
         // ---------------------------------------------------------------------
 
-        // Temporary local-only insert so the UI is testable without a backend.
-        const localMaterial: Material = {
-            id: Date.now(),
-            classroom_id: Number(classroomId) || 0,
-            title: uploadForm.title,
-            description: uploadForm.description || null,
-            visibility: uploadForm.visibility,
-            uploaded_by: CURRENT_USER_ID,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            files: uploadForm.files.map((file, i) => ({
-                id: Date.now() + i,
-                file_name: file.name,
-                file_url: "#",
-                file_type: fileExt(file.name).toLowerCase(),
-                uploaded_at: new Date().toISOString(),
-            })),
-        };
+        // // Temporary local-only insert so the UI is testable without a backend.
+        // const localMaterial: Material = {
+        //     id: Date.now(),
+        //     classroom_id: Number(classroomId) || 0,
+        //     title: uploadForm.title,
+        //     description: uploadForm.description || null,
+        //     visibility: uploadForm.visibility,
+        //     uploaded_by: CURRENT_USER_ID,
+        //     created_at: new Date().toISOString(),
+        //     updated_at: new Date().toISOString(),
+        //     files: uploadForm.files.map((file, i) => ({
+        //         id: Date.now() + i,
+        //         file_name: file.name,
+        //         file_url: "#",
+        //         file_type: fileExt(file.name).toLowerCase(),
+        //         uploaded_at: new Date().toISOString(),
+        //     })),
+        // };
 
-        setTimeout(() => {
-            if (localMaterial.visibility === "CENTRAL") {
-                setCentral((prev) => [localMaterial, ...prev]);
-                setTab("CENTRAL");
-            } else {
-                setPrivateMats((prev) => [localMaterial, ...prev]);
-                setTab("PRIVATE");
-            }
-            setIsUploading(false);
-            setIsUploadOpen(false);
-        }, 400);
+        // setTimeout(() => {
+        //     if (localMaterial.visibility === "CENTRAL") {
+        //         setCentral((prev) => [localMaterial, ...prev]);
+        //         setTab("CENTRAL");
+        //     } else {
+        //         setPrivateMats((prev) => [localMaterial, ...prev]);
+        //         setTab("PRIVATE");
+        //     }
+        //     setIsUploading(false);
+        //     setIsUploadOpen(false);
+        // }, 400);
     }
 
     function handleViewMaterial(material: Material) {
@@ -306,6 +253,26 @@ export default function MaterialsPage() {
         if (!editTarget) return;
         setIsSavingEdit(true);
 
+        const res = await private_api_call({
+            method: "PUT",
+            path: `classrooms/${classroomId}/materials/${editTarget.id}`,
+            body: editForm,
+        });
+
+        const json = res;
+        if (editTarget.visibility === "CENTRAL") {
+            setCentral((prev) =>
+                prev.map((m) => (m.id === editTarget.id ? { ...m, ...editForm } : m))
+            );
+        } else {
+            setPrivateMats((prev) =>
+                prev.map((m) => (m.id === editTarget.id ? { ...m, ...editForm } : m))
+            );
+        }
+        setIsSavingEdit(false);
+        setEditTarget(null);
+
+
         // ---------------------------------------------------------------------
         // TODO: PUT /api/v1/classrooms/{classroom_id}/materials/{material_id}  (update_material)
         //
@@ -322,22 +289,28 @@ export default function MaterialsPage() {
         // 400 with detail "title cannot be blank" if it fails there.
         // ---------------------------------------------------------------------
 
-        setTimeout(() => {
-            const title = (editForm.title ?? editTarget.title).trim();
-            const description = editForm.description ?? editTarget.description ?? "";
-            const apply = (list: Material[]) =>
-                list.map((m) => (m.id === editTarget.id ? { ...m, title, description } : m));
-            setCentral(apply);
-            setPrivateMats(apply);
-            setIsSavingEdit(false);
-            setEditTarget(null);
-        }, 400);
+        // setTimeout(() => {
+        //     const title = (editForm.title ?? editTarget.title).trim();
+        //     const description = editForm.description ?? editTarget.description ?? "";
+        //     const apply = (list: Material[]) =>
+        //         list.map((m) => (m.id === editTarget.id ? { ...m, title, description } : m));
+        //     setCentral(apply);
+        //     setPrivateMats(apply);
+        //     setIsSavingEdit(false);
+        //     setEditTarget(null);
+        // }, 400);
     }
 
-    function handleDeleteMaterial(material: Material) {
+    async function handleDeleteMaterial(material: Material) {
         // TODO: DELETE /api/v1/classrooms/{classroom_id}/materials/{material_id}  (delete_material)
         // await fetch(`/api/v1/classrooms/${classroomId}/materials/${material.id}`, { method: "DELETE" });
         // Backend only allows the uploader to delete — `uploaded_by !== user_id` -> 403.
+
+        const res = await private_api_call({
+            method: "DELETE",
+            path: `classrooms/${classroomId}/materials/${material.id}`,
+        });
+
         setCentral((prev) => prev.filter((m) => m.id !== material.id));
         setPrivateMats((prev) => prev.filter((m) => m.id !== material.id));
         setOpenMenuId(null);
@@ -347,17 +320,23 @@ export default function MaterialsPage() {
     // TODO: GET /api/v1/classrooms/{classroom_id}/materials/central  (initial load)
     // TODO: GET /api/v1/classrooms/{classroom_id}/materials/private  (initial load)
     //
-    // useEffect(() => {
-    //   async function loadMaterials() {
-    //     const [centralRes, privateRes] = await Promise.all([
-    //       fetch(`/api/v1/classrooms/${classroomId}/materials/central`),
-    //       fetch(`/api/v1/classrooms/${classroomId}/materials/private`),
-    //     ]);
-    //     setCentral((await centralRes.json()).data);
-    //     setPrivateMats((await privateRes.json()).data);
-    //   }
-    //   loadMaterials();
-    // }, [classroomId]);
+    useEffect(() => {
+        async function loadMaterials() {
+            const [centralRes, privateRes] = await Promise.all([
+                private_api_call({
+                    method: "GET",
+                    path: `classrooms/${classroomId}/materials/central`,
+                }),
+                private_api_call({
+                    method: "GET",
+                    path: `classrooms/${classroomId}/materials/private`,
+                }),
+            ]);
+            setCentral((await centralRes).data);
+            setPrivateMats((await privateRes).data);
+        }
+        loadMaterials();
+    }, [classroomId]);
     //
     // Other endpoint available on this resource (not wired into this page yet):
     //   GET /materials/{material_id}   get_material — single-material fetch,
@@ -705,8 +684,8 @@ function UploadMaterialModal({
                                             type="button"
                                             onClick={() => setForm((prev) => ({ ...prev, visibility: v }))}
                                             className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${form.visibility === v
-                                                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                                                    : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                                                ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                                                : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
                                                 }`}
                                         >
                                             {v === "CENTRAL" ? "Central (whole class)" : "Private (only me)"}

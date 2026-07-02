@@ -26,6 +26,9 @@ interface AnnouncementModalProps {
     onClose: () => void;
     // now returns title + content + real Files so the parent can build FormData
     onPost: (title: string, content: string, files: File[]) => void;
+    mode?: "create" | "edit";
+    initialTitle?: string;
+    initialContent?: string;
 }
 
 type AttachmentType = "image" | "file" | "link";
@@ -52,9 +55,19 @@ export default function AnnouncementModal({
     onClose,
     onPost,
     className,
+    mode = "create",
+    initialTitle = "",
+    initialContent = "",
 }: AnnouncementModalProps) {
     const [title, setTitle] = useState<string>("");
     const [text, setText] = useState<string>("");
+
+    // console.log({
+    //     mode,
+    //     title,
+    //     hasTitle,
+    //     isPostMenuOpen,
+    // });
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isPostMenuOpen, setIsPostMenuOpen] = useState<boolean>(false);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState<boolean>(false);
@@ -125,6 +138,7 @@ export default function AnnouncementModal({
     };
 
     const handlePost = () => {
+        console.log("POST BUTTON CLICKED");
         const trimmedTitle = title.trim();
         if (!trimmedTitle) return;
 
@@ -140,7 +154,9 @@ export default function AnnouncementModal({
         setAttachments([]);
         setIsPostMenuOpen(false);
         handleClose();
+
     };
+
 
     const handleFileUpload = (
         event: React.ChangeEvent<HTMLInputElement>,
@@ -211,7 +227,9 @@ export default function AnnouncementModal({
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-surface-border">
-                    <h2 className="text-2xl text-text-main">Announcement</h2>
+                    <h2 className="text-2xl text-text-main">
+                        {mode === "edit" ? "Edit announcement" : "Announcement"}
+                    </h2>
                     <button
                         onClick={handleClose}
                         aria-label="Close"
@@ -401,18 +419,20 @@ export default function AnnouncementModal({
                                 onClick={handlePost}
                                 className="font-medium text-sm px-4 py-2 disabled:bg-surface-border disabled:text-text-secondary enabled:bg-brand-primary/10 enabled:text-brand-primary transition-colors"
                             >
-                                Post
+                                {mode === "edit" ? "Save changes" : "Post"}
                             </button>
-                            <button
-                                disabled={!hasTitle}
-                                onClick={() => setIsPostMenuOpen((open) => !open)}
-                                aria-label="More post options"
-                                className="px-2 py-2 border-l border-surface-border disabled:bg-surface-border disabled:text-text-secondary enabled:bg-brand-primary/10 enabled:text-brand-primary transition-colors"
-                            >
-                                <ChevronDown size={16} />
-                            </button>
+                            {mode === "create" && (
+                                <button
+                                    disabled={!hasTitle}
+                                    onClick={() => setIsPostMenuOpen((open) => !open)}
+                                    aria-label="More post options"
+                                    className="px-2 py-2 border-l border-surface-border disabled:bg-surface-border disabled:text-text-secondary enabled:bg-brand-primary/10 enabled:text-brand-primary transition-colors"
+                                >
+                                    <ChevronDown size={16} />
+                                </button>
+                            )}
 
-                            {isPostMenuOpen && hasTitle && (
+                            {mode === "create" && isPostMenuOpen && hasTitle && (
                                 <div className="absolute bottom-full right-0 mb-2 w-40 bg-bg-card border border-surface-border rounded-lg shadow-xl overflow-hidden z-10">
                                     <button
                                         onClick={handlePost}
