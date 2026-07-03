@@ -78,3 +78,16 @@ def regenerate_join_code(
     conn=Depends(get_db),
 ):
     return classroom_service.regenerate_join_code(conn, classroom_id, current_user["id"])
+
+# //get the join_code
+@router.get("/{classroom_id}/join-code")
+def get_join_code(
+    classroom_id: int,
+    current_user: dict = Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    return classroom_service.get_join_code(
+        conn,
+        classroom_id,
+        current_user["id"],)
+        
