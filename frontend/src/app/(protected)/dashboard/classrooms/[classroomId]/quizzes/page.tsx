@@ -20,6 +20,7 @@ import {
     Trophy,
 } from "lucide-react";
 import { private_api_call } from "@/actions/private_api_call";
+import { useRouter } from "next/navigation";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -151,6 +152,7 @@ function statusStyles(status: QuizStatus): { label: string; className: string; i
    ========================================================================= */
 
 export default function QuizzesPage() {
+    const router = useRouter();
     const params = useParams();
     const classroomId = params?.classroomId as string;
     console.log(params);
@@ -269,7 +271,9 @@ export default function QuizzesPage() {
     }
 
     function handleViewQuiz(quiz: Quiz) {
-        // TODO: could route to a dedicated quiz detail page
+
+        router.push(`/dashboard/classrooms/${classroomId}/quiz/${quiz.id}`);
+
         console.log("View quiz", quiz.id);
         setOpenMenuId(null);
     }

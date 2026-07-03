@@ -72,63 +72,6 @@ const emptyForm: AssignmentFormState = {
 };
 
 /* =========================================================================
-   DUMMY DATA — same field names as backend response, swap for `response.data`
-   ========================================================================= */
-
-// const dummyAssignments: Assignment[] = [
-//     {
-//         id: 101,
-//         classroom_id: 1,
-//         title: "Photosynthesis Lab Report",
-//         description:
-//             "Write up your findings from the leaf pigment chromatography experiment. Include your hypothesis, method, results table, and a conclusion paragraph.",
-//         total_marks: 50,
-//         due_date: "2026-07-08T23:59:00.000Z",
-//         allow_late_submission: true,
-//         is_published: true,
-//         files: ["lab_report_template.docx"],
-//         created_at: "2026-06-24T09:00:00.000Z",
-//     },
-//     {
-//         id: 102,
-//         classroom_id: 1,
-//         title: "Chapter 4 Reading Reflection",
-//         description:
-//             "Read chapter 4 of 'Cell Biology Essentials' and write a one-page reflection connecting it to last week's mitosis lecture.",
-//         total_marks: 20,
-//         due_date: "2026-07-03T23:59:00.000Z",
-//         allow_late_submission: false,
-//         is_published: true,
-//         files: [],
-//         created_at: "2026-06-22T14:30:00.000Z",
-//     },
-//     {
-//         id: 103,
-//         classroom_id: 1,
-//         title: "Group Project Proposal",
-//         description: null,
-//         total_marks: 0,
-//         due_date: null,
-//         allow_late_submission: false,
-//         is_published: false,
-//         files: ["proposal_guidelines.pdf", "rubric.pdf"],
-//         created_at: "2026-06-29T11:15:00.000Z",
-//     },
-//     {
-//         id: 104,
-//         classroom_id: 1,
-//         title: "Weekly Quiz — Genetics",
-//         description: "Short quiz covering Punnett squares and dominant/recessive traits.",
-//         total_marks: 10,
-//         due_date: "2026-06-30T23:59:00.000Z",
-//         allow_late_submission: true,
-//         is_published: true,
-//         files: [],
-//         created_at: "2026-06-20T08:00:00.000Z",
-//     },
-// ];
-
-/* =========================================================================
    HELPERS
    ========================================================================= */
 
@@ -161,6 +104,7 @@ function isOverdue(due_date: string | null): boolean {
 export default function AssignmentsPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
+    const [role, setRole] = useState<"teacher" | "student">("student");
 
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -169,6 +113,8 @@ export default function AssignmentsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     /* ------------------------------ handlers ------------------------------ */
+
+
 
     function handleOpenCreateModal() {
         setForm(emptyForm);
@@ -215,24 +161,24 @@ export default function AssignmentsPage() {
 
 
         // Temporary local-only insert so the UI is testable without a backend.
-        const localAssignment: Assignment = {
-            id: Date.now(),
-            classroom_id: Number(classroomId) || 0,
-            title: form.title,
-            description: form.description || null,
-            total_marks: form.total_marks ? Number(form.total_marks) : null,
-            due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-            allow_late_submission: form.allow_late_submission,
-            is_published: form.is_published,
-            files: form.files.map((f) => f.name),
-            created_at: new Date().toISOString(),
-        };
+        // const localAssignment: Assignment = {
+        //     id: Date.now(),
+        //     classroom_id: Number(classroomId) || 0,
+        //     title: form.title,
+        //     description: form.description || null,
+        //     total_marks: form.total_marks ? Number(form.total_marks) : null,
+        //     due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+        //     allow_late_submission: form.allow_late_submission,
+        //     is_published: form.is_published,
+        //     files: form.files.map((f) => f.name),
+        //     created_at: new Date().toISOString(),
+        // };
 
-        setTimeout(() => {
-            setAssignments((prev) => [localAssignment, ...prev]);
-            setIsSubmitting(false);
-            setIsModalOpen(false);
-        }, 400);
+        // setTimeout(() => {
+        //     setAssignments((prev) => [localAssignment, ...prev]);
+        //     setIsSubmitting(false);
+        //     setIsModalOpen(false);
+        // }, 400);
     }
 
     async function handleViewAssignment(assignment: Assignment) {
@@ -287,6 +233,9 @@ export default function AssignmentsPage() {
                 path: `classrooms/${classroomId}/assignments`,
             });
             setAssignments(res.data);
+            if (res.success) {
+                setRole(res.data.role);
+            }
         }
         loadAssignments();
     }, [classroomId]);
@@ -310,13 +259,15 @@ export default function AssignmentsPage() {
                     </div>
                 </div>
 
-                <button
-                    onClick={handleOpenCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
-                >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} />
-                    Create assignment
-                </button>
+                {role === "teacher" && (
+                    <button
+                        onClick={handleOpenCreateModal}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
+                    >
+                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                        Create assignment
+                    </button>
+                )}
             </div>
 
             {/* Assignment list */}
