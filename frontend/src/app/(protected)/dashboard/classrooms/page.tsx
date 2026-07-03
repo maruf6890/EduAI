@@ -1,20 +1,6 @@
-
-
-
 'use client';
 
-/**
- * @description: Classroom Management Page
- * @version: 3.0.0
- *
- * Merges two backend resources into one grid:
- *   - GET /classrooms   -> classes the user teaches   (role: 'teacher')
- *   - GET /enrollments  -> classes the user has joined (role: 'student')
- *
- * Both requests fire concurrently via Promise.all. Each fetch is wrapped so
- * a failure on one endpoint doesn't blank out the other — e.g. if
- * /enrollments 500s, the user should still see the classes they teach.
- */
+
 
 import { useEffect, useState } from 'react';
 import { GraduationCap, Plus } from 'lucide-react';
@@ -27,9 +13,7 @@ import { mapCreatedClassrooms, mapEnrolledClassrooms } from '@/lib/mappers/class
 import { private_api_call } from '@/actions/private_api_call';
 import { useRouter } from 'next/navigation';
 
-// ─── Data fetching ──────────────────────────────────────────────────────────
 
-/** Fetches classes the user teaches. Resolves to `[]` on failure. */
 async function fetchCreatedClassrooms(): Promise<ClassroomCard[]> {
     try {
         const res = await private_api_call({ path: 'classrooms', method: 'GET' });
@@ -41,7 +25,6 @@ async function fetchCreatedClassrooms(): Promise<ClassroomCard[]> {
     }
 }
 
-/** Fetches classes the user has enrolled in. Resolves to `[]` on failure. */
 async function fetchEnrolledClassrooms(): Promise<ClassroomCard[]> {
     try {
         const res = await private_api_call({ path: 'enrollments/my-classrooms', method: 'GET' });
@@ -58,8 +41,6 @@ async function fetchEnrolledClassrooms(): Promise<ClassroomCard[]> {
 export default function ClassroomPage() {
     const [classrooms, setClassrooms] = useState<ClassroomCard[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    // Tracks whether BOTH fetches failed, vs one partially succeeding — a
-    // single dead endpoint still shows the classrooms that did load.
     const [error, setError] = useState<string | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isJoinOpen, setIsJoinOpen] = useState(false);
@@ -74,12 +55,6 @@ export default function ClassroomPage() {
         fetchCreatedClassrooms(),
         fetchEnrolledClassrooms(),
       ]);
-
-      // Both fetchers already catch and log their own errors, resolving to
-      // `[]` on failure rather than rejecting — so an empty combined list
-      // here means "genuinely no classes" in the common case. If you need to
-      // distinguish that from "both endpoints failed," have the fetchers
-      // return a status alongside the array instead of swallowing the error.
       setClassrooms([...created, ...enrolled]);
       setIsLoading(false);
     };
