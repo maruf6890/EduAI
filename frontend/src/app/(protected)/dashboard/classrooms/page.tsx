@@ -65,24 +65,24 @@ export default function ClassroomPage() {
     const [isJoinOpen, setIsJoinOpen] = useState(false);
     const router = useRouter();
 
+    
     const loadClassrooms = async () => {
-        setIsLoading(true);
-        setError(null);
+      setIsLoading(true);
+      setError(null);
 
-        const [created, enrolled] = await Promise.all([
-            fetchCreatedClassrooms(),
-            fetchEnrolledClassrooms(),
-        ]);
+      const [created, enrolled] = await Promise.all([
+        fetchCreatedClassrooms(),
+        fetchEnrolledClassrooms(),
+      ]);
 
-        // Both fetchers already catch and log their own errors, resolving to
-        // `[]` on failure rather than rejecting — so an empty combined list
-        // here means "genuinely no classes" in the common case. If you need to
-        // distinguish that from "both endpoints failed," have the fetchers
-        // return a status alongside the array instead of swallowing the error.
-        setClassrooms([...created, ...enrolled]);
-        setIsLoading(false);
+      // Both fetchers already catch and log their own errors, resolving to
+      // `[]` on failure rather than rejecting — so an empty combined list
+      // here means "genuinely no classes" in the common case. If you need to
+      // distinguish that from "both endpoints failed," have the fetchers
+      // return a status alongside the array instead of swallowing the error.
+      setClassrooms([...created, ...enrolled]);
+      setIsLoading(false);
     };
-
     useEffect(() => {
         loadClassrooms();
     }, []);
@@ -110,8 +110,8 @@ export default function ClassroomPage() {
                 }}
             />
 
-            <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-                <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div className="relative z-10 mx-auto max-w-9xl px-4 py-10 sm:px-6 lg:px-8">
+                <div className="mb-5 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-primary/20 bg-brand-primary-500/10 px-3 py-1">
                             <GraduationCap className="h-3.5 w-3.5 text-indigo-400" />
@@ -119,11 +119,11 @@ export default function ClassroomPage() {
                                 {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-xl">
                             My Classrooms
                         </h1>
-                        <p className="mt-1.5 max-w-md text-[14px] leading-relaxed text-white/40">
-                            Classes you teach and classes you're enrolled in, all in one place.
+                        <p className="mt-1.5 max-w-md text-base leading-relaxed text-white/40">
+                            Classes you teach and enrolled in, all in one place.
                         </p>
                     </div>
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" },
+  { label: "Home", href: "/dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" },
   { label: "Classrooms", href: "/dashboard/classrooms", icon: "M12 4v16m8-8H4" },
   // { label: "Materials", href: "/dashboard/materials", icon: "M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2.13a4 4 0 100-8 4 4 0 000 8zm6 2a4 4 0 11-8 0" },
   // { label: "Assignments", href: "/dashboard/assignment", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
@@ -53,15 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* <div className="flex items-center gap-3 border-t border-white/[0.08] px-4 py-4 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-xs font-bold text-brand-primary border border-brand-primary/20">
-            DS
-          </div>
-          <div className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <p className="text-xs font-bold text-text-main-white">Dr. Sara</p>
-            <p className="text-[11px] font-medium text-text-main-white/40">On shift</p>
-          </div>
-        </div> */}
+
       </aside>
 
       {/* 🔓 Right Content View Container with Sidebar offset margin spacing built-in */}

@@ -45,7 +45,7 @@ export function mapToClassroomCard(
         courseCode,
         courseTitle,
         description: raw.description,
-        instructor: resolveInstructorName(raw.instructor),
+        instructor: resolveInstructorName(raw.owner_name ?? raw.instructor),
         coverImage: raw.cover_image ?? raw.coverImage,
         accentGradient: raw.accent_gradient ?? raw.accentGradient,
         semester: raw.semester ?? 'Current term',
@@ -73,8 +73,6 @@ export function mapEnrollmentToClassroomCard(
         id: raw.id ?? raw.classroom_id ?? '',
     };
 
-    // If nested, the enrollment's own id/classroom_id is still the right id
-    // to route to (`/dashboard/classrooms/{id}`), so prefer it when present.
     const id = raw.classroom?.id ?? raw.id ?? raw.classroom_id ?? source.id;
 
     return mapToClassroomCard({ ...source, id }, 'student');

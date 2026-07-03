@@ -41,6 +41,7 @@ export interface CreatedClassroomDTO {
     semester?: string;
     cover_image?: string;
     coverImage?: string;
+    owner_name?: string;
     accent_gradient?: string;
     accentGradient?: string;
     instructor?: string | ClassroomInstructor;
