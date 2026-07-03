@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Plus,
     ListChecks,
@@ -19,6 +19,7 @@ import {
     Timer,
     Trophy,
 } from "lucide-react";
+import { private_api_call } from "@/actions/private_api_call";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -118,149 +119,6 @@ const emptyForm: QuizFormState = {
    else needs to change.
    ========================================================================= */
 
-const dummyQuizzes: Quiz[] = [
-    {
-        id: 201,
-        classroom_id: 1,
-        title: "Genetics Fundamentals",
-        description: "Covers Mendelian inheritance, Punnett squares, and genotype vs phenotype.",
-        scheduled_at: "2026-07-05T10:00:00.000Z",
-        duration_minutes: 20,
-        total_marks: 10,
-        is_published: true,
-        status: "SCHEDULED",
-        created_by: 1,
-        created_at: "2026-06-24T09:00:00.000Z",
-        updated_at: "2026-06-24T09:00:00.000Z",
-        questions: [
-            {
-                id: 1001,
-                question_text: "A cross between two heterozygous parents (Aa x Aa) produces what ratio?",
-                option_a: "1:2:1",
-                option_b: "3:1",
-                option_c: "1:1",
-                option_d: "9:3:3:1",
-                correct_option: "B",
-                marks: 5,
-                order_index: 0,
-            },
-            {
-                id: 1002,
-                question_text: "The physical appearance of an organism is called its:",
-                option_a: "Genotype",
-                option_b: "Karyotype",
-                option_c: "Phenotype",
-                option_d: "Allele",
-                correct_option: "C",
-                marks: 5,
-                order_index: 1,
-            },
-        ],
-    },
-    {
-        id: 202,
-        classroom_id: 1,
-        title: "Cell Structure Pop Quiz",
-        description: null,
-        scheduled_at: "2026-07-01T15:00:00.000Z",
-        duration_minutes: 15,
-        total_marks: 6,
-        is_published: true,
-        status: "ACTIVE",
-        created_by: 1,
-        created_at: "2026-06-29T08:00:00.000Z",
-        updated_at: "2026-07-01T15:00:00.000Z",
-        questions: [
-            {
-                id: 1003,
-                question_text: "Which organelle is known as the powerhouse of the cell?",
-                option_a: "Nucleus",
-                option_b: "Mitochondria",
-                option_c: "Ribosome",
-                option_d: "Golgi apparatus",
-                correct_option: "B",
-                marks: 3,
-                order_index: 0,
-            },
-            {
-                id: 1004,
-                question_text: "Plant cells, unlike animal cells, contain a:",
-                option_a: "Cell wall",
-                option_b: "Nucleus",
-                option_c: "Cytoplasm",
-                option_d: "Cell membrane",
-                correct_option: "A",
-                marks: 3,
-                order_index: 1,
-            },
-        ],
-    },
-    {
-        id: 203,
-        classroom_id: 1,
-        title: "Chemical Bonding Review",
-        description: "Ionic vs covalent bonds, electronegativity, and Lewis structures.",
-        scheduled_at: "2026-06-20T10:00:00.000Z",
-        duration_minutes: 25,
-        total_marks: 8,
-        is_published: true,
-        status: "ENDED",
-        created_by: 1,
-        created_at: "2026-06-14T09:00:00.000Z",
-        updated_at: "2026-06-20T10:30:00.000Z",
-        questions: [
-            {
-                id: 1005,
-                question_text: "An ionic bond is formed through:",
-                option_a: "Sharing of electrons",
-                option_b: "Transfer of electrons",
-                option_c: "Sharing of protons",
-                option_d: "Transfer of neutrons",
-                correct_option: "B",
-                marks: 4,
-                order_index: 0,
-            },
-            {
-                id: 1006,
-                question_text: "Which bond type typically forms between two nonmetals?",
-                option_a: "Ionic",
-                option_b: "Metallic",
-                option_c: "Covalent",
-                option_d: "Hydrogen",
-                correct_option: "C",
-                marks: 4,
-                order_index: 1,
-            },
-        ],
-    },
-    {
-        id: 204,
-        classroom_id: 1,
-        title: "Unit 5 Draft Quiz",
-        description: "Still adding questions — not visible to students yet.",
-        scheduled_at: "2026-07-10T09:00:00.000Z",
-        duration_minutes: 30,
-        total_marks: 2,
-        is_published: false,
-        status: "SCHEDULED",
-        created_by: 1,
-        created_at: "2026-07-01T12:00:00.000Z",
-        updated_at: "2026-07-01T12:00:00.000Z",
-        questions: [
-            {
-                id: 1007,
-                question_text: "Placeholder question — replace before publishing.",
-                option_a: "Option A",
-                option_b: "Option B",
-                option_c: null,
-                option_d: null,
-                correct_option: "A",
-                marks: 2,
-                order_index: 0,
-            },
-        ],
-    },
-];
 
 /* =========================================================================
    HELPERS
@@ -295,13 +153,17 @@ function statusStyles(status: QuizStatus): { label: string; className: string; i
 export default function QuizzesPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
+    console.log(params);
+    console.log(classroomId);
 
-    const [quizzes, setQuizzes] = useState<Quiz[]>(dummyQuizzes);
+    // const [quizzes, setQuizzes] = useState<Quiz[]>(dummyQuizzes);
+    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form, setForm] = useState<QuizFormState>(emptyForm);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
+    const [isLoading, setIsLoading] = useState(true);
+    const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
     /* ------------------------------ handlers ------------------------------ */
 
     function handleOpenCreateModal() {
@@ -320,63 +182,90 @@ export default function QuizzesPage() {
         // ---------------------------------------------------------------------
         // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes  (create_quiz)
         //
-        // const res = await fetch(`/api/v1/classrooms/${classroomId}/quizzes`, {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({
-        //     title: form.title,
-        //     description: form.description || null,
-        //     scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
-        //     duration_minutes: form.duration_minutes,
-        //     is_published: form.is_published,
-        //     questions: form.questions.map((q) => ({
-        //       question_text: q.question_text,
-        //       option_a: q.option_a,
-        //       option_b: q.option_b,
-        //       option_c: q.option_c || null,
-        //       option_d: q.option_d || null,
-        //       correct_option: q.correct_option,
-        //       marks: q.marks,
-        //       order_index: q.order_index,
-        //     })),
-        //   }),
-        // });
-        // const json = await res.json(); // { success, message, data: Quiz }
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes`, method: "POST", body: {
+                title: form.title,
+                description: form.description || null,
+                scheduled_at: form.scheduled_at
+                    ? new Date(form.scheduled_at).toISOString()
+                    : null,
+                duration_minutes: form.duration_minutes,
+                is_published: form.is_published,
+                questions: form.questions.map((q) => ({
+                    question_text: q.question_text,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c || null,
+                    option_d: q.option_d || null,
+                    correct_option: q.correct_option,
+                    marks: q.marks,
+                    order_index: q.order_index,
+                })),
+            }
+        });
+        // const json = await res; // { success, message, data: Quiz }
+        // console.log("Quiz created successfully:", json);
         // setQuizzes((prev) => [json.data, ...prev]);
-        // ---------------------------------------------------------------------
 
-        // Temporary local-only insert so the UI is testable without a backend.
-        const localQuiz: Quiz = {
-            id: Date.now(),
-            classroom_id: Number(classroomId) || 0,
-            title: form.title,
-            description: form.description || null,
-            scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
-            duration_minutes: form.duration_minutes,
-            total_marks: form.questions.reduce((sum, q) => sum + (q.marks || 0), 0),
-            is_published: form.is_published,
-            status: "SCHEDULED",
-            created_by: 1,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            questions: form.questions.map((q, i) => ({
-                id: Date.now() + i,
-                question_text: q.question_text,
-                option_a: q.option_a,
-                option_b: q.option_b,
-                option_c: q.option_c || null,
-                option_d: q.option_d || null,
-                correct_option: q.correct_option,
-                marks: q.marks,
-                order_index: q.order_index,
-            })),
-        };
-
-        setTimeout(() => {
-            setQuizzes((prev) => [localQuiz, ...prev]);
+        if (!res.success) {
+            console.error(res.message);
             setIsSubmitting(false);
-            setIsModalOpen(false);
-        }, 400);
+            return;
+        }
+        console.log(res);
+
+        setQuizzes((prev) => [res.data, ...prev]);
+
+        setIsSubmitting(false);
+        setIsModalOpen(false);
+        // --------------------------------------------------------------------
+    }
+    async function handleUpdateQuiz(e: React.FormEvent) {
+        e.preventDefault();
+        setIsSubmitting(true);
+
+        // ---------------------------------------------------------------------
+        // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}  (update_quiz)
+        //
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes/${editingQuiz?.id}`, method: "PUT", body: {
+                title: form.title,
+                description: form.description || null,
+                scheduled_at: form.scheduled_at
+                    ? new Date(form.scheduled_at).toISOString()
+                    : null,
+                duration_minutes: form.duration_minutes,
+                is_published: form.is_published,
+                questions: form.questions.map((q) => ({
+                    question_text: q.question_text,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c || null,
+                    option_d: q.option_d || null,
+                    correct_option: q.correct_option,
+                    marks: q.marks,
+                    order_index: q.order_index,
+                })),
+            }
+        });
+        // const json = await res; // { success, message, data: Quiz }
+        // console.log("Quiz created successfully:", json);
+        // setQuizzes((prev) => [json.data, ...prev]);
+
+        if (!res.success) {
+            console.error(res.message);
+            setIsSubmitting(false);
+            return;
+        }
+
+
+        setQuizzes((prev) =>
+            prev.map((q) => (q.id === editingQuiz!.id ? res.data : q))
+        );
+
+        setIsSubmitting(false);
+        setIsModalOpen(false);
+        // --------------------------------------------------------------------
     }
 
     function handleViewQuiz(quiz: Quiz) {
@@ -385,42 +274,95 @@ export default function QuizzesPage() {
         setOpenMenuId(null);
     }
 
-    function handleEditQuiz(quiz: Quiz) {
-        // TODO: PUT /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}  (update_quiz)
-        // Only title, description, scheduled_at, duration_minutes, is_published are
-        // editable per UpdateQuizInput — questions are managed via the separate
-        // add-questions / delete-question endpoints below.
-        console.log("Edit quiz", quiz.id);
+    async function handleEditQuiz(quiz: Quiz) {
+
+        setEditingQuiz(quiz);
+
+        setForm({
+            title: quiz.title,
+            description: quiz.description ?? "",
+            scheduled_at: quiz.scheduled_at
+                ? new Date(quiz.scheduled_at).toISOString().slice(0, 16)
+                : "",
+            duration_minutes: quiz.duration_minutes,
+            is_published: quiz.is_published,
+            questions: quiz.questions.map(q => ({
+                question_text: q.question_text,
+                option_a: q.option_a,
+                option_b: q.option_b,
+                option_c: q.option_c ?? "",
+                option_d: q.option_d ?? "",
+                correct_option: q.correct_option,
+                marks: q.marks,
+                order_index: q.order_index,
+            })),
+        });
+
+        setIsModalOpen(true);
         setOpenMenuId(null);
+
     }
 
-    function handleDeleteQuiz(quiz: Quiz) {
+    async function handleDeleteQuiz(quiz: Quiz) {
         // TODO: DELETE /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}  (delete_quiz)
-        // await fetch(`/api/v1/classrooms/${classroomId}/quizzes/${quiz.id}`, { method: "DELETE" });
-        setQuizzes((prev) => prev.filter((q) => q.id !== quiz.id));
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes/${quiz.id}`,
+            method: "DELETE",
+        });
+
+        if (!res.success) {
+            console.error(res.message);
+            return;
+        }
+
+        setQuizzes(prev => prev.filter(q => q.id !== quiz.id));
         setOpenMenuId(null);
     }
 
-    function handleStartQuiz(quiz: Quiz) {
+    async function handleStartQuiz(quiz: Quiz) {
         // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/start  (start_quiz)
         // Backend rejects if status is already ACTIVE or ENDED (see service code).
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes/${quiz.id}/start`,
+            method: "POST",
+        });
+        if (!res.success) {
+            console.error(res.message);
+            return;
+        }
         setQuizzes((prev) =>
             prev.map((q) => (q.id === quiz.id ? { ...q, status: "ACTIVE", is_published: true } : q))
         );
         setOpenMenuId(null);
     }
 
-    function handleEndQuiz(quiz: Quiz) {
+    async function handleEndQuiz(quiz: Quiz) {
         // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/end  (end_quiz)
         // Backend also marks IN_PROGRESS submissions as TIMED_OUT server-side.
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes/${quiz.id}/end`,
+            method: "POST",
+        });
+        if (!res.success) {
+            console.error(res.message);
+            return;
+        }
         setQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? { ...q, status: "ENDED" } : q)));
         setOpenMenuId(null);
     }
 
-    function handleViewResults(quiz: Quiz) {
+    async function handleViewResults(quiz: Quiz) {
         // TODO: GET /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/results  (get_quiz_results)
         // Returns { success, message, data: [{ id, student_id, started_at, submitted_at,
         //   marks_obtained, status, student: { id, full_name, email } }, ...] }
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes/${quiz.id}/results`,
+            method: "GET",
+        });
+        if (!res.success) {
+            console.error(res.message);
+            return;
+        }
         console.log("View results", quiz.id);
         setOpenMenuId(null);
     }
@@ -428,14 +370,26 @@ export default function QuizzesPage() {
     // ---------------------------------------------------------------------
     // TODO: GET /api/v1/classrooms/{classroom_id}/quizzes/teacher  (initial load)
     //
-    // useEffect(() => {
-    //   async function loadQuizzes() {
-    //     const res = await fetch(`/api/v1/classrooms/${classroomId}/quizzes/teacher`);
-    //     const json = await res.json(); // { success, message, data: Quiz[] }
-    //     setQuizzes(json.data);
-    //   }
-    //   loadQuizzes();
-    // }, [classroomId]);
+    useEffect(() => {
+        async function loadQuizzes() {
+            setIsLoading(true);
+
+            const res = await private_api_call({
+                path: `classrooms/${classroomId}/quizzes/teacher`,
+                method: "GET",
+            });
+
+            if (res.success) {
+                setQuizzes(res.data);
+            } else {
+                console.error("Failed to load quizzes:", res.message);
+            }
+
+            setIsLoading(false);
+        }
+
+        loadQuizzes();
+    }, [classroomId]);
     //
     // Other endpoints available on this resource (not wired into this page yet):
     //   POST   /quizzes/{quiz_id}/questions               add_questions
@@ -500,11 +454,12 @@ export default function QuizzesPage() {
             {/* Create quiz modal */}
             {isModalOpen && (
                 <CreateQuizModal
+                    editingQuiz={editingQuiz}
                     form={form}
                     setForm={setForm}
                     isSubmitting={isSubmitting}
                     onClose={handleCloseModal}
-                    onSubmit={handleCreateQuiz}
+                    onSubmit={editingQuiz ? handleUpdateQuiz : handleCreateQuiz}
                 />
             )}
         </div>
@@ -703,12 +658,14 @@ function CreateQuizModal({
     isSubmitting,
     onClose,
     onSubmit,
+    editingQuiz,
 }: {
     form: QuizFormState;
     setForm: React.Dispatch<React.SetStateAction<QuizFormState>>;
     isSubmitting: boolean;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
+    editingQuiz: Quiz | null;
 }) {
     function updateQuestion(index: number, patch: Partial<QuestionFormRow>) {
         setForm((prev) => ({
@@ -747,7 +704,9 @@ function CreateQuizModal({
             >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-zinc-100">Create quiz</h2>
+                    <h2 className="text-base font-semibold text-zinc-100">
+                        {editingQuiz ? "Edit Quiz" : "Create Quiz"}
+                    </h2>
                     <button
                         onClick={onClose}
                         className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
@@ -875,7 +834,7 @@ function CreateQuizModal({
                         disabled={!isValid || isSubmitting}
                         className="rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
                     >
-                        {isSubmitting ? "Creating..." : "Create quiz"}
+                        {isSubmitting ? "Creating..." : editingQuiz ? "Update Quiz" : "Create Quiz"}
                     </button>
                 </div>
             </div>
@@ -940,8 +899,8 @@ function QuestionRow({
                             onClick={() => onChange({ correct_option: key })}
                             title="Mark as correct answer"
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${question.correct_option === key
-                                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                                    : "border-zinc-700 text-zinc-500 hover:border-zinc-600"
+                                ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                                : "border-zinc-700 text-zinc-500 hover:border-zinc-600"
                                 }`}
                         >
                             {key}

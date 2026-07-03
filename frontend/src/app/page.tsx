@@ -140,7 +140,7 @@ export default function LandingPage() {
             INSTRUCTOR FEEDBACK
           </span>
           <p className="text-lg sm:text-xl font-medium text-text-main/80 italic leading-relaxed">
-            "Preparing quizzes and course announcements used to take hours. Now ClassMind AI helps me generate learning materials, evaluate progress, and spend more time actually teaching."
+            "Preparing quizzes and course announcements used to take hours. Now Edu AI helps me generate learning materials, evaluate progress, and spend more time actually teaching."
           </p>
           <div>
             <h4 className="font-black text-sm text-text-main">
@@ -161,7 +161,7 @@ export default function LandingPage() {
 
       {/* 📝 Section 7: Core Copyright Base Footer Strip */}
       <footer className="bg-bg-main border-t border-surface-border text-center py-8 text-[11px] font-bold uppercase tracking-wider text-text-main/60 w-full">
-        © {new Date().getFullYear()} Niramoy AI Systems. All rights reserved.
+        © {new Date().getFullYear()} EduAI Systems. All rights reserved.
         Engineered for frontline community networks.
       </footer>
     </div>

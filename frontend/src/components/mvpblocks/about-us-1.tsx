@@ -6,16 +6,13 @@ import { Spotlight } from '@/components/ui/spotlight';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { CardHoverEffect } from '@/components/ui/pulse-card';
 import {
-  LayoutDashboard,
-  ClipboardList,
-  HelpCircle,
-  Megaphone,
-  FileText,
-  Bot,
-  MessageSquare,
-  Workflow,
+  Globe,
+  Users,
+  Heart,
+  Lightbulb,
+  Sparkles,
   Rocket,
-  Compass,
+  Target,
 } from 'lucide-react';
 
 interface AboutUsProps {
@@ -32,76 +29,51 @@ interface AboutUsProps {
 }
 
 const iconComponents = {
-  LayoutDashboard: LayoutDashboard,
-  ClipboardList: ClipboardList,
-  HelpCircle: HelpCircle,
-  Megaphone: Megaphone,
-  FileText: FileText,
-  Bot: Bot,
-  MessageSquare: MessageSquare,
-  Workflow: Workflow,
+  Users: Users,
+  Heart: Heart,
+  Lightbulb: Lightbulb,
+  Globe: Globe,
+  Sparkles: Sparkles,
+  Rocket: Rocket,
+  Target: Target,
 };
 
 const defaultValues: AboutUsProps['values'] = [
   {
-    title: 'Classroom Management',
+    title: 'Innovation',
     description:
-      'Create and organize classrooms effortlessly. Manage students, announcements, assignments, quizzes, discussions, study materials, and classroom members from one centralized workspace.',
-    icon: 'LayoutDashboard',
+      'We constantly push boundaries and explore new possibilities to create cutting-edge solutions.',
+    icon: 'Lightbulb',
   },
   {
-    title: 'AI Assignment Generator',
+    title: 'Collaboration',
     description:
-      'Create assignments in seconds using AI. Describe the topic, learning objective, grade level, or paste study content, and EduAI generates a complete assignment ready to review and publish.',
-    icon: 'ClipboardList',
+      'We believe in the power of teamwork and diverse perspectives to achieve extraordinary results.',
+    icon: 'Users',
   },
   {
-    title: 'AI Quiz Generator',
+    title: 'Excellence',
     description:
-      'Generate quizzes automatically from a topic, chapter, notes, or uploaded learning material. EduAI creates well-structured questions while letting you review and edit before publishing.',
-    icon: 'HelpCircle',
+      'We strive for perfection in everything we do, consistently delivering high-quality work.',
+    icon: 'Sparkles',
   },
   {
-    title: 'AI Announcement Assistant',
+    title: 'Impact',
     description:
-      'Need to post an announcement? Give EduAI a short prompt or your rough ideas, and it will generate a clear, professional classroom announcement ready to publish.',
-    icon: 'Megaphone',
-  },
-  {
-    title: 'AI Study Material Assistant',
-    description:
-      'Upload notes, provide a topic, or describe what students need to learn. EduAI generates organized learning materials that teachers can edit before sharing with the class.',
-    icon: 'FileText',
-  },
-  {
-    title: 'AI Classroom Agent',
-    description:
-      'An intelligent assistant that understands your classroom context. Ask questions in natural language, request teaching materials, generate content, or get help managing activities.',
-    icon: 'Bot',
-  },
-  {
-    title: 'Discussions & Collaboration',
-    description:
-      'Encourage classroom interaction through discussion boards where teachers and students can ask questions, share ideas, and collaborate beyond regular lectures.',
-    icon: 'MessageSquare',
-  },
-  {
-    title: 'Smart Classroom Workflow',
-    description:
-      'Everything is connected. Create a classroom, invite students, publish announcements, upload materials, generate AI-powered assignments and quizzes, then manage discussions.',
-    icon: 'Workflow',
+      "We measure our success by the positive difference we make in people's lives and businesses.",
+    icon: 'Globe',
   },
 ];
 
 export default function AboutUs1() {
   const aboutData = {
-    title: 'Welcome to EduAI',
+    title: 'About Us',
     subtitle:
-      'EduAI combines classroom management with AI assistance to help teachers create educational content faster while keeping everything organized in one place.',
+      'Building the future of web development with beautiful, reusable components.',
     mission:
-      'EduAI is an AI-powered classroom management platform built for teachers and students. It brings classrooms, assignments, quizzes, announcements, study materials, and discussions together in one workspace, with AI assistance built into every step so you can create educational content faster.',
+      'Our mission is to democratize web development by providing high-quality, customizable components that help developers build stunning websites quickly and efficiently.',
     vision:
-      'Create or join a classroom, then upload learning materials or create them manually. Use the AI Agent whenever you need help generating educational content, and always review AI-generated content before publishing. Publish assignments, quizzes, announcements, or study materials for students, and track everything from one dashboard.',
+      'We envision a world where creating beautiful websites is accessible to everyone, regardless of their design or development experience.',
     values: defaultValues,
     className: 'relative overflow-hidden py-20',
   };
@@ -115,11 +87,9 @@ export default function AboutUs1() {
   return (
     <section className="relative w-full overflow-hidden pt-20">
       <Spotlight
-        gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(188, 49%, 43%, 0.12) 0, hsla(256, 86%, 68%, 0.08) 50%, hsla(188, 49%, 43%, 0) 80%)"
-
-        gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(56, 84%, 61%, 0.10) 0, hsla(188, 49%, 43%, 0.06) 80%, transparent 100%)"
-
-        gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(256, 86%, 68%, 0.08) 0, hsla(56, 84%, 61%, 0.06) 80%, transparent 100%)"
+        gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(336, 100%, 50%, 0.08) 0, hsla(341, 100%, 55%, 0.04) 50%, hsla(336, 100%, 45%, 0) 80%)"
+        gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(333, 100%, 85%, 0.08) 0, hsla(335, 100%, 55%, 0.04) 80%, transparent 100%)"
+        gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(332, 100%, 85%, 0.06) 0, hsla(327, 100%, 85%, 0.06) 80%, transparent 100%)"
       />
 
       <div className="relative z-10 container mx-auto px-4 md:px-6">
@@ -138,7 +108,7 @@ export default function AboutUs1() {
           </p>
         </motion.div>
 
-        {/* What is EduAI & How to Use EduAI Section */}
+        {/* Mission & Vision Section */}
         <div ref={missionRef} className="relative mx-auto mb-24 max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -164,7 +134,7 @@ export default function AboutUs1() {
 
               <div className="space-y-4">
                 <h2 className="from-primary/90 to-primary/70 mb-4 bg-gradient-to-r bg-clip-text text-3xl font-bold text-transparent">
-                  What is EduAI
+                  Our Mission
                 </h2>
 
                 <p className="text-muted-foreground text-lg leading-relaxed">
@@ -184,11 +154,11 @@ export default function AboutUs1() {
                 reverse
               />
               <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 backdrop-blur-sm">
-                <Compass className="h-8 w-8 text-blue-500" />
+                <Target className="h-8 w-8 text-blue-500" />
               </div>
 
               <h2 className="mb-4 bg-gradient-to-r from-blue-500/90 to-blue-500/70 bg-clip-text text-3xl font-bold text-transparent">
-                How to Use EduAI
+                Our Vision
               </h2>
 
               <p className="text-muted-foreground text-lg leading-relaxed">
@@ -208,11 +178,11 @@ export default function AboutUs1() {
             className="mb-12 text-center"
           >
             <h2 className="from-foreground/80 via-foreground to-foreground/80 bg-gradient-to-r bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
-              Platform Features
+              Our Core Values
             </h2>
             <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-lg">
-              Everything you need to manage your classroom and create
-              educational content with AI assistance.
+              The principles that guide everything we do and every decision we
+              make.
             </p>
           </motion.div>
 
@@ -239,13 +209,13 @@ export default function AboutUs1() {
                     title={value.title}
                     description={value.description}
                     variant={
-                      index % 4 === 0
+                      index === 0
                         ? 'purple'
-                        : index % 4 === 1
-                          ? 'primary'
-                          : index % 4 === 2
-                            ? 'secondary'
-                            : 'accent'
+                        : index === 1
+                          ? 'blue'
+                          : index === 2
+                            ? 'amber'
+                            : 'rose'
                     }
                     glowEffect={true}
                     size="lg"
