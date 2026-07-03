@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
+from fastapi import HTTPException
 
 from app.core.config import settings
 from app.db.connection import close_db_pool, init_db_pool
@@ -63,10 +64,15 @@ app.add_middleware(
 )
 
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception(f"Unhandled error: {exc}")
-    return JSONResponse(status_code=500, content={"success": False, "message": "Internal server error"})
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "message": exc.detail,
+        },
+    )
 
 
 
