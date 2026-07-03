@@ -310,3 +310,58 @@ def get_material(conn, classroom_id: int, material_id: int, user_id: int) -> dic
         "message": "Material fetched successfully",
         "data": mat,
     }
+
+
+
+
+
+
+def get_material_by_agent(
+    conn,
+    classroom_id: int,
+    material_id: int,
+    user_id: int,
+) -> bool:
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    m.id, m.classroom_id, m.title, m.description,
+                    m.visibility, m.uploaded_by, m.created_at, m.updated_at,
+                    u.full_name AS uploader_name
+                FROM materials m
+                JOIN users u ON u.id = m.uploaded_by
+                WHERE m.id = %s AND m.classroom_id = %s
+                """,
+                (material_id, classroom_id),
+            )
+            r = cur.fetchone()
+
+        if not r:
+            return False
+
+        r = dict(r)
+
+        # Private material — only uploader can access
+        if r["visibility"] == "PRIVATE" and r["uploaded_by"] != user_id:
+            return False
+
+        mat = _serialize({k: v for k, v in r.items() if k != "uploader_name"})
+        mat["uploader_name"] = r["uploader_name"]
+        mat["files"] = _get_files(conn, mat["id"])
+
+        return True
+
+    except Exception:
+        return False
+
+
+
+
+
+
+
+
+

@@ -1,15 +1,38 @@
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
-psycopg2-binary==2.9.10
+
+# Database
+sqlalchemy==2.0.36
+psycopg[binary]==3.2.3
+alembic==1.14.0
+
+# Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
+
+# Validation & Config
 pydantic==2.10.3
 pydantic-settings==2.6.1
+email-validator==2.2.0
+
+# File Uploads
 python-multipart==0.0.18
+cloudinary==1.41.0
+
+# Environment
 python-dotenv==1.0.1
+
+# Logging
 loguru==0.7.2
+
+# Testing
 pytest==8.3.4
 httpx==0.28.0
-cloudinary==1.41.0
-python-multipart==0.0.18
+
+# AI
+langchain
+langchain-core
+langgraph
+langchain-google-genai
+rank-bm25

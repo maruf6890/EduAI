@@ -53,11 +53,12 @@ def get_my_classrooms(conn, owner_id: int) -> dict:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, name, join_code, course_code, course_title,
-                   description, semester, owner_id, is_active, created_at, updated_at
-            FROM classrooms
-            WHERE owner_id = %s
-            ORDER BY created_at DESC
+            SELECT c.id, c.name, c.join_code, c.course_code, c.course_title,
+                   c.description, c.semester, c.owner_id, c.is_active, c.created_at, c.updated_at, u.full_name as owner_name
+            FROM classrooms c
+            join users u ON c.owner_id = u.id
+            WHERE c.owner_id = %s
+            ORDER BY c.created_at DESC
             """,
             (owner_id,),
         )
@@ -74,10 +75,11 @@ def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, name, join_code, course_code, course_title,
-                   description, semester, owner_id, is_active, created_at, updated_at
-            FROM classrooms
-            WHERE id = %s
+            SELECT c.id, c.name, c.join_code, c.course_code, c.course_title,
+                   c.description, c.semester, c.owner_id, c.is_active, c.created_at, c.updated_at, u.full_name as owner_name
+            FROM classrooms c
+            join users u ON c.owner_id = u.id
+            WHERE c.id = %s
             """,
             (classroom_id,),
         )
