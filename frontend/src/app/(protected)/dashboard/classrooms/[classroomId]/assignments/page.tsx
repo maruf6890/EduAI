@@ -18,24 +18,8 @@ import {
     Clock,
 } from "lucide-react";
 import { private_api_call } from "@/actions/private_api_call";
+import { useClassroom } from "../ClassroomContext";
 
-/* =========================================================================
-   TYPES — mirrors backend contract EXACTLY (see POST /assignments screenshot)
-   =========================================================================
-   Confirmed fields (from your multipart/form-data request body):
-     - title: string (required)
-     - description: string | null
-     - total_marks: integer | null
-     - due_date: string ($date-time) | null
-     - allow_late_submission: boolean
-     - is_published: boolean
-     - files: string[]  (array<string> — likely file URLs/paths on response)
-
-   ⚠️ NOT CONFIRMED YET: I was not given the GET /assignments (list) response
-   or the POST /assignments response screenshot. The fields below marked
-   "ASSUMED" are the minimum a list item needs to render and are NOT part of
-   your confirmed contract — replace/remove once you share that screenshot.
-   ========================================================================= */
 
 interface Assignment {
     id: number; // ASSUMED — needed for view/edit/delete routes
@@ -104,13 +88,21 @@ function isOverdue(due_date: string | null): boolean {
 export default function AssignmentsPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
-    const [role, setRole] = useState<"teacher" | "student">("student");
+
+    const classroom = useClassroom();
+    const isTeacher = classroom.current_user.role === "teacher";
+    // const [role, setRole] = useState<"teacher" | "student">("student");
+
+
 
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form, setForm] = useState<AssignmentFormState>(emptyForm);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+    const [editForm, setEditForm] = useState<AssignmentFormState | null>(null);
 
     /* ------------------------------ handlers ------------------------------ */
 
@@ -138,47 +130,36 @@ export default function AssignmentsPage() {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // ---------------------------------------------------------------------
-        // TODO: POST /api/v1/classrooms/{classroom_id}/assignments
-        //
+        try {
+            const body = new FormData();
+            body.append("title", form.title);
+            if (form.description) body.append("description", form.description);
+            if (form.total_marks) body.append("total_marks", form.total_marks);
+            if (form.due_date) body.append("due_date", new Date(form.due_date).toISOString());
+            body.append("allow_late_submission", String(form.allow_late_submission));
+            body.append("is_published", String(form.is_published));
+            form.files.forEach((file) => body.append("files", file));
 
-        const body = new FormData();
-        body.append("title", form.title);
-        if (form.description) body.append("description", form.description);
-        if (form.total_marks) body.append("total_marks", form.total_marks);
-        if (form.due_date) body.append("due_date", new Date(form.due_date).toISOString());
-        body.append("allow_late_submission", String(form.allow_late_submission));
-        body.append("is_published", String(form.is_published));
-        form.files.forEach((file) => body.append("files", file));
+            const res = await private_api_call({
+                method: "POST",
+                path: `classrooms/${classroomId}/assignments`,
+                body,
+            });
 
-        const res = await private_api_call({
-            method: "POST",
-            path: `classrooms/${classroomId}/assignments`,
-            body,
-        });
-        const created: Assignment = res.data;
-        setAssignments((prev) => [created, ...prev]);
+            const created: Assignment = res.data;
+            setAssignments((prev) => [created, ...prev]);
 
+            // IMPORTANT: close modal + reset form here
+            setForm(emptyForm);
+            setIsModalOpen(false);
 
-        // Temporary local-only insert so the UI is testable without a backend.
-        // const localAssignment: Assignment = {
-        //     id: Date.now(),
-        //     classroom_id: Number(classroomId) || 0,
-        //     title: form.title,
-        //     description: form.description || null,
-        //     total_marks: form.total_marks ? Number(form.total_marks) : null,
-        //     due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-        //     allow_late_submission: form.allow_late_submission,
-        //     is_published: form.is_published,
-        //     files: form.files.map((f) => f.name),
-        //     created_at: new Date().toISOString(),
-        // };
+        } catch (err) {
+            console.error("Failed to create assignment", err);
 
-        // setTimeout(() => {
-        //     setAssignments((prev) => [localAssignment, ...prev]);
-        //     setIsSubmitting(false);
-        //     setIsModalOpen(false);
-        // }, 400);
+        } finally {
+            // 🔥 THIS is where it must go
+            setIsSubmitting(false);
+        }
     }
 
     async function handleViewAssignment(assignment: Assignment) {
@@ -191,24 +172,57 @@ export default function AssignmentsPage() {
         // setAssignment(res.data);
         setOpenMenuId(null);
     }
+    function openEditModal(assignment: Assignment) {
+        setEditingAssignment(assignment);
 
-    async function handleEditAssignment(assignment: Assignment) {
-        // TODO: PATCH /api/v1/classrooms/{classroom_id}/assignments/{assignment.id}
-        const res = await private_api_call({
-            method: "PUT",
-            path: `classrooms/${classroomId}/assignments/${assignment.id}`,
-            body: {
-                title: assignment.title,
-                description: assignment.description,
-                total_marks: assignment.total_marks,
-                due_date: assignment.due_date,
-                allow_late_submission: assignment.allow_late_submission,
-                is_published: assignment.is_published,
-            },
+        setEditForm({
+            title: assignment.title,
+            description: assignment.description ?? "",
+            total_marks: String(assignment.total_marks ?? ""),
+            due_date: assignment.due_date ? assignment.due_date.slice(0, 16) : "",
+            allow_late_submission: assignment.allow_late_submission,
+            is_published: assignment.is_published,
+            files: [],
         });
-        setAssignments((prev) => prev.map((a) => (a.id === assignment.id ? res.data : a)));
-        console.log("Edit assignment", assignment.id);
-        setOpenMenuId(null);
+    }
+
+    async function handleUpdateAssignment(e: React.FormEvent) {
+        e.preventDefault();
+
+        if (!editingAssignment || !editForm) return;
+
+        setIsSubmitting(true);
+
+        try {
+            const res = await private_api_call({
+                method: "PUT",
+                path: `classrooms/${classroomId}/assignments/${editingAssignment.id}`,
+                body: {
+                    title: editForm.title,
+                    description: editForm.description,
+                    total_marks: editForm.total_marks
+                        ? Number(editForm.total_marks)
+                        : null,
+                    due_date: editForm.due_date
+                        ? new Date(editForm.due_date).toISOString()
+                        : null,
+                    allow_late_submission: editForm.allow_late_submission,
+                    is_published: editForm.is_published,
+                },
+            });
+
+            setAssignments((prev) =>
+                prev.map((a) =>
+                    a.id === editingAssignment.id ? res.data : a
+                )
+            );
+
+            setEditingAssignment(null);
+            setEditForm(null);
+
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     async function handleDeleteAssignment(assignment: Assignment) {
@@ -233,9 +247,9 @@ export default function AssignmentsPage() {
                 path: `classrooms/${classroomId}/assignments`,
             });
             setAssignments(res.data);
-            if (res.success) {
-                setRole(res.data.role);
-            }
+            // if (res.success) {
+            //     setRole(res.data.role);
+            // }
         }
         loadAssignments();
     }, [classroomId]);
@@ -259,7 +273,7 @@ export default function AssignmentsPage() {
                     </div>
                 </div>
 
-                {role === "teacher" && (
+                {isTeacher && (
                     <button
                         onClick={handleOpenCreateModal}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
@@ -272,7 +286,9 @@ export default function AssignmentsPage() {
 
             {/* Assignment list */}
             {assignments.length === 0 ? (
-                <EmptyState onCreate={handleOpenCreateModal} />
+                <EmptyState
+                    onCreate={isTeacher ? handleOpenCreateModal : undefined}
+                />
             ) : (
                 <div className="flex flex-col gap-3">
                     {assignments.map((assignment) => (
@@ -284,7 +300,7 @@ export default function AssignmentsPage() {
                                 setOpenMenuId((prev) => (prev === assignment.id ? null : assignment.id))
                             }
                             onView={() => handleViewAssignment(assignment)}
-                            onEdit={() => handleEditAssignment(assignment)}
+                            onEdit={() => openEditModal(assignment)}
                             onDelete={() => handleDeleteAssignment(assignment)}
                         />
                     ))}
@@ -301,6 +317,20 @@ export default function AssignmentsPage() {
                     onSubmit={handleCreateAssignment}
                     onFileChange={handleFileChange}
                     onRemoveFile={handleRemoveFile}
+                />
+            )}
+            {editingAssignment && editForm && (
+                <CreateAssignmentModal
+                    form={editForm}
+                    setForm={setEditForm as any}
+                    isSubmitting={isSubmitting}
+                    onClose={() => {
+                        setEditingAssignment(null);
+                        setEditForm(null);
+                    }}
+                    onSubmit={handleUpdateAssignment}
+                    onFileChange={() => { }}
+                    onRemoveFile={() => { }}
                 />
             )}
         </div>
@@ -327,6 +357,9 @@ function AssignmentCard({
     onDelete: () => void;
 }) {
     const overdue = isOverdue(assignment.due_date) && assignment.is_published;
+
+    const classroom = useClassroom();
+    const isTeacher = classroom.current_user.role === "teacher";
 
     return (
         <div
@@ -389,48 +422,50 @@ function AssignmentCard({
             </div>
 
             {/* Actions menu */}
-            <div className="relative shrink-0">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleMenu();
-                    }}
-                    className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-brand-primary/10 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
-                    data-open={isMenuOpen}
-                    aria-label="Assignment actions"
-                >
-                    <MoreVertical className="h-4 w-4" />
-                </button>
-
-                {isMenuOpen && (
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+            {isTeacher && (
+                <div className="relative shrink-0">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleMenu();
+                        }}
+                        className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-brand-primary/10 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
+                        data-open={isMenuOpen}
+                        aria-label="Assignment actions"
                     >
-                        <button
-                            onClick={onView}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                        <MoreVertical className="h-4 w-4" />
+                    </button>
+
+                    {isMenuOpen && (
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
                         >
-                            <Eye className="h-4 w-4" />
-                            View
-                        </button>
-                        <button
-                            onClick={onEdit}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                        >
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                        </button>
-                        <button
-                            onClick={onDelete}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                        </button>
-                    </div>
-                )}
-            </div>
+                            <button
+                                onClick={onView}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                            >
+                                <Eye className="h-4 w-4" />
+                                View
+                            </button>
+                            <button
+                                onClick={onEdit}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                            </button>
+                            <button
+                                onClick={onDelete}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -439,7 +474,7 @@ function AssignmentCard({
    EMPTY STATE
    ========================================================================= */
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, }: { onCreate?: () => void; }) {
     return (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-brand-primary py-20 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
@@ -449,13 +484,16 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
             <p className="mt-1 max-w-sm text-sm text-zinc-500">
                 Create your first assignment to give students something to work on.
             </p>
-            <button
-                onClick={onCreate}
-                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950  hover:bg-brand-primary/80"
-            >
-                <Plus className="h-4 w-4" strokeWidth={2.5} />
-                Create assignment
-            </button>
+
+            {onCreate && (
+                <button
+                    onClick={onCreate}
+                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950  hover:bg-brand-primary/80"
+                >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    Create assignment
+                </button>
+            )}
         </div>
     );
 }

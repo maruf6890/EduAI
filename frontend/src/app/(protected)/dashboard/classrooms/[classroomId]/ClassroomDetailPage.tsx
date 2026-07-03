@@ -6,6 +6,8 @@ import { private_api_call } from "@/actions/private_api_call";
 
 import AnnouncementModal from "@/components/classroom/Announcementmodal";
 import { useParams } from "next/navigation";
+import { useClassroom } from "./ClassroomContext";
+import { ClassroomProvider } from "./ClassroomProvider";
 
 
 
@@ -20,7 +22,7 @@ interface Comment {
 interface Announcement {
   id: string;
   title: string;
-  author: string;
+  // author: string;
   role: "Instructor" | "Student";
   content: string;
   createdAt: string;
@@ -75,7 +77,7 @@ function mapAnnouncement(item: BackendAnnouncement): Announcement {
   return {
     id: String(item.id),
     title: item.title,
-    author: authorName,
+    // author: authorName,
     role: "Instructor",
     content: item.content ?? "",
     createdAt: formatRelativeTime(item.created_at ?? item.createdAt),
@@ -91,18 +93,22 @@ export default function ClassroomDetailPage() {
   const classroomId = params.classroomId as string;
   // const { classroomId } = params;
 
-  const classroom = {
-    id: classroomId,
-    name: `Classroom ${classroomId}`,
-    stats: {
-      students: 10,
-      assignments: 5,
-      quizzes: 3,
-      announcements: 2,
-      calendar: 1,
-    },
-  };
-  const isTeacher = true;
+  const classroom = useClassroom();
+
+  // const classroom = {
+  //   id: classroomId,
+  //   name: `Classroom ${classroomId}`,
+  //   stats: {
+  //     students: 10,
+  //     assignments: 5,
+  //     quizzes: 3,
+  //     announcements: 2,
+  //     calendar: 1,
+  //   },
+  // };
+  const isTeacher = classroom.current_user.role === "teacher";
+  // console.log("Classroom Context:", classroom);
+  // console.log("Is Teacher:", isTeacher);
   const [editingAnnouncement, setEditingAnnouncement] =
     useState<Announcement | null>(null);
 
@@ -127,6 +133,7 @@ export default function ClassroomDetailPage() {
       if (!isMounted) return;
 
       if (res.success && Array.isArray(res.data)) {
+        console.log(res.data);
         setAnnouncements(res.data.map(mapAnnouncement));
       } else if (!res.success) {
         console.error("Failed to load announcements:", res.message);
@@ -249,16 +256,26 @@ export default function ClassroomDetailPage() {
           </p>
 
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-2xl font-bold tracking-[0.25em]">
-              {joinCode}
-            </span>
+            {isTeacher && (
+              <span className="text-2xl font-bold tracking-[0.25em]">
 
-            <button
-              onClick={handleCopyCode}
-              className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white transition hover:opacity-90"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
+                {joinCode}
+              </span>
+            )}
+            {!isTeacher && (
+              <h3 className="text-2xl font-bold tracking-[0.25em]">
+                Class code is only visible to your teacher.
+              </h3>
+            )}
+
+            {isTeacher && (
+              <button
+                onClick={handleCopyCode}
+                className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white transition hover:opacity-90"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            )}
           </div>
         </div>
         {isTeacher && (
@@ -293,6 +310,11 @@ export default function ClassroomDetailPage() {
               const isExpanded = expandedId === announcement.id;
 
               return (
+                // <div
+                //   // // key={announcement.id}
+                //   // key={classroom.teacher.name}
+                //   // className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-sm"
+
                 <div
                   key={announcement.id}
                   className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-sm"
@@ -300,12 +322,12 @@ export default function ClassroomDetailPage() {
                   {/* Header */}
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-sm font-semibold text-brand-primary">
-                      {getInitials(announcement.author)}
+                      {getInitials(classroom.teacher.name)}
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-medium text-zinc-100">
-                          {announcement.author}
+                          {classroom.teacher.name}
                         </span>
                         {announcement.role === "Instructor" && (
                           <span className="rounded-full bg-brand-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-primary">
@@ -371,7 +393,7 @@ export default function ClassroomDetailPage() {
                       ))}
                     </div>
                   )}
-                 
+
                 </div>
               );
             })}

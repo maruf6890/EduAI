@@ -115,7 +115,7 @@ def _get_comment_tree(conn, post_id: int) -> list:
 # ── Teacher: create post ──────────────────────────────────────────────────────
 
 def create_post(conn, classroom_id: int, created_by: int, title: str, content) -> dict:
-    _verify_owner(conn, classroom_id, created_by)
+    _verify_member(conn, classroom_id, created_by)
 
     with conn.cursor() as cur:
         cur.execute(
@@ -139,8 +139,62 @@ def create_post(conn, classroom_id: int, created_by: int, title: str, content) -
 
 # ── Teacher: update post ──────────────────────────────────────────────────────
 
+# def update_post(conn, classroom_id: int, post_id: int, owner_id: int, title, content, is_active) -> dict:
+#     _verify_owner(conn, classroom_id, owner_id)
+
+#     updates = {}
+#     if title is not None:
+#         updates["title"] = title
+#     if content is not None:
+#         updates["content"] = content
+#     if is_active is not None:
+#         updates["is_active"] = is_active
+
+#     if not updates:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+
+#     set_clause = ", ".join(f"{k} = %s" for k in updates)
+#     values = list(updates.values()) + [post_id, classroom_id]
+
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             f"""
+#             UPDATE discussion_posts
+#             SET {set_clause}, updated_at = NOW()
+#             WHERE id = %s AND classroom_id = %s
+#             RETURNING id, classroom_id, title, content, created_by, is_active, created_at, updated_at
+#             """,
+#             values,
+#         )
+#         post = cur.fetchone()
+
+#     if not post:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+#     post = _serialize(dict(post))
+#     post["comments"] = _get_comment_tree(conn, post["id"])
+
+#     return {
+#         "success": True,
+#         "message": "Post updated successfully",
+#         "data": post,
+#     }
+
 def update_post(conn, classroom_id: int, post_id: int, owner_id: int, title, content, is_active) -> dict:
-    _verify_owner(conn, classroom_id, owner_id)
+    _verify_member(conn, classroom_id, owner_id)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT created_by FROM discussion_posts WHERE id = %s AND classroom_id = %s",
+            (post_id, classroom_id),
+        )
+        existing = cur.fetchone()
+
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    if existing["created_by"] != owner_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only edit your own posts")
 
     updates = {}
     if title is not None:
@@ -168,9 +222,6 @@ def update_post(conn, classroom_id: int, post_id: int, owner_id: int, title, con
         )
         post = cur.fetchone()
 
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-
     post = _serialize(dict(post))
     post["comments"] = _get_comment_tree(conn, post["id"])
 
@@ -183,16 +234,44 @@ def update_post(conn, classroom_id: int, post_id: int, owner_id: int, title, con
 
 # ── Teacher: delete post ──────────────────────────────────────────────────────
 
+# def delete_post(conn, classroom_id: int, post_id: int, owner_id: int) -> dict:
+#     _verify_owner(conn, classroom_id, owner_id)
+
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             "DELETE FROM discussion_posts WHERE id = %s AND classroom_id = %s RETURNING id",
+#             (post_id, classroom_id),
+#         )
+#         if not cur.fetchone():
+#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+#     return {
+#         "success": True,
+#         "message": "Post deleted successfully",
+#         "data": None,
+#     }
+
 def delete_post(conn, classroom_id: int, post_id: int, owner_id: int) -> dict:
-    _verify_owner(conn, classroom_id, owner_id)
+    is_owner = _verify_member(conn, classroom_id, owner_id)
 
     with conn.cursor() as cur:
         cur.execute(
-            "DELETE FROM discussion_posts WHERE id = %s AND classroom_id = %s RETURNING id",
+            "SELECT created_by FROM discussion_posts WHERE id = %s AND classroom_id = %s",
             (post_id, classroom_id),
         )
-        if not cur.fetchone():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+        existing = cur.fetchone()
+
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    if not is_owner and existing["created_by"] != owner_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own posts")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM discussion_posts WHERE id = %s AND classroom_id = %s",
+            (post_id, classroom_id),
+        )
 
     return {
         "success": True,

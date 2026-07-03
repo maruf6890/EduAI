@@ -30,6 +30,7 @@ import {
     deleteComment,
 } from "@/actions/dashboard/discussion";
 import { Dialog } from "@/components/ui/dialog";
+import { useClassroom } from "../ClassroomContext";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -79,12 +80,14 @@ interface Post {
 // ⚠️ ASSUMED: there's no /me or auth-context endpoint in what you've shared.
 // This mock stands in for the logged-in user until you wire real auth —
 // swap CURRENT_USER for your session/user context.
-const CURRENT_USER: DiscussionUser = {
-    id: 1,
-    full_name: "Ms. Rivera",
-    email: "rivera@school.edu",
-};
-const IS_OWNER = true; // ASSUMED — controls teacher-only actions (create/edit/delete post, delete any comment)
+// const CURRENT_USER: DiscussionUser = {
+//     id: 1,
+//     full_name: "Ms. Rivera",
+//     email: "rivera@school.edu",
+// };
+// const IS_OWNER = true; // ASSUMED — controls teacher-only actions (create/edit/delete post, delete any comment)
+
+
 
 // Matches CreatePostInput exactly
 interface PostFormState {
@@ -171,6 +174,10 @@ export default function DiscussionsPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
 
+    const classroom = useClassroom();
+
+    const isTeacher = classroom.current_user.role === "teacher";
+
     const [posts, setPosts] = useState<Post[]>([]);
     const [expandedPostId, setExpandedPostId] = useState<number | null>(null);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
@@ -193,6 +200,13 @@ export default function DiscussionsPage() {
         setIsSubmittingPost(true);
         const res = await createPost(classroomId, postTitle, postContent);
         const json = res;
+
+        if (!json?.success || !json?.data) {
+            console.error("Failed to create post:", json?.message);
+            setIsSubmittingPost(false);
+            return; // don't touch posts state, don't close modal
+        }
+
         setPosts((prev) => [json.data, ...prev]);
         setIsSubmittingPost(false);
         setIsCreateModalOpen(false);
@@ -252,7 +266,11 @@ export default function DiscussionsPage() {
             content,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            created_by: CURRENT_USER,
+            created_by: {
+                id: Number(classroom.current_user.id),
+                full_name: classroom.current_user.full_name,
+                email: classroom.current_user.email,
+            },
             replies: [],
         };
 
@@ -292,15 +310,14 @@ export default function DiscussionsPage() {
     useEffect(() => {
         async function loadPosts() {
             const response = await getPosts(classroomId);
-            setPosts(response.data);
+            setPosts(Array.isArray(response?.data) ? response.data.filter(Boolean) : []);
         }
-
         loadPosts();
     }, [classroomId]);
-    console.log("posts:", posts);
-    console.log("IS_OWNER:", IS_OWNER);
+    // console.log("posts:", posts);
+    // console.log("isTeacher:", isTeacher);
 
-    const visiblePosts = IS_OWNER ? posts : posts.filter((p) => p.is_active);
+    const visiblePosts = isTeacher ? posts : posts.filter((p) => p.is_active);
 
     return (
         <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -318,20 +335,19 @@ export default function DiscussionsPage() {
                     </div>
                 </div>
 
-                {IS_OWNER && (
-                    <button
-                        onClick={handleOpenCreateModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        New post
-                    </button>
-                )}
+                <button
+                    onClick={handleOpenCreateModal}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
+                >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    New post
+                </button>
             </div>
 
             {/* Post list */}
             {visiblePosts.length === 0 ? (
-                <EmptyState onCreate={IS_OWNER ? handleOpenCreateModal : undefined} />
+                <EmptyState onCreate={handleOpenCreateModal} />
+
             ) : (
                 <div className="flex flex-col gap-3">
                     {visiblePosts.map((post) => (
@@ -389,6 +405,7 @@ export default function DiscussionsPage() {
    POST CARD
    ========================================================================= */
 
+
 function PostCard({
     post,
     isExpanded,
@@ -414,7 +431,14 @@ function PostCard({
 }) {
     const [replyText, setReplyText] = useState("");
     const totalComments = countComments(post.comments);
-    const canManage = IS_OWNER || post.created_by.id === CURRENT_USER.id;
+
+    const classroom = useClassroom();
+    const isTeacher = classroom.current_user.role === "teacher";
+
+    const isOwnPost = post.created_by.id === Number(classroom.current_user.id);
+    const canEditPost = isOwnPost;
+    const canDeletePost = isTeacher || isOwnPost;
+    const canShowMenu = canEditPost || canDeletePost;
 
     function submitTopLevelComment() {
         const trimmed = replyText.trim();
@@ -460,7 +484,54 @@ function PostCard({
                         {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     </button>
 
-                    {canManage && (
+
+                    {canShowMenu && (
+                        <div className="relative">
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleMenu();
+                                }}
+                                className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                                aria-label="Post actions"
+                            >
+                                <MoreVertical className="h-4 w-4" />
+                            </button>
+
+                            {isMenuOpen && (
+                                <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                                >
+
+                                    {canEditPost && (
+
+                                        <button
+                                            onClick={onEdit}
+                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                            Edit
+                                        </button>
+                                    )}
+                                    {canDeletePost && (
+                                        <button
+                                            onClick={onDelete}
+                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            Delete
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+
+
+                    {/* {canManage && (
                         <div className="relative">
                             <button
                                 onClick={(e) => {
@@ -495,7 +566,9 @@ function PostCard({
                                 </div>
                             )}
                         </div>
-                    )}
+                    )} */}
+
+
                 </div>
             </div>
 
@@ -521,7 +594,7 @@ function PostCard({
                     {/* New top-level comment */}
                     <div className="mt-4 flex items-center gap-2">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-[10px] font-semibold text-brand-primary">
-                            {initials(CURRENT_USER.full_name)}
+                            {initials(classroom.current_user.id)}
                         </div>
                         <input
                             type="text"
@@ -569,8 +642,11 @@ function CommentItem({
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState(comment.content);
 
-    const isOwnComment = comment.created_by.id === CURRENT_USER.id;
-    const canDelete = IS_OWNER || isOwnComment;
+    const classroom = useClassroom();
+    const isTeacher = classroom.current_user.role === "teacher";
+
+    const isOwnComment = comment.created_by.id === Number(classroom.current_user.id);
+    const canDelete = isTeacher || isOwnComment;
 
     function submitReply() {
         const trimmed = replyText.trim();

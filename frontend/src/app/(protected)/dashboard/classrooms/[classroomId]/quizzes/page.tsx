@@ -21,20 +21,8 @@ import {
 } from "lucide-react";
 import { private_api_call } from "@/actions/private_api_call";
 import { useRouter } from "next/navigation";
+import { useClassroom } from "../ClassroomContext";
 
-/* =========================================================================
-   TYPES — mirror your service layer + Pydantic models EXACTLY
-   =========================================================================
-   Source of truth:
-     - CreateQuizInput / UpdateQuizInput / QuestionInput / AnswerInput (Pydantic)
-     - create_quiz / update_quiz / get_quizzes_teacher / get_quiz_results (service)
-     - endpoint list screenshot (/api/v1/classrooms/{classroom_id}/quizzes/...)
-
-   Every response you return follows: { success, message, data }
-   ========================================================================= */
-
-// Teacher-facing question shape (includes correct_option — RETURNING clause
-// in create_quiz / add_questions / _get_questions_for_teacher)
 interface QuizQuestion {
     id: number;
     question_text: string;
@@ -47,13 +35,8 @@ interface QuizQuestion {
     order_index: number;
 }
 
-// ⚠️ ASSUMED: your service compares status to "ACTIVE" / "ENDED" but never
-// shows what the default status is on creation. Using "SCHEDULED" as the
-// third state — confirm/rename against your `quizzes.status` DB default.
 type QuizStatus = "SCHEDULED" | "ACTIVE" | "ENDED";
 
-// Full quiz shape as returned to the teacher (create_quiz / update_quiz /
-// get_quizzes_teacher / start_quiz / end_quiz all RETURNING this column set)
 interface Quiz {
     id: number;
     classroom_id: number;
@@ -67,7 +50,8 @@ interface Quiz {
     created_by: number;
     created_at: string;
     updated_at: string;
-    questions: QuizQuestion[];
+    // ⚠️ Optional: the student-facing endpoint (get_quizzes_student) does not
+    questions?: QuizQuestion[];
 }
 
 // Matches QuestionInput exactly — used for the create-quiz question builder
@@ -115,13 +99,6 @@ const emptyForm: QuizFormState = {
 };
 
 /* =========================================================================
-   DUMMY DATA — same field names as get_quizzes_teacher's `data` array.
-   Swap `useState(dummyQuizzes)` for the fetched `json.data` and nothing
-   else needs to change.
-   ========================================================================= */
-
-
-/* =========================================================================
    HELPERS
    ========================================================================= */
 
@@ -155,8 +132,11 @@ export default function QuizzesPage() {
     const router = useRouter();
     const params = useParams();
     const classroomId = params?.classroomId as string;
-    console.log(params);
-    console.log(classroomId);
+
+    // --- ROLE (single source of truth — nothing else determines role) -------
+    const classroom = useClassroom();
+    const isTeacher = classroom.current_user.role === "teacher";
+    const isStudent = classroom.current_user.role === "student";
 
     // const [quizzes, setQuizzes] = useState<Quiz[]>(dummyQuizzes);
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -169,6 +149,7 @@ export default function QuizzesPage() {
     /* ------------------------------ handlers ------------------------------ */
 
     function handleOpenCreateModal() {
+        if (!isTeacher) return;
         setForm(emptyForm);
         setIsModalOpen(true);
     }
@@ -179,11 +160,9 @@ export default function QuizzesPage() {
 
     async function handleCreateQuiz(e: React.FormEvent) {
         e.preventDefault();
+        if (!isTeacher) return;
         setIsSubmitting(true);
 
-        // ---------------------------------------------------------------------
-        // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes  (create_quiz)
-        //
         const res = await private_api_call({
             path: `classrooms/${classroomId}/quizzes`, method: "POST", body: {
                 title: form.title,
@@ -205,30 +184,24 @@ export default function QuizzesPage() {
                 })),
             }
         });
-        // const json = await res; // { success, message, data: Quiz }
-        // console.log("Quiz created successfully:", json);
-        // setQuizzes((prev) => [json.data, ...prev]);
 
         if (!res.success) {
             console.error(res.message);
             setIsSubmitting(false);
             return;
         }
-        console.log(res);
 
         setQuizzes((prev) => [res.data, ...prev]);
 
         setIsSubmitting(false);
         setIsModalOpen(false);
-        // --------------------------------------------------------------------
     }
+
     async function handleUpdateQuiz(e: React.FormEvent) {
         e.preventDefault();
+        if (!isTeacher) return;
         setIsSubmitting(true);
 
-        // ---------------------------------------------------------------------
-        // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}  (update_quiz)
-        //
         const res = await private_api_call({
             path: `classrooms/${classroomId}/quizzes/${editingQuiz?.id}`, method: "PUT", body: {
                 title: form.title,
@@ -250,9 +223,6 @@ export default function QuizzesPage() {
                 })),
             }
         });
-        // const json = await res; // { success, message, data: Quiz }
-        // console.log("Quiz created successfully:", json);
-        // setQuizzes((prev) => [json.data, ...prev]);
 
         if (!res.success) {
             console.error(res.message);
@@ -260,25 +230,27 @@ export default function QuizzesPage() {
             return;
         }
 
-
         setQuizzes((prev) =>
             prev.map((q) => (q.id === editingQuiz!.id ? res.data : q))
         );
 
         setIsSubmitting(false);
         setIsModalOpen(false);
-        // --------------------------------------------------------------------
     }
 
+    // Shared by both roles: teacher clicking a card or opening "View" from the
+    // menu, and student clicking a card, all land on the same detail route.
     function handleViewQuiz(quiz: Quiz) {
-
         router.push(`/dashboard/classrooms/${classroomId}/quiz/${quiz.id}`);
-
-        console.log("View quiz", quiz.id);
         setOpenMenuId(null);
+    }
+    function takeQuiz(quiz: Quiz) {
+        if (!isStudent) return;
+        router.push(`/dashboard/classrooms/${classroomId}/quizzes/${quiz.id}/take`);
     }
 
     async function handleEditQuiz(quiz: Quiz) {
+        if (!isTeacher) return;
 
         setEditingQuiz(quiz);
 
@@ -290,7 +262,7 @@ export default function QuizzesPage() {
                 : "",
             duration_minutes: quiz.duration_minutes,
             is_published: quiz.is_published,
-            questions: quiz.questions.map(q => ({
+            questions: (quiz.questions ?? []).map(q => ({
                 question_text: q.question_text,
                 option_a: q.option_a,
                 option_b: q.option_b,
@@ -304,11 +276,11 @@ export default function QuizzesPage() {
 
         setIsModalOpen(true);
         setOpenMenuId(null);
-
     }
 
     async function handleDeleteQuiz(quiz: Quiz) {
-        // TODO: DELETE /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}  (delete_quiz)
+        if (!isTeacher) return;
+
         const res = await private_api_call({
             path: `classrooms/${classroomId}/quizzes/${quiz.id}`,
             method: "DELETE",
@@ -324,8 +296,8 @@ export default function QuizzesPage() {
     }
 
     async function handleStartQuiz(quiz: Quiz) {
-        // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/start  (start_quiz)
-        // Backend rejects if status is already ACTIVE or ENDED (see service code).
+        if (!isTeacher) return;
+
         const res = await private_api_call({
             path: `classrooms/${classroomId}/quizzes/${quiz.id}/start`,
             method: "POST",
@@ -341,8 +313,8 @@ export default function QuizzesPage() {
     }
 
     async function handleEndQuiz(quiz: Quiz) {
-        // TODO: POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/end  (end_quiz)
-        // Backend also marks IN_PROGRESS submissions as TIMED_OUT server-side.
+        if (!isTeacher) return;
+
         const res = await private_api_call({
             path: `classrooms/${classroomId}/quizzes/${quiz.id}/end`,
             method: "POST",
@@ -356,9 +328,8 @@ export default function QuizzesPage() {
     }
 
     async function handleViewResults(quiz: Quiz) {
-        // TODO: GET /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/results  (get_quiz_results)
-        // Returns { success, message, data: [{ id, student_id, started_at, submitted_at,
-        //   marks_obtained, status, student: { id, full_name, email } }, ...] }
+        if (!isTeacher) return;
+
         const res = await private_api_call({
             path: `classrooms/${classroomId}/quizzes/${quiz.id}/results`,
             method: "GET",
@@ -372,14 +343,17 @@ export default function QuizzesPage() {
     }
 
     // ---------------------------------------------------------------------
-    // TODO: GET /api/v1/classrooms/{classroom_id}/quizzes/teacher  (initial load)
-    //
+    // Initial load: teachers get the management list, students get their
+    // own list. Backend already has separate endpoints for this.
+    // ---------------------------------------------------------------------
     useEffect(() => {
         async function loadQuizzes() {
             setIsLoading(true);
 
             const res = await private_api_call({
-                path: `classrooms/${classroomId}/quizzes/teacher`,
+                path: isTeacher
+                    ? `classrooms/${classroomId}/quizzes/teacher`
+                    : `classrooms/${classroomId}/quizzes/student`,
                 method: "GET",
             });
 
@@ -392,19 +366,8 @@ export default function QuizzesPage() {
             setIsLoading(false);
         }
 
-        loadQuizzes();
-    }, [classroomId]);
-    //
-    // Other endpoints available on this resource (not wired into this page yet):
-    //   POST   /quizzes/{quiz_id}/questions               add_questions
-    //   DELETE /quizzes/{quiz_id}/questions/{question_id}  delete_question
-    //   GET    /quizzes/student                            get_quizzes_student
-    //   POST   /quizzes/{quiz_id}/take                     start_taking_quiz
-    //   POST   /quizzes/{quiz_id}/submit                   submit_quiz
-    //   GET    /quizzes/{quiz_id}/my_result                get_my_quiz_result
-    // These belong to the student-facing "take quiz" flow and a question-editor
-    // sub-view — separate screens from this teacher management page.
-    // ---------------------------------------------------------------------
+        if (classroomId) loadQuizzes();
+    }, [classroomId, isTeacher]);
 
     /* -------------------------------- render ------------------------------- */
 
@@ -424,24 +387,28 @@ export default function QuizzesPage() {
                     </div>
                 </div>
 
-                <button
-                    onClick={handleOpenCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
-                >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} />
-                    Create quiz
-                </button>
+                {/* Only teachers can create quizzes */}
+                {isTeacher && (
+                    <button
+                        onClick={handleOpenCreateModal}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
+                    >
+                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                        Create quiz
+                    </button>
+                )}
             </div>
 
             {/* Quiz list */}
             {quizzes.length === 0 ? (
-                <EmptyState onCreate={handleOpenCreateModal} />
+                <EmptyState onCreate={handleOpenCreateModal} showCreate={isTeacher} />
             ) : (
                 <div className="flex flex-col gap-3">
                     {quizzes.map((quiz) => (
                         <QuizCard
                             key={quiz.id}
                             quiz={quiz}
+                            isTeacher={isTeacher}
                             isMenuOpen={openMenuId === quiz.id}
                             onToggleMenu={() => setOpenMenuId((prev) => (prev === quiz.id ? null : quiz.id))}
                             onView={() => handleViewQuiz(quiz)}
@@ -455,8 +422,8 @@ export default function QuizzesPage() {
                 </div>
             )}
 
-            {/* Create quiz modal */}
-            {isModalOpen && (
+            {/* Create/edit quiz modal — teacher only */}
+            {isTeacher && isModalOpen && (
                 <CreateQuizModal
                     editingQuiz={editingQuiz}
                     form={form}
@@ -476,6 +443,7 @@ export default function QuizzesPage() {
 
 function QuizCard({
     quiz,
+    isTeacher,
     isMenuOpen,
     onToggleMenu,
     onView,
@@ -486,6 +454,7 @@ function QuizCard({
     onResults,
 }: {
     quiz: Quiz;
+    isTeacher: boolean;
     isMenuOpen: boolean;
     onToggleMenu: () => void;
     onView: () => void;
@@ -518,7 +487,8 @@ function QuizCard({
                         {status.label}
                     </span>
 
-                    {!quiz.is_published && (
+                    {/* Draft badge is a teacher-only management signal */}
+                    {isTeacher && !quiz.is_published && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
                             <CircleDashed className="h-3 w-3" />
                             Draft
@@ -545,82 +515,86 @@ function QuizCard({
                     </span>
                     <span className="inline-flex items-center gap-1">
                         <ListChecks className="h-3.5 w-3.5" />
-                        {quiz.questions.length} {quiz.questions.length === 1 ? "question" : "questions"}
+                        {quiz.questions?.length ?? 0} {(quiz.questions?.length ?? 0) === 1 ? "question" : "questions"}
                     </span>
+
                 </div>
             </div>
 
-            {/* Actions menu */}
-            <div className="relative shrink-0">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleMenu();
-                    }}
-                    className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
-                    data-open={isMenuOpen}
-                    aria-label="Quiz actions"
-                >
-                    <MoreVertical className="h-4 w-4" />
-                </button>
-
-                {isMenuOpen && (
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+            {/* Actions menu — teacher only. Students get nothing here; the
+                whole card is already a click-through to the quiz via onView. */}
+            {isTeacher && (
+                <div className="relative shrink-0">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleMenu();
+                        }}
+                        className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
+                        data-open={isMenuOpen}
+                        aria-label="Quiz actions"
                     >
-                        <button
-                            onClick={onView}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                        >
-                            <Eye className="h-4 w-4" />
-                            View
-                        </button>
-                        <button
-                            onClick={onEdit}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                        >
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                        </button>
-                        <button
-                            onClick={onResults}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                        >
-                            <BarChart3 className="h-4 w-4" />
-                            Results
-                        </button>
+                        <MoreVertical className="h-4 w-4" />
+                    </button>
 
-                        {quiz.status !== "ACTIVE" && quiz.status !== "ENDED" && (
+                    {isMenuOpen && (
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                        >
                             <button
-                                onClick={onStart}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-brand-primary hover:bg-zinc-800"
+                                onClick={onView}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
                             >
-                                <PlayCircle className="h-4 w-4" />
-                                Start quiz
+                                <Eye className="h-4 w-4" />
+                                View
                             </button>
-                        )}
-
-                        {quiz.status === "ACTIVE" && (
                             <button
-                                onClick={onEnd}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-amber-400 hover:bg-zinc-800"
+                                onClick={onEdit}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
                             >
-                                <StopCircle className="h-4 w-4" />
-                                End quiz
+                                <Pencil className="h-4 w-4" />
+                                Edit
                             </button>
-                        )}
+                            <button
+                                onClick={onResults}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                            >
+                                <BarChart3 className="h-4 w-4" />
+                                Results
+                            </button>
 
-                        <button
-                            onClick={onDelete}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                        </button>
-                    </div>
-                )}
-            </div>
+                            {quiz.status !== "ACTIVE" && quiz.status !== "ENDED" && (
+                                <button
+                                    onClick={onStart}
+                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-brand-primary hover:bg-zinc-800"
+                                >
+                                    <PlayCircle className="h-4 w-4" />
+                                    Start quiz
+                                </button>
+                            )}
+
+                            {quiz.status === "ACTIVE" && (
+                                <button
+                                    onClick={onEnd}
+                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-amber-400 hover:bg-zinc-800"
+                                >
+                                    <StopCircle className="h-4 w-4" />
+                                    End quiz
+                                </button>
+                            )}
+
+                            <button
+                                onClick={onDelete}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -629,7 +603,7 @@ function QuizCard({
    EMPTY STATE
    ========================================================================= */
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, showCreate }: { onCreate: () => void; showCreate: boolean }) {
     return (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-20 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
@@ -637,21 +611,25 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
             </div>
             <h3 className="mt-4 text-sm font-medium text-zinc-200">No quizzes yet</h3>
             <p className="mt-1 max-w-sm text-sm text-zinc-500">
-                Create your first quiz to test what students have learned.
+                {showCreate
+                    ? "Create your first quiz to test what students have learned."
+                    : "Your teacher hasn't published any quizzes yet."}
             </p>
-            <button
-                onClick={onCreate}
-                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
-            >
-                <Plus className="h-4 w-4" strokeWidth={2.5} />
-                Create quiz
-            </button>
+            {showCreate && (
+                <button
+                    onClick={onCreate}
+                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
+                >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    Create quiz
+                </button>
+            )}
         </div>
     );
 }
 
 /* =========================================================================
-   CREATE QUIZ MODAL
+   CREATE QUIZ MODAL (teacher only — mounted conditionally by the page)
    Fields match CreateQuizInput EXACTLY: title*, description, scheduled_at,
    duration_minutes, is_published, questions[] (QuestionInput[])
    ========================================================================= */

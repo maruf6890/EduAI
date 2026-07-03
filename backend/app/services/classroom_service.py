@@ -71,41 +71,122 @@ def get_my_classrooms(conn, owner_id: int) -> dict:
     }
 
 
-def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
+# def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             """
+#             SELECT c.id, c.name, c.join_code, c.course_code, c.course_title,
+#                    c.description, c.semester, c.owner_id, c.is_active, c.created_at, c.updated_at, u.full_name as owner_name
+#             FROM classrooms c
+#             join users u ON c.owner_id = u.id
+#             WHERE c.id = %s
+#             """,
+#             (classroom_id,),
+#         )
+#         classroom = cur.fetchone()
+    
+#     if classroom["owner_id"] == owner_id:
+#         role = "teacher"
+#     else:
+#         role = "student"
+
+#     if not classroom:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+#     if classroom["owner_id"] != owner_id:
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    
+
+# def get_my_classrooms(conn, owner_id: int) -> dict:
+#     """All classrooms owned by the current user."""
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             """
+#             SELECT id, name, join_code, course_code, course_title,
+#                    description, semester, owner_id, is_active, created_at, updated_at
+#             FROM classrooms
+#             WHERE owner_id = %s
+#             ORDER BY created_at DESC
+#             """,
+#             (owner_id,),
+#         )
+#         rows = cur.fetchall()
+
+#     return {"classrooms": [_serialize(r) for r in rows]}
+
+
+#     data = _serialize(classroom)
+#     data["role"] = role
+#     return {
+#         "success": True,
+#         "message": "Classroom fetched successfully",
+#         "data": data,
+#     }
+
+
+def get_classroom(conn, classroom_id: int, user_id: int) -> dict:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT c.id, c.name, c.join_code, c.course_code, c.course_title,
-                   c.description, c.semester, c.owner_id, c.is_active, c.created_at, c.updated_at, u.full_name as owner_name
+            SELECT
+                c.id,
+                c.name,
+                c.join_code,
+                c.course_code,
+                c.course_title,
+                c.description,
+                c.semester,
+                c.owner_id,
+                c.is_active,
+                c.created_at,
+                c.updated_at,
+                u.full_name AS owner_name
             FROM classrooms c
-            join users u ON c.owner_id = u.id
+            JOIN users u
+                ON c.owner_id = u.id
             WHERE c.id = %s
             """,
             (classroom_id,),
         )
+
         classroom = cur.fetchone()
-    
-    if classroom["owner_id"] == owner_id:
-        role = "teacher"
-    else:
-        role = "student"
 
+    # Classroom doesn't exist
     if not classroom:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Classroom not found",
+        )
 
-    if classroom["owner_id"] != owner_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    # Owner (teacher) can always access
+    if classroom["owner_id"] == user_id:
+        return _serialize(classroom)
 
-    
+    # Check if the user is an active enrolled student
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id
+            FROM enrollments
+            WHERE classroom_id = %s
+              AND student_id = %s
+              AND status = 'ACTIVE'
+            """,
+            (classroom_id, user_id),
+        )
 
-    data = _serialize(classroom)
-    data["role"] = role
-    return {
-        "success": True,
-        "message": "Classroom fetched successfully",
-        "data": data,
-    }
+        enrollment = cur.fetchone()
 
+    # User is neither the owner nor an enrolled student
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    # Enrolled student can access
+    return _serialize(classroom)
 
 def update_classroom(conn, classroom_id, owner_id, name, course_code, course_title, description, semester, is_active) -> dict:
     with conn.cursor() as cur:

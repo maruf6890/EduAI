@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { private_api_call } from "@/actions/private_api_call";
-import { setCookie } from "@/lib/cookies";
+import { deleteCookie, setCookie } from "@/lib/cookies";
 import ChangePasswordModel from "./ChangePasswordModel";
+import router from "next/router";
 
 interface Props {
   initialName: string;
   initialEmail: string;
+
+
 }
+
+
 
 export default function ProfileInfo({ initialName, initialEmail }: Props) {
   const [name, setName] = useState(initialName);
@@ -18,6 +23,22 @@ export default function ProfileInfo({ initialName, initialEmail }: Props) {
   const [success, setSuccess] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await deleteCookie("access_token");
+      await deleteCookie("refresh_token");
+      await deleteCookie("id");
+      await deleteCookie("email");
+      await deleteCookie("name");
+      router.push("/login");
+    } catch {
+      setLoggingOut(false);
+    }
+  };
+
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,21 +170,38 @@ export default function ProfileInfo({ initialName, initialEmail }: Props) {
                 </button>
               </div>
             ) : (
-              <div className="mt-2 flex gap-2 sm:self-end">
+              <div className="mt-2 flex items-center gap-2 sm:self-end">
+                {/* Edit Profile Button */}
                 <button
-                  type="submit"
+                  type="button" // Changed to button to prevent accidental form submission
                   onClick={() => setIsEditing(!isEditing)}
-                  className="mt-2 w-full sm:w-auto sm:self-end rounded-[12px] bg-[#8168f3] hover:bg-[#6f57e0] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-6 py-2.5 transition"
+                  className="rounded-[12px] bg-[#8168f3] hover:bg-[#6f57e0] disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 transition"
                 >
                   Edit Profile
                 </button>
 
+                {/* Change Password Button */}
                 <button
                   type="button"
                   onClick={() => setShowChangePassword(!showChangePassword)}
-                  className="mt-2 w-full sm:w-auto sm:self-end rounded-[12px] bg-[#8168f3] hover:bg-[#6f57e0] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-6 py-2.5 transition"
+                  className="rounded-[12px] bg-[#8168f3] hover:bg-[#6f57e0] disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 transition"
                 >
                   Change Password
+                </button>
+
+                {/* Logout Button (Aligned with others) */}
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="group flex items-center gap-2 rounded-[12px] px-4 py-2.5 text-sm font-bold transition-colors text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50"
+                >
+                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {/* Removed fixed opacity to ensure it is visible, or keep your group-hover logic if desired */}
+                  <span className="whitespace-nowrap">
+                    {loggingOut ? "Logging out..." : "Logout"}
+                  </span>
                 </button>
               </div>
             )

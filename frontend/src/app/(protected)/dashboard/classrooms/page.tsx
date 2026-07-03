@@ -3,7 +3,7 @@
 
 
 import { useEffect, useState } from 'react';
-import { GraduationCap, Plus } from 'lucide-react';
+import { GraduationCap, Plus, User } from 'lucide-react';
 import CardFlip from '@/components/classroom/Cardflip';
 import CreateClassroom from '@/components/classroom/CreateClassModal';
 import EnrollClassroom from '@/components/classroom/EnrollClassModal';
@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 async function fetchCreatedClassrooms(): Promise<ClassroomCard[]> {
     try {
         const res = await private_api_call({ path: 'classrooms', method: 'GET' });
+        // console.log(res.data);
         const items: CreatedClassroomDTO[] = res.data ?? [];
         return mapCreatedClassrooms(items);
     } catch (err) {
@@ -46,17 +47,17 @@ export default function ClassroomPage() {
     const [isJoinOpen, setIsJoinOpen] = useState(false);
     const router = useRouter();
 
-    
-    const loadClassrooms = async () => {
-      setIsLoading(true);
-      setError(null);
 
-      const [created, enrolled] = await Promise.all([
-        fetchCreatedClassrooms(),
-        fetchEnrolledClassrooms(),
-      ]);
-      setClassrooms([...created, ...enrolled]);
-      setIsLoading(false);
+    const loadClassrooms = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        const [created, enrolled] = await Promise.all([
+            fetchCreatedClassrooms(),
+            fetchEnrolledClassrooms(),
+        ]);
+        setClassrooms([...created, ...enrolled]);
+        setIsLoading(false);
     };
     useEffect(() => {
         loadClassrooms();
@@ -76,6 +77,12 @@ export default function ClassroomPage() {
 
     return (
         <div className="min-h-screen bg-[#0C0D10] text-white">
+            <div
+                onClick={() => router.push('/dashboard/profile')}
+                className="fixed top-4 right-4 flex items-center justify-center w-12 h-12 rounded-full border border-white/20 bg-white/10 backdrop-blur-md cursor-pointer hover:bg-white/20 transition-all duration-300 shadow-lg"
+            >
+                <User className="w-6 h-6 text-white" />
+            </div>
             <div
                 className="pointer-events-none fixed inset-0 opacity-[0.025]"
                 style={{
