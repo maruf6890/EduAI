@@ -84,6 +84,11 @@ def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
             (classroom_id,),
         )
         classroom = cur.fetchone()
+    
+    if classroom["owner_id"] == owner_id:
+        role = "teacher"
+    else:
+        role = "student"
 
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
@@ -91,10 +96,14 @@ def get_classroom(conn, classroom_id: int, owner_id: int) -> dict:
     if classroom["owner_id"] != owner_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
+    
+
+    data = _serialize(classroom)
+    data["role"] = role
     return {
         "success": True,
         "message": "Classroom fetched successfully",
-        "data": _serialize(classroom),
+        "data": data,
     }
 
 

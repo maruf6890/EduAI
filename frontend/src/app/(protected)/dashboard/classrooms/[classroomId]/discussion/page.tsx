@@ -19,6 +19,17 @@ import {
 } from "lucide-react";
 import { private_api_call } from "@/actions/private_api_call";
 import ClassroomTabs from "@/components/classroom/ClassroomTabs";
+import {
+    getPosts,
+    getPost,
+    createPost,
+    updatePost,
+    deletePost,
+    addComment,
+    updateComment,
+    deleteComment,
+} from "@/actions/dashboard/discussion";
+import { Dialog } from "@/components/ui/dialog";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -180,17 +191,7 @@ export default function DiscussionsPage() {
 
     async function handleCreatePost(postTitle: string, postContent: string) {
         setIsSubmittingPost(true);
-
-
-
-        const res = await private_api_call({
-            method: "POST",
-            path: `classrooms/${classroomId}/discussions`,
-            body: {
-                title: postTitle,
-                content: postContent || null,
-            },
-        });
+        const res = await createPost(classroomId, postTitle, postContent);
         const json = res;
         setPosts((prev) => [json.data, ...prev]);
         setIsSubmittingPost(false);
@@ -206,63 +207,25 @@ export default function DiscussionsPage() {
     async function handleUpdatePost(postTitle: string, postContent: string, isActive: boolean) {
         if (!editingPost) return;
 
-
-
-        const res = await private_api_call({
-            method: "PUT",
-            path: `classrooms/${classroomId}/discussions/${editingPost.id}`,
-            body: {
-                title: postTitle,
-                content: postContent || null,
-                is_active: isActive,
-            },
-        });
+        const res = await updatePost(
+            classroomId,
+            editingPost.id,
+            postTitle,
+            postContent,
+            isActive
+        );
         const json = res;
         setPosts((prev) =>
             prev.map((p) =>
                 p.id === editingPost.id ? json.data : p
             )
         );
-        // ---------------------------------------------------------------------
-        // TODO: PUT /api/v1/classrooms/{classroom_id}/discussions/{post_id}  (update_post)
-        //
-        // const res = await fetch(`/api/v1/classrooms/${classroomId}/discussions/${editingPost.id}`, {
-        //   method: "PUT",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({
-        //     title: postTitle,
-        //     content: postContent || null,
-        //     is_active: isActive,
-        //   }),
-        // });
-        // const json = await res.json(); // { success, message, data: Post }
-        // setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? json.data : p)));
-        // ---------------------------------------------------------------------
-
-        setPosts((prev) =>
-            prev.map((p) =>
-                p.id === editingPost.id
-                    ? {
-                        ...p,
-                        title: postTitle,
-                        content: postContent || null,
-                        is_active: isActive,
-                        updated_at: new Date().toISOString(),
-                    }
-                    : p
-            )
-        );
         setEditingPost(null);
     }
 
     async function handleDeletePost(post: Post) {
-        // TODO: DELETE /api/v1/classrooms/{classroom_id}/discussions/{post_id}  (delete_post)
-        // await fetch(`/api/v1/classrooms/${classroomId}/discussions/${post.id}`, { method: "DELETE" });
 
-        const res = await private_api_call({
-            method: "DELETE",
-            path: `classrooms/${classroomId}/discussions/${post.id}`,
-        });
+        const res = await deletePost(classroomId, post.id);
         const json = res;
         setPosts((prev) => prev.filter((p) => p.id !== post.id));
         setOpenMenuId(null);
@@ -270,13 +233,8 @@ export default function DiscussionsPage() {
     }
 
     async function handleToggleExpand(postId: number) {
-        // TODO: GET /api/v1/classrooms/{classroom_id}/discussions/{post_id}  (get_post)
-        // Could lazy-load the single post + comment tree here instead of relying
-        // on the list response already containing `comments`.
-        const res = await private_api_call({
-            method: "GET",
-            path: `classrooms/${classroomId}/discussions/${postId}`,
-        });
+
+        const res = await getPost(classroomId, postId);
         const json = res;
         setExpandedPostId((prev) => (prev === postId ? null : postId));
     }
@@ -284,28 +242,8 @@ export default function DiscussionsPage() {
     /* ---------------------------- comment handlers ---------------------------- */
 
     async function handleAddComment(postId: number, parentId: number | null, content: string) {
-        // ---------------------------------------------------------------------
-        // TODO: POST /api/v1/classrooms/{classroom_id}/discussions/{post_id}/comments  (create_comment)
-        //
-        // const res = await fetch(`/api/v1/classrooms/${classroomId}/discussions/${postId}/comments`, {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({ content, parent_id: parentId }),
-        // });
-        // const json = await res.json(); // { success, message, data: Comment }
-        // setPosts((prev) => prev.map((p) =>
-        //   p.id === postId ? { ...p, comments: insertComment(p.comments, parentId, json.data) } : p
-        // ));
-        // ---------------------------------------------------------------------
 
-        const res = await private_api_call({
-            method: "POST",
-            path: `classrooms/${classroomId}/discussions/${postId}/comments`,
-            body: {
-                content,
-                parent_id: parentId,
-            },
-        });
+        const res = await addComment(classroomId, postId, parentId, content)
         const json = res;
         const localComment: Comment = {
             id: Date.now(),
@@ -318,6 +256,7 @@ export default function DiscussionsPage() {
             replies: [],
         };
 
+
         setPosts((prev) =>
             prev.map((p) =>
                 p.id === postId ? { ...p, comments: insertComment(p.comments, parentId, localComment) } : p
@@ -326,16 +265,8 @@ export default function DiscussionsPage() {
     }
 
     async function handleUpdateComment(postId: number, commentId: number, content: string) {
-        // TODO: PUT /api/v1/classrooms/{classroom_id}/discussions/{post_id}/comments/{comment_id}  (update_comment)
-        // Backend enforces the caller owns the comment.
 
-        const res = await private_api_call({
-            method: "PUT",
-            path: `classrooms/${classroomId}/discussions/${postId}/comments/${commentId}`,
-            body: {
-                content,
-            },
-        });
+        const res = await updateComment(classroomId, postId, commentId, content);
         const json = res;
 
 
@@ -347,13 +278,8 @@ export default function DiscussionsPage() {
     }
 
     async function handleDeleteComment(postId: number, commentId: number) {
-        // TODO: DELETE /api/v1/classrooms/{classroom_id}/discussions/{post_id}/comments/{comment_id}  (delete_comment)
-        // Backend allows: comment owner, or the classroom owner (can delete any comment).
 
-        const res = await private_api_call({
-            method: "DELETE",
-            path: `classrooms/${classroomId}/discussions/${postId}/comments/${commentId}`,
-        });
+        const res = await deleteComment(classroomId, postId, commentId);
         const json = res;
         setPosts((prev) =>
             prev.map((p) => (p.id === postId ? { ...p, comments: removeCommentTree(p.comments, commentId) } : p))
@@ -365,21 +291,14 @@ export default function DiscussionsPage() {
     //
     useEffect(() => {
         async function loadPosts() {
-            const res = await private_api_call({
-                method: "GET",
-                path: `classrooms/${classroomId}/discussions`,
-            });
-            const json = res;
-            setPosts(json.data);
+            const response = await getPosts(classroomId);
+            setPosts(response.data);
         }
+
         loadPosts();
     }, [classroomId]);
-    //
-    // Note: students only receive posts where is_active is true — the backend
-    // filters this server-side (get_posts), so no client-side filtering needed.
-    // ---------------------------------------------------------------------
-
-    /* -------------------------------- render ------------------------------- */
+    console.log("posts:", posts);
+    console.log("IS_OWNER:", IS_OWNER);
 
     const visiblePosts = IS_OWNER ? posts : posts.filter((p) => p.is_active);
 
@@ -626,6 +545,7 @@ function PostCard({
         </div>
     );
 }
+
 
 /* =========================================================================
    COMMENT ITEM — recursive, supports infinite nesting like your backend
