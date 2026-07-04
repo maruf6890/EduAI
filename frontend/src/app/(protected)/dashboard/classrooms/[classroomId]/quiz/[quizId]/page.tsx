@@ -1,10 +1,12 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+    getQuiz,
     takeQuiz,
     submitQuiz,
+    type QuizDetailsData,
     type QuizQuestion,
     type QuizOption,
     type SubmitAnswerInput,
@@ -13,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useParams } from "next/navigation";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -26,12 +29,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
     AlertTriangle,
+    CalendarClock,
     CheckCircle2,
     ChevronLeft,
     ChevronRight,
     Circle,
     Clock,
     ListChecks,
+    Loader2,
     Send,
 } from "lucide-react";
 
@@ -46,11 +51,24 @@ const OPTION_KEYS: { key: QuizOption; field: keyof QuizQuestion }[] = [
     { key: "D", field: "option_d" },
 ];
 
-export default function TakeQuizPage({ params }: PageProps) {
-    const { classroomId, quizId } = use(params);
+export default function TakeQuizPage() {
+
+    const params = useParams<{
+        classroomId: string;
+        quizId: string;
+    }>();
+    const classroomId = params.classroomId;
+    const quizId = params.quizId;
     const router = useRouter();
 
+    // Initial page load (GET quiz, read-only, no attempt created yet)
     const [loading, setLoading] = useState(true);
+    const [quiz, setQuiz] = useState<QuizDetailsData | null>(null);
+
+    // Whether the student has actually clicked "Start quiz" (POST /take called)
+    const [quizStarted, setQuizStarted] = useState(false);
+    const [starting, setStarting] = useState(false);
+
     const [error, setError] = useState<string | null>(null);
     const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -62,7 +80,7 @@ export default function TakeQuizPage({ params }: PageProps) {
 
     const autoSubmitTriggered = useRef(false);
 
-    // Load the quiz attempt on first render.
+    // Load the quiz (read-only) on first render. Does NOT start an attempt.
     useEffect(() => {
         let active = true;
 
@@ -70,21 +88,17 @@ export default function TakeQuizPage({ params }: PageProps) {
             setLoading(true);
             setError(null);
 
-            const res = await takeQuiz(classroomId, quizId);
+            const res = await getQuiz(classroomId, quizId);
 
             if (!active) return;
 
             if (!res.success || !res.data) {
-                setError(res.message || "We couldn't start this quiz.");
+                setError(res.message || "Couldn't load this quiz.");
                 setLoading(false);
                 return;
             }
 
-            setQuestions(res.data.questions ?? []);
-            setDurationMinutes(res.data.duration_minutes);
-            if (res.data.duration_minutes) {
-                setSecondsLeft(res.data.duration_minutes * 60);
-            }
+            setQuiz(res.data);
             setLoading(false);
         })();
 
@@ -92,6 +106,30 @@ export default function TakeQuizPage({ params }: PageProps) {
             active = false;
         };
     }, [classroomId, quizId]);
+
+    async function handleStartQuiz() {
+        setStarting(true);
+        setError(null);
+
+        const res = await takeQuiz(classroomId, quizId);
+
+        if (!res.success || !res.data) {
+            setError(res.message || "Couldn't start quiz.");
+            setStarting(false);
+            return;
+        }
+
+        setQuestions(res.data.questions);
+        setDurationMinutes(res.data.duration_minutes);
+
+        if (res.data.duration_minutes) {
+            setSecondsLeft(res.data.duration_minutes * 60);
+        }
+
+        setQuizStarted(true);
+        setStarting(false);
+    }
+
 
     const handleSubmit = useCallback(async () => {
         if (submitting || submitted) return;
@@ -117,9 +155,9 @@ export default function TakeQuizPage({ params }: PageProps) {
         router.push(`/dashboard/classrooms/${classroomId}/quiz/${quizId}/result`);
     }, [answers, classroomId, quizId, router, submitting, submitted]);
 
-    // Countdown timer; auto-submits once it hits zero.
+    // Countdown timer; only runs once the quiz has actually started.
     useEffect(() => {
-        if (secondsLeft === null || submitted) return;
+        if (!quizStarted || secondsLeft === null || submitted) return;
 
         if (secondsLeft <= 0) {
             if (!autoSubmitTriggered.current) {
@@ -131,7 +169,7 @@ export default function TakeQuizPage({ params }: PageProps) {
 
         const id = setTimeout(() => setSecondsLeft((s) => (s !== null ? s - 1 : s)), 1000);
         return () => clearTimeout(id);
-    }, [secondsLeft, submitted, handleSubmit]);
+    }, [quizStarted, secondsLeft, submitted, handleSubmit]);
 
     const totalQuestions = questions.length;
     const currentQuestion = questions[currentIndex];
@@ -159,7 +197,7 @@ export default function TakeQuizPage({ params }: PageProps) {
         setCurrentIndex(index);
     }
 
-    // ── Loading state ────────────────────────────────────────────────────────
+    // ── Loading state (initial GET quiz) ────────────────────────────────────
     if (loading) {
         return (
             <div className="mx-auto max-w-5xl px-4 py-8">
@@ -184,8 +222,8 @@ export default function TakeQuizPage({ params }: PageProps) {
         );
     }
 
-    // ── Error state ──────────────────────────────────────────────────────────
-    if (error && questions.length === 0) {
+    // ── Error state (quiz failed to load, or start failed and no attempt exists) ──
+    if (error && !quiz && !quizStarted) {
         return (
             <div className="mx-auto flex max-w-xl flex-col items-center gap-3 px-4 py-16 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
@@ -204,8 +242,125 @@ export default function TakeQuizPage({ params }: PageProps) {
         );
     }
 
-    // ── Empty state ──────────────────────────────────────────────────────────
-    if (totalQuestions === 0) {
+    // ── Pre-start overview: quiz loaded, attempt not started yet ────────────
+    if (quiz && !quizStarted) {
+        const questionCount = quiz.questions?.length ?? 0;
+
+        return (
+            <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-10 md:py-16">
+                <Card className="w-full rounded-xl">
+                    <CardHeader>
+                        <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-xl">
+                            <span>{quiz.title}</span>
+                            <Badge
+                                variant="outline"
+                                className={`rounded-lg ${quiz.status === "ACTIVE"
+                                    ? "border-brand-secondary/30 text-brand-secondary"
+                                    : "border-muted-foreground/30 text-muted-foreground"
+                                    }`}
+                            >
+                                {quiz.status}
+                            </Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {quiz.description && (
+                            <p className="text-sm text-muted-foreground">{quiz.description}</p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            <div className="rounded-xl border border-border px-4 py-3">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <ListChecks className="h-3.5 w-3.5" />
+                                    Questions
+                                </div>
+                                <p className="mt-1 text-lg font-semibold text-brand-primary">
+                                    {questionCount}
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-border px-4 py-3">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    Duration
+                                </div>
+                                <p className="mt-1 text-lg font-semibold text-brand-primary">
+                                    {quiz.duration_minutes} min
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-border px-4 py-3">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Total marks
+                                </div>
+                                <p className="mt-1 text-lg font-semibold text-brand-primary">
+                                    {quiz.total_marks}
+                                </p>
+                            </div>
+                        </div>
+
+                        {quiz.scheduled_at && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <CalendarClock className="h-3.5 w-3.5" />
+                                Scheduled for {new Date(quiz.scheduled_at).toLocaleString()}
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                {error}
+                            </div>
+                        )}
+
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    className="w-full rounded-xl bg-brand-primary text-white hover:bg-brand-primary/90"
+                                    disabled={starting || !quiz.is_published || questionCount === 0}
+                                >
+                                    {starting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Starting…
+                                        </>
+                                    ) : (
+                                        "Start quiz"
+                                    )}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-xl">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Start this quiz?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Once you start, the {quiz.duration_minutes}-minute timer begins
+                                        immediately and can't be paused.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-xl">Not yet</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        className="rounded-xl bg-brand-primary hover:bg-brand-primary/90"
+                                        onClick={handleStartQuiz}
+                                    >
+                                        Start quiz
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
+                        {!quiz.is_published && (
+                            <p className="text-center text-xs text-muted-foreground">
+                                This quiz isn't published yet.
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // ── Empty state (attempt started but no questions returned) ────────────
+    if (quizStarted && totalQuestions === 0) {
         return (
             <div className="mx-auto flex max-w-xl flex-col items-center gap-3 px-4 py-16 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-secondary/10">

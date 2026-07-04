@@ -42,6 +42,19 @@ export interface QuizQuestion {
     order_index: number;
 }
 
+export interface QuizDetailsData {
+    id: number;
+    classroom_id: number;
+    title: string;
+    description: string | null;
+    scheduled_at: string;
+    duration_minutes: number | null;
+    total_marks: number;
+    status: "DRAFT" | "ACTIVE" | "ENDED";
+    is_published: boolean;
+    questions: QuizQuestion[];
+}
+
 export interface TakeQuizData {
     submission_id: number;
     duration_minutes: number | null;
@@ -95,7 +108,28 @@ function toErrorResponse<T>(error: unknown, fallbackMessage: string): ApiRespons
 /**
  * Starts (or resumes) a quiz attempt.
  * POST /api/v1/classrooms/{classroom_id}/quizzes/{quiz_id}/take
+ * 
  */
+
+export async function getQuiz(
+    classroomId: string,
+    quizId: string
+): Promise<ApiResponse<QuizDetailsData>> {
+    try {
+        const res = await private_api_call({
+            path: `classrooms/${classroomId}/quizzes/${quizId}`,
+            method: "GET",
+        });
+
+        return res as unknown as ApiResponse<QuizDetailsData>;
+    } catch (error) {
+        return toErrorResponse<QuizDetailsData>(
+            error,
+            "We couldn't load this quiz."
+        );
+    }
+}
+
 export async function takeQuiz(
     classroomId: string,
     quizId: string
@@ -104,7 +138,7 @@ export async function takeQuiz(
         // Change this to use the object syntax your private_api_call expects
         const res = await private_api_call({
             method: "POST",
-            path: `/classrooms/${classroomId}/quizzes/${quizId}/take`
+            path: `classrooms/${classroomId}/quizzes/${quizId}/take`
         });
 
         // Cast the result to your expected type
@@ -153,3 +187,4 @@ export async function getMyResult(
         return toErrorResponse<QuizResultData>(error, "We couldn't load your result. Please try again.");
     }
 }
+

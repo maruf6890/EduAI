@@ -240,13 +240,13 @@ export default function QuizzesPage() {
 
     // Shared by both roles: teacher clicking a card or opening "View" from the
     // menu, and student clicking a card, all land on the same detail route.
-    function handleViewQuiz(quiz: Quiz) {
+    // function handleViewQuiz(quiz: Quiz) {
+    //     router.push(`/dashboard/classrooms/${classroomId}/quiz/${quiz.id}`);
+    //     setOpenMenuId(null);
+    // }
+    function handleTakeQuiz(quiz: Quiz) {
         router.push(`/dashboard/classrooms/${classroomId}/quiz/${quiz.id}`);
         setOpenMenuId(null);
-    }
-    function takeQuiz(quiz: Quiz) {
-        if (!isStudent) return;
-        router.push(`/dashboard/classrooms/${classroomId}/quizzes/${quiz.id}/take`);
     }
 
     async function handleEditQuiz(quiz: Quiz) {
@@ -409,9 +409,10 @@ export default function QuizzesPage() {
                             key={quiz.id}
                             quiz={quiz}
                             isTeacher={isTeacher}
+                            isStudent={isStudent}
                             isMenuOpen={openMenuId === quiz.id}
                             onToggleMenu={() => setOpenMenuId((prev) => (prev === quiz.id ? null : quiz.id))}
-                            onView={() => handleViewQuiz(quiz)}
+                            onTake={() => handleTakeQuiz(quiz)}
                             onEdit={() => handleEditQuiz(quiz)}
                             onDelete={() => handleDeleteQuiz(quiz)}
                             onStart={() => handleStartQuiz(quiz)}
@@ -444,9 +445,10 @@ export default function QuizzesPage() {
 function QuizCard({
     quiz,
     isTeacher,
+    isStudent,
     isMenuOpen,
     onToggleMenu,
-    onView,
+    onTake,
     onEdit,
     onDelete,
     onStart,
@@ -455,9 +457,10 @@ function QuizCard({
 }: {
     quiz: Quiz;
     isTeacher: boolean;
+    isStudent: boolean;
     isMenuOpen: boolean;
     onToggleMenu: () => void;
-    onView: () => void;
+    onTake: () => void;
     onEdit: () => void;
     onDelete: () => void;
     onStart: () => void;
@@ -469,8 +472,8 @@ function QuizCard({
 
     return (
         <div
-            onClick={onView}
-            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
+            // onClick={onView}
+            className="group relative flex  items-start gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
         >
             {/* Icon */}
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-800 sm:h-12 sm:w-12">
@@ -520,7 +523,17 @@ function QuizCard({
 
                 </div>
             </div>
-
+            {isStudent && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onTake();
+                    }}
+                    className="shrink-0 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-zinc-950 hover:opacity-90"
+                >
+                    Take Quiz
+                </button>
+            )}
             {/* Actions menu — teacher only. Students get nothing here; the
                 whole card is already a click-through to the quiz via onView. */}
             {isTeacher && (
@@ -542,13 +555,13 @@ function QuizCard({
                             onClick={(e) => e.stopPropagation()}
                             className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
                         >
-                            <button
-                                onClick={onView}
+                            {/* <button
+                                onClick={onTake}
                                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
                             >
                                 <Eye className="h-4 w-4" />
-                                View
-                            </button>
+                                Take Quiz
+                            </button> */}
                             <button
                                 onClick={onEdit}
                                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"

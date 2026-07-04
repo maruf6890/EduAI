@@ -673,13 +673,6 @@ def get_my_quiz_result(conn, classroom_id: int, quiz_id: int, student_id: int) -
     }
 
 
-
-
-
-
-
-
-
 def create_quiz_by_agent(
     conn,
     classroom_id: int,
@@ -763,4 +756,47 @@ def create_quiz_by_agent(
     except Exception:
         conn.rollback()
         return False
+
+def get_quiz_details(conn, classroom_id: int, quiz_id: int, student_id: int) -> dict:
+    _verify_enrolled(conn, classroom_id, student_id)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                classroom_id,
+                title,
+                description,
+                scheduled_at,
+                duration_minutes,
+                total_marks,
+                status,
+                is_published
+            FROM quizzes
+            WHERE id = %s
+              AND classroom_id = %s
+              AND is_published = TRUE
+            """,
+            (quiz_id, classroom_id),
+        )
+
+        quiz = cur.fetchone()
+
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz not found",
+        )
+
+    quiz = _serialize(dict(quiz))
+
+    # Don't expose correct answers
+    quiz["questions"] = _get_questions_for_student(conn, quiz_id)
+
+    return {
+        "success": True,
+        "message": "Quiz fetched successfully",
+        "data": quiz,
+    }
 
