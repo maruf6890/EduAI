@@ -154,7 +154,8 @@ export default function TakeQuizPage() {
         }
 
         setSubmitted(true);
-        router.push(`/dashboard/classrooms/${classroomId}/quiz/${quizId}/result`);
+        // router.push(`/dashboard/classrooms/${classroomId}/submissions/${submissionId}`);
+        router.push(`/dashboard/classrooms/${classroomId}/quiz/${quizId}/submissions/${res.data.id}`);
     }, [answers, classroomId, quizId, router, submitting, submitted]);
 
     // Countdown timer; only runs once the quiz has actually started.
