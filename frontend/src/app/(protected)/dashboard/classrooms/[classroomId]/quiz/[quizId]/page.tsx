@@ -92,6 +92,8 @@ export default function TakeQuizPage() {
 
             if (!active) return;
 
+            console.log(res);
+
             if (!res.success || !res.data) {
                 setError(res.message || "Couldn't load this quiz.");
                 setLoading(false);

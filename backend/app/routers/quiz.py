@@ -192,7 +192,7 @@ def get_my_quiz_result(
     return quiz_service.get_my_quiz_result(conn, classroom_id, quiz_id, current_user["id"])
 
 @router.get(
-    "/{classroom_id}/quizzes/{quiz_id}",
+    "/classrooms/{classroom_id}/quizzes/{quiz_id}",
     status_code=status.HTTP_200_OK,
 )
 def get_quiz(
@@ -201,9 +201,23 @@ def get_quiz(
     current_user=Depends(get_current_user),
     conn=Depends(get_db),
 ):
+    print("🔥 get_quiz endpoint called")
     return quiz_service.get_quiz_details(
         conn,
         classroom_id,
         quiz_id,
+        current_user["id"],
+    )
+
+    
+@router.get("/classrooms/{classroom_id}/submissions")
+def get_student_submissions(
+    classroom_id: int,
+    current_user=Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    return quiz_service.get_student_submissions(
+        conn,
+        classroom_id,
         current_user["id"],
     )
