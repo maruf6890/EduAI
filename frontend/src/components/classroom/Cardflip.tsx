@@ -48,8 +48,7 @@ export default function CardFlip({ classroom }: CardFlipProps) {
         <div
           className={cn(
             'absolute inset-0 [backface-visibility:hidden] rounded-sm overflow-hidden',
-            'bg-[#161820] border border-white/[0.06]',
-            'shadow-[0_4px_24px_rgba(0,0,0,0.5)]',
+            'bg-black border border-border-main',
             'transition-shadow duration-500 group-hover:shadow-[0_8px_40px_rgba(0,0,0,0.7)]',
             flipped ? 'pointer-events-none' : 'pointer-events-auto',
           )}
@@ -144,7 +143,7 @@ export default function CardFlip({ classroom }: CardFlipProps) {
               ))}
             </div> */}
 
-            
+
           </div>
         </div>
 

@@ -215,7 +215,7 @@ export default function AnnouncementModal({
 
     return (
         <div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-bg-main/40 flex items-center justify-center z-50 p-4"
             onMouseDown={handleOverlayClick}
         >
             <div
@@ -223,10 +223,10 @@ export default function AnnouncementModal({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Create announcement"
-                className="bg-black border border-brand-primary rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden"
+                className="bg-bg-main border border-border-main/80 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-surface-border">
+                <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-border-main/80">
                     <h2 className="text-2xl text-text-main">
                         {mode === "edit" ? "Edit announcement" : "Announcement"}
                     </h2>

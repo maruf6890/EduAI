@@ -473,17 +473,17 @@ function QuizCard({
     return (
         <div
             // onClick={onView}
-            className="group relative flex  items-start gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
+            className="group relative flex  items-start gap-4 rounded-xl border border-brand-secondary bg-bg-main p-4 transition-colors hover:border-brand-secondary hover:bg-brand-primary/20 sm:items-center sm:p-5"
         >
             {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-800 sm:h-12 sm:w-12">
-                <ListChecks className="h-5 w-5 text-zinc-400" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 sm:h-12 sm:w-12">
+                <ListChecks className="h-5 w-5 text-brand-primary" />
             </div>
 
             {/* Main content */}
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-zinc-100 sm:text-base">{quiz.title}</h3>
+                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">{quiz.title}</h3>
 
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
                         <StatusIcon className="h-3 w-3" />
@@ -543,7 +543,7 @@ function QuizCard({
                             e.stopPropagation();
                             onToggleMenu();
                         }}
-                        className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
+                        className="rounded-lg p-2 text-text-main opacity-0 transition-colors hover:bg-brand-secondary hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
                         data-open={isMenuOpen}
                         aria-label="Quiz actions"
                     >
@@ -553,25 +553,25 @@ function QuizCard({
                     {isMenuOpen && (
                         <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                            className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-lg border border-brand-secondary bg-bg-main shadow-xl shadow-black/40"
                         >
                             {/* <button
                                 onClick={onTake}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-brand-secondary/50"
                             >
                                 <Eye className="h-4 w-4" />
                                 Take Quiz
                             </button> */}
                             <button
                                 onClick={onEdit}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-brand-secondary/50"
                             >
                                 <Pencil className="h-4 w-4" />
                                 Edit
                             </button>
                             <button
                                 onClick={onResults}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-brand-secondary/50"
                             >
                                 <BarChart3 className="h-4 w-4" />
                                 Results
@@ -580,7 +580,7 @@ function QuizCard({
                             {quiz.status !== "ACTIVE" && quiz.status !== "ENDED" && (
                                 <button
                                     onClick={onStart}
-                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-brand-primary hover:bg-zinc-800"
+                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-brand-primary hover:bg-brand-secondary/50"
                                 >
                                     <PlayCircle className="h-4 w-4" />
                                     Start quiz
@@ -590,7 +590,7 @@ function QuizCard({
                             {quiz.status === "ACTIVE" && (
                                 <button
                                     onClick={onEnd}
-                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-amber-400 hover:bg-zinc-800"
+                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-amber-400 hover:bg-brand-secondary/50"
                                 >
                                     <StopCircle className="h-4 w-4" />
                                     End quiz
@@ -599,7 +599,7 @@ function QuizCard({
 
                             <button
                                 onClick={onDelete}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-brand-secondary/50"
                             >
                                 <Trash2 className="h-4 w-4" />
                                 Delete

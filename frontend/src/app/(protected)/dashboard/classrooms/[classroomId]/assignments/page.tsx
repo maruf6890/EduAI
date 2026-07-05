@@ -266,8 +266,8 @@ export default function AssignmentsPage() {
                         <ClipboardList className="h-5 w-5 text-brand-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-semibold text-zinc-100">Assignments</h1>
-                        <p className="text-sm text-zinc-500">
+                        <h1 className="text-xl font-semibold text-text-main">Assignments</h1>
+                        <p className="text-sm text-text-secondary">
                             {assignments.length} {assignments.length === 1 ? "assignment" : "assignments"}
                         </p>
                     </div>
@@ -276,7 +276,7 @@ export default function AssignmentsPage() {
                 {isTeacher && (
                     <button
                         onClick={handleOpenCreateModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
                     >
                         <Plus className="h-4 w-4" strokeWidth={2.5} />
                         Create assignment
@@ -364,17 +364,17 @@ function AssignmentCard({
     return (
         <div
             onClick={onView}
-            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-brand-primary bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
+            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-brand-primary bg-bg-main p-4 transition-colors hover:border-brand-primary/50 hover:bg-bg-secondary active:bg-brand-primary/60 sm:items-center sm:p-5"
         >
             {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-800 sm:h-12 sm:w-12">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-bg-secondary sm:h-12 sm:w-12">
                 <FileText className="h-5 w-5 text-zinc-400" />
             </div>
 
             {/* Main content */}
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-zinc-100 sm:text-base">
+                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">
                         {assignment.title}
                     </h3>
                     {!assignment.is_published && (
@@ -439,25 +439,25 @@ function AssignmentCard({
                     {isMenuOpen && (
                         <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                            className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-brand-primary bg-bg-main shadow-xl shadow-black/40"
                         >
                             <button
                                 onClick={onView}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-brand-primary/30 active:bg-brand-primary/60"
                             >
                                 <Eye className="h-4 w-4" />
                                 View
                             </button>
                             <button
                                 onClick={onEdit}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-brand-primary/30 active:bg-brand-primary/60"
                             >
                                 <Pencil className="h-4 w-4" />
                                 Edit
                             </button>
                             <button
                                 onClick={onDelete}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-400/10"
                             >
                                 <Trash2 className="h-4 w-4" />
                                 Delete

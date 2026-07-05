@@ -271,7 +271,7 @@ export default function ClassroomDetailPage() {
             {isTeacher && (
               <button
                 onClick={handleCopyCode}
-                className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white transition hover:opacity-90"
+                className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-text-main transition hover:opacity-90"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>
@@ -282,7 +282,7 @@ export default function ClassroomDetailPage() {
           <button
             type="button"
             onClick={handleOpenCreateModal}
-            className="flex w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-4 text-left shadow-sm transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+            className="flex w-full items-center gap-3 rounded-2xl border border-border-main/80 bg-bg-main/60 px-5 py-4 text-left shadow-sm transition-colors hover:border-border-main/50 hover:bg-bg-main/90"
           >
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-sm font-semibold text-brand-primary">
               Y
@@ -294,14 +294,13 @@ export default function ClassroomDetailPage() {
         )}
 
         {isLoading ? (
-          <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-10 text-center">
+          <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-10 text-center">
             <p className="text-sm text-zinc-500">Loading announcements…</p>
           </div>
         ) : announcements.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-10 text-center">
+          <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-10 text-center">
             <p className="text-sm text-zinc-500">
-              No announcements yet. Post something to get the conversation
-              started.
+              No announcements yet. Post something to get the conversation started.
             </p>
           </div>
         ) : (
@@ -317,7 +316,7 @@ export default function ClassroomDetailPage() {
 
                 <div
                   key={announcement.id}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-sm"
+                  className="rounded-2xl border border-border-main/80 bg-bg-card/60 p-5 shadow-sm transition-colors hover:border-border-main/50 hover:bg-bg-card/80"
                 >
                   {/* Header */}
                   <div className="flex items-center gap-3">

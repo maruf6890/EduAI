@@ -328,8 +328,8 @@ export default function DiscussionsPage() {
                         <MessageSquare className="h-5 w-5 text-brand-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-semibold text-zinc-100">Discussions</h1>
-                        <p className="text-sm text-zinc-500">
+                        <h1 className="text-xl font-semibold text-text-main">Discussions</h1>
+                        <p className="text-sm text-text-main">
                             {visiblePosts.length} {visiblePosts.length === 1 ? "post" : "posts"}
                         </p>
                     </div>
@@ -337,7 +337,7 @@ export default function DiscussionsPage() {
 
                 <button
                     onClick={handleOpenCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 active:opacity-80"
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                     New post
@@ -448,7 +448,7 @@ function PostCard({
     }
 
     return (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700">
+        <div className="rounded-xl border border-surface-border bg-surface-main transition-colors hover:border-surface-border">
             {/* Post header */}
             <div className="flex items-start gap-3 p-4 sm:p-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-secondary/15 text-xs font-semibold text-brand-secondary">
@@ -458,26 +458,26 @@ function PostCard({
 
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggleExpand}>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <h3 className="text-sm font-medium text-zinc-100 sm:text-base">{post.title}</h3>
+                        <h3 className="text-sm font-medium text-text-main sm:text-base">{post.title}</h3>
                         {!post.is_active && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-400">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-surface-border px-2 py-0.5 text-xs font-medium text-text-main">
                                 <Archive className="h-3 w-3" />
                                 Archived
                             </span>
                         )}
                     </div>
-                    <p className="mt-0.5 text-xs text-zinc-500">
+                    <p className="mt-0.5 text-xs text-text-main">
                         {post.created_by.full_name} · {formatTimestamp(post.created_at)}
                     </p>
                     {post.content && !isExpanded && (
-                        <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{post.content}</p>
+                        <p className="mt-2 line-clamp-2 text-sm text-text-main">{post.content}</p>
                     )}
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
                     <button
                         onClick={onToggleExpand}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-text-main hover:bg-surface-border hover:text-text-main"
                     >
                         <MessageCircle className="h-3.5 w-3.5" />
                         {totalComments}
@@ -493,7 +493,7 @@ function PostCard({
                                     e.stopPropagation();
                                     onToggleMenu();
                                 }}
-                                className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                                className="rounded-lg p-1.5 text-text-main hover:bg-surface-border hover:text-text-main"
                                 aria-label="Post actions"
                             >
                                 <MoreVertical className="h-4 w-4" />
@@ -502,14 +502,14 @@ function PostCard({
                             {isMenuOpen && (
                                 <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-surface-border bg-surface-main shadow-xl shadow-black/40"
                                 >
 
                                     {canEditPost && (
 
                                         <button
                                             onClick={onEdit}
-                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-surface-border hover:text-text-main"
                                         >
                                             <Pencil className="h-4 w-4" />
                                             Edit
@@ -518,7 +518,7 @@ function PostCard({
                                     {canDeletePost && (
                                         <button
                                             onClick={onDelete}
-                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-surface-border hover:text-text-main"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             Delete
@@ -574,8 +574,8 @@ function PostCard({
 
             {/* Expanded: full content + comment thread */}
             {isExpanded && (
-                <div className="border-t border-zinc-800 px-4 pb-4 pt-3 sm:px-5">
-                    {post.content && <p className="mb-4 whitespace-pre-wrap text-sm text-zinc-300">{post.content}</p>}
+                <div className="border-t border-surface-border px-4 pb-4 pt-3 sm:px-5">
+                    {post.content && <p className="mb-4 whitespace-pre-wrap text-sm text-text-main">{post.content}</p>}
 
                     {/* Comment thread */}
                     <div className="flex flex-col gap-3">
@@ -593,7 +593,7 @@ function PostCard({
 
                     {/* New top-level comment */}
                     <div className="mt-4 flex items-center gap-2">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-[10px] font-semibold text-brand-primary">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-[10px] font-semibold text-text-main">
                             {initials(classroom.current_user.id)}
                         </div>
                         <input
@@ -602,12 +602,12 @@ function PostCard({
                             onChange={(e) => setReplyText(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && submitTopLevelComment()}
                             placeholder="Add a comment..."
-                            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                            className="w-full rounded-lg border border-surface-border bg-surface-main px-3 py-2 text-sm text-text-main placeholder:text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                         />
                         <button
                             onClick={submitTopLevelComment}
                             disabled={!replyText.trim()}
-                            className="shrink-0 rounded-lg p-2 text-brand-primary hover:bg-brand-primary/10 disabled:text-zinc-600 disabled:hover:bg-transparent"
+                            className="shrink-0 rounded-lg p-2 text-brand-primary hover:bg-surface-border hover:text-text-main disabled:text-text-main-disabled disabled:hover:bg-transparent"
                             aria-label="Send comment"
                         >
                             <Send className="h-4 w-4" />

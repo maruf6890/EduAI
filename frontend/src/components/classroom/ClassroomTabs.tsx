@@ -21,7 +21,7 @@ export default function ClassroomTabs({ classroomId }: { classroomId: string }) 
 
     return (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex gap-1 overflow-x-auto border-b border-white/[0.06] py-2">
+            <div className="flex gap-1 overflow-x-auto border-b border-border-main/50 py-2">
                 {TABS.map((tab) => {
                     // Build the target path for every tab consistently
                     const tabPath = `/dashboard/classrooms/${classroomId}/${tab.key}`;
@@ -41,7 +41,7 @@ export default function ClassroomTabs({ classroomId }: { classroomId: string }) 
                                 'shrink-0 rounded-lg px-4 py-2 text-[13px] font-medium transition-colors',
                                 isActive
                                     ? 'bg-brand-primary/10 text-brand-primary' // Changed to /10 for visibility
-                                    : 'text-white/40 hover:bg-brand-primary/5 hover:text-brand-primary/70',
+                                    : 'text-text-main/80 hover:bg-brand-primary/5 hover:text-brand-primary/70',
                             )}
                         >
                             {tab.label}
