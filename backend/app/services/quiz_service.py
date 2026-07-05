@@ -800,3 +800,32 @@ def get_quiz_details(conn, classroom_id: int, quiz_id: int, student_id: int) -> 
         "data": quiz,
     }
 
+
+# def get_student_submissions(conn, classroom_id: int, student_id: int):
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             """
+#             SELECT
+#                 qs.id AS submission_id,
+#                 q.id AS quiz_id,
+#                 q.title,
+#                 qs.marks_obtained,
+#                 q.total_marks,
+#                 qs.status,
+#     qs.submitted_at
+# FROM quiz_submissions qs
+# JOIN quizzes q
+# ON qs.quiz_id = q.id
+# WHERE
+#     qs.student_id = %s
+#     AND q.classroom_id = %s
+# ORDER BY qs.submitted_at DESC;
+#             """,
+#             (student_id, classroom_id),
+#         )
+#         rows = cur.fetchall()
+
+#     return success_response(
+#         "Submissions fetched successfully",
+#         rows,
+#     )

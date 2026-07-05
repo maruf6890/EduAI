@@ -209,4 +209,14 @@ def get_quiz(
         current_user["id"],
     )
 
-    
+@router.get("/classrooms/{classroom_id}/submissions")
+def get_student_submissions(
+    classroom_id: int,
+    current_user=Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    return quiz_service.get_student_submissions(
+        conn,
+        classroom_id,
+        current_user["id"],
+    )
