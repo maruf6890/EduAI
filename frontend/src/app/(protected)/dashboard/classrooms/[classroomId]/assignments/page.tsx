@@ -266,8 +266,8 @@ export default function AssignmentsPage() {
                         <ClipboardList className="h-5 w-5 text-brand-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-semibold text-zinc-100">Assignments</h1>
-                        <p className="text-sm text-zinc-500">
+                        <h1 className="text-xl font-semibold text-text-main">Assignments</h1>
+                        <p className="text-sm text-text-secondary">
                             {assignments.length} {assignments.length === 1 ? "assignment" : "assignments"}
                         </p>
                     </div>
@@ -276,7 +276,7 @@ export default function AssignmentsPage() {
                 {isTeacher && (
                     <button
                         onClick={handleOpenCreateModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
+                        className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
                     >
                         <Plus className="h-4 w-4" strokeWidth={2.5} />
                         Create assignment
@@ -364,17 +364,17 @@ function AssignmentCard({
     return (
         <div
             onClick={onView}
-            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-brand-primary bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
+            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-brand-primary bg-bg-main p-4 transition-colors hover:border-brand-primary/50 hover:bg-bg-secondary active:bg-brand-primary/60 sm:items-center sm:p-5"
         >
             {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-800 sm:h-12 sm:w-12">
-                <FileText className="h-5 w-5 text-zinc-400" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-bg-secondary sm:h-12 sm:w-12">
+                <FileText className="h-5 w-5 text-text-main" />
             </div>
 
             {/* Main content */}
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-zinc-100 sm:text-base">
+                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">
                         {assignment.title}
                     </h3>
                     {!assignment.is_published && (
@@ -429,7 +429,7 @@ function AssignmentCard({
                             e.stopPropagation();
                             onToggleMenu();
                         }}
-                        className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-brand-primary/10 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
+                        className="rounded-sm p-2 text-zinc-500 opacity-0 transition-colors hover:bg-brand-primary/10 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
                         data-open={isMenuOpen}
                         aria-label="Assignment actions"
                     >
@@ -439,25 +439,25 @@ function AssignmentCard({
                     {isMenuOpen && (
                         <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                            className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-sm border border-brand-primary bg-bg-main shadow-xl shadow-black/40"
                         >
                             <button
                                 onClick={onView}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-brand-primary/30 active:bg-brand-primary/60"
                             >
                                 <Eye className="h-4 w-4" />
                                 View
                             </button>
                             <button
                                 onClick={onEdit}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-brand-primary/30 active:bg-brand-primary/60"
                             >
                                 <Pencil className="h-4 w-4" />
                                 Edit
                             </button>
                             <button
                                 onClick={onDelete}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-400/10"
                             >
                                 <Trash2 className="h-4 w-4" />
                                 Delete
@@ -477,7 +477,7 @@ function AssignmentCard({
 function EmptyState({ onCreate, }: { onCreate?: () => void; }) {
     return (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-brand-primary py-20 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-900">
                 <ClipboardList className="h-6 w-6 text-zinc-600" />
             </div>
             <h3 className="mt-4 text-sm font-medium text-zinc-200">No assignments yet</h3>
@@ -488,7 +488,7 @@ function EmptyState({ onCreate, }: { onCreate?: () => void; }) {
             {onCreate && (
                 <button
                     onClick={onCreate}
-                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950  hover:bg-brand-primary/80"
+                    className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950  hover:bg-brand-primary/80"
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                     Create assignment
@@ -526,14 +526,14 @@ function CreateAssignmentModal({
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-brand-primary bg-zinc-900 sm:max-w-lg sm:rounded-2xl"
+                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-brand-primary bg-bg-main sm:max-w-lg sm:rounded-xl"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-zinc-100">Create assignment</h2>
+                    <h2 className="text-base font-semibold text-text-main">Create assignment</h2>
                     <button
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                         aria-label="Close"
                     >
                         <X className="h-4 w-4" />
@@ -545,7 +545,7 @@ function CreateAssignmentModal({
                     <div className="flex flex-col gap-4">
                         {/* title */}
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                            <label className="mb-1.5 block text-xs font-medium text-text-main">
                                 Title <span className="text-red-400">*</span>
                             </label>
                             <input
@@ -554,13 +554,13 @@ function CreateAssignmentModal({
                                 value={form.title}
                                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                                 placeholder="e.g. Photosynthesis Lab Report"
-                                className="w-full rounded-lg border border-brand-primary bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
                         {/* description */}
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                            <label className="mb-1.5 block text-xs font-medium text-text-main">
                                 Description
                             </label>
                             <textarea
@@ -570,14 +570,14 @@ function CreateAssignmentModal({
                                 }
                                 placeholder="Instructions for students..."
                                 rows={3}
-                                className="w-full resize-none rounded-lg border border-brand-primary bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full resize-none rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
                         {/* total_marks + due_date */}
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                                <label className="mb-1.5 block text-xs font-medium text-text-main">
                                     Total marks
                                 </label>
                                 <input
@@ -588,11 +588,11 @@ function CreateAssignmentModal({
                                         setForm((prev) => ({ ...prev, total_marks: e.target.value }))
                                     }
                                     placeholder="0"
-                                    className="w-full rounded-lg border border-brand-primary bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                    className="w-full rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
                                 />
                             </div>
                             <div>
-                                <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                                <label className="mb-1.5 block text-xs font-medium text-text-main">
                                     Due date
                                 </label>
                                 <input
@@ -601,17 +601,17 @@ function CreateAssignmentModal({
                                     onChange={(e) =>
                                         setForm((prev) => ({ ...prev, due_date: e.target.value }))
                                     }
-                                    className="w-full rounded-lg border border-brand-primary bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                    className="w-full rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
                                 />
                             </div>
                         </div>
 
                         {/* files */}
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                            <label className="mb-1.5 block text-xs font-medium text-text-main">
                                 Attachments
                             </label>
-                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-brand-primary px-3 py-3 text-sm text-zinc-400 hover:border-zinc-600 hover:text-zinc-300">
+                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-brand-primary px-3 py-3 text-sm text-text-main hover:border-zinc-600 hover:text-text-main">
                                 <Paperclip className="h-4 w-4" />
                                 Add files
                                 <input type="file" multiple onChange={onFileChange} className="hidden" />
@@ -622,7 +622,7 @@ function CreateAssignmentModal({
                                     {form.files.map((file, index) => (
                                         <li
                                             key={`${file.name}-${index}`}
-                                            className="flex items-center justify-between rounded-lg bg-zinc-950 px-3 py-2 text-xs text-zinc-300"
+                                            className="flex items-center justify-between rounded-sm bg-bg-main px-3 py-2 text-xs text-text-main"
                                         >
                                             <span className="flex items-center gap-2 truncate">
                                                 <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
@@ -642,9 +642,9 @@ function CreateAssignmentModal({
                         </div>
 
                         {/* allow_late_submission + is_published */}
-                        <div className="flex flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                        <div className="flex flex-col gap-3 rounded-sm border border-brand-primary/60 bg-bg-main/50 p-3">
                             <label className="flex cursor-pointer items-center justify-between">
-                                <span className="text-sm text-zinc-300">Allow late submissions</span>
+                                <span className="text-sm text-text-main">Allow late submissions</span>
                                 <ToggleSwitch
                                     checked={form.allow_late_submission}
                                     onChange={(checked) =>
@@ -653,7 +653,7 @@ function CreateAssignmentModal({
                                 />
                             </label>
                             <label className="flex cursor-pointer items-center justify-between">
-                                <span className="text-sm text-zinc-300">Publish immediately</span>
+                                <span className="text-sm text-text-main">Publish immediately</span>
                                 <ToggleSwitch
                                     checked={form.is_published}
                                     onChange={(checked) =>
@@ -666,11 +666,11 @@ function CreateAssignmentModal({
                 </form>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-5 py-4">
+                <div className="flex items-center justify-end gap-2  border-zinc-800 px-5 py-4">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-text-main hover:bg-zinc-800 hover:text-zinc-200"
                     >
                         Cancel
                     </button>
@@ -678,7 +678,7 @@ function CreateAssignmentModal({
                         type="submit"
                         onClick={onSubmit}
                         disabled={!form.title || isSubmitting}
-                        className="rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+                        className="rounded-sm bg-emerald-500 px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-brand-primary/50 disabled:text-text-main"
                     >
                         {isSubmitting ? "Creating..." : "Create"}
                     </button>
@@ -703,7 +703,7 @@ function ToggleSwitch({
         <button
             type="button"
             onClick={() => onChange(!checked)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-primary" : "bg-zinc-700"
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-primary" : "bg-brand-primary/70"
                 }`}
         >
             <span

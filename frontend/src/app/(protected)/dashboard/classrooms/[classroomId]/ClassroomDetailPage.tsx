@@ -303,14 +303,13 @@ export default function ClassroomDetailPage() {
         )}
 
         {isLoading ? (
-          <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-10 text-center">
+          <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-10 text-center">
             <p className="text-sm text-zinc-500">Loading announcements…</p>
           </div>
         ) : announcements.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-10 text-center">
+          <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-10 text-center">
             <p className="text-sm text-zinc-500">
-              No announcements yet. Post something to get the conversation
-              started.
+              No announcements yet. Post something to get the conversation started.
             </p>
           </div>
         ) : (
@@ -349,7 +348,7 @@ export default function ClassroomDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(announcement)}
-                          className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors"
+                          className="text-xs text-zinc-500 hover:text-brand-primary transition-colors"
                         >
                           Edit
                         </button>

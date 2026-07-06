@@ -56,6 +56,7 @@ const TABS = [
     path: "assistant",
     icon: Bot,
   },
+    { key: 'submissions', label: 'My Submissions' },
 ] as const;
 
 export default function ClassroomTabs({
