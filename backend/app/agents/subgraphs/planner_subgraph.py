@@ -1,47 +1,55 @@
-"""
-Workflow-planning subgraph. Ported from the standalone
-workflow_planner_graph.py, adapted to use the shared app.llm instance.
 
-Invoked from app/graph/nodes.py::planner_node as:
-
-    planner_subgraph_app.invoke({
-        "topic": ..., "max_attempts": 3, "attempts": 0, "validation_errors": [],
-    })
-"""
 
 from __future__ import annotations
 import json
 from typing import TypedDict, List, Dict, Any, Optional, Literal
 
 from langgraph.graph import StateGraph, START, END
-from pydantic import BaseModel, ValidationError, Field,ConfigDict
+from pydantic import BaseModel, ValidationError, Field
 
 from app.agents.llm import llm
 
-NodeType = Literal["start", "topic", "practice", "assessment", "milestone", "end"]
+NodeType = Literal[
+    "start",
+    "topic",
+    "practice",
+    "assessment",
+    "milestone",
+    "end",
+]
 
 
-class NodeModel(BaseModel):
-    id: str
-    type: NodeType
+class Position(BaseModel):
+    x: float
+    y: float
+
+
+class NodeData(BaseModel):
     label: str
 
 
-class EdgeModel(BaseModel):
-    from_: str = Field(alias="from")
-    to: str
-    model_config = ConfigDict(
-        populate_by_name=True
-    )
-
-class FlowModel(BaseModel):
-    nodes: List[NodeModel]
-    edges: List[EdgeModel]
+class ReactFlowNode(BaseModel):
+    id: str
+    type: NodeType
+    position: Position
+    data: NodeData
 
 
-class WorkflowPlan(BaseModel):
+class ReactFlowEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    animated: bool = False
+
+
+class ReactFlowFlow(BaseModel):
+    nodes: List[ReactFlowNode]
+    edges: List[ReactFlowEdge]
+
+
+class ReactFlowGraph(BaseModel):
     title: str
-    flow: FlowModel
+    flow: ReactFlowFlow
 
 
 class PlannerState(TypedDict, total=False):
@@ -57,28 +65,48 @@ class PlannerState(TypedDict, total=False):
 
 
 PLAN_SCHEMA_INSTRUCTIONS = """
-Return ONLY valid JSON (no markdown fences, no commentary) matching exactly
-this shape:
+Return ONLY valid JSON (no markdown fences, no commentary) matching exactly this schema:
 
 {
   "title": "<string>",
   "flow": {
     "nodes": [
-      {"id": "<string>", "type": "start|topic|practice|assessment|milestone|end", "label": "<string>"}
+      {
+        "id": "<string>",
+        "type": "start|topic|practice|assessment|milestone|end",
+        "position": {
+          "x": <number>,
+          "y": <number>
+        },
+        "data": {
+          "label": "<string>"
+        }
+      }
     ],
     "edges": [
-      {"from": "<node id>", "to": "<node id>"}
+      {
+        "id": "<string>",
+        "source": "<node id>",
+        "target": "<node id>"
+      }
     ]
   }
 }
 
 Rules:
+- Return ONLY valid JSON.
 - Exactly one node with type "start" and exactly one node with type "end".
-- Every "from" and "to" value in edges must reference an existing node id.
-- Every node must be reachable from the "start" node by following edges.
-- Node ids must be unique strings.
-- Produce a reasonable, ordered learning path: start -> topics -> practice
-  -> assessment -> end (mixing in milestones where useful).
+- Every node id must be unique.
+- Every edge "source" and "target" must reference an existing node id.
+- Every node must be reachable from the "start" node.
+- The graph must be a valid directed learning path with no isolated nodes.
+- Use meaningful, human-readable labels inside data.label.
+- Position nodes in a top-to-bottom layout.
+- Keep x consistent (e.g. 300) and increase y by 150-200 for each subsequent node.
+- Edge ids must be unique strings (e.g. "e-start-node_js_intro").
+- Produce a logical learning progression:
+  start → topics → practice → milestone(s) → assessment → end.
+- Include 8–16 nodes depending on the topic complexity.
 """.strip()
 
 
@@ -131,7 +159,7 @@ def validate_plan_node(state: PlannerState) -> PlannerState:
         return {"is_valid": False, "validation_errors": errors}
 
     try:
-        plan = WorkflowPlan.model_validate(parsed)
+        plan = ReactFlowGraph.model_validate(parsed)
     except ValidationError as e:
         errors.extend(f"Schema error: {err['msg']} at {'.'.join(str(p) for p in err['loc'])}" for err in e.errors())
         return {"is_valid": False, "validation_errors": errors}
@@ -152,15 +180,15 @@ def validate_plan_node(state: PlannerState) -> PlannerState:
         errors.append(f"Expected exactly 1 'end' node, found {len(end_nodes)}.")
 
     for edge in edges:
-        if edge.from_ not in node_id_set:
-            errors.append(f"Edge references unknown 'from' id: {edge.from_}")
-        if edge.to not in node_id_set:
-            errors.append(f"Edge references unknown 'to' id: {edge.to}")
+        if edge.source not in node_id_set:
+            errors.append(f"Edge references unknown 'source' id: {edge.source}")
+        if edge.target not in node_id_set:
+            errors.append(f"Edge references unknown 'target' id: {edge.target}")
 
     if start_nodes and not errors:
         adjacency: Dict[str, List[str]] = {}
         for edge in edges:
-            adjacency.setdefault(edge.from_, []).append(edge.to)
+            adjacency.setdefault(edge.source, []).append(edge.target)
 
         visited = set()
         queue = [start_nodes[0].id]

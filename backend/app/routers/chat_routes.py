@@ -25,6 +25,14 @@ def list_sessions(user_id: int, conn=Depends(get_db)):
     sessions = chat_store.list_sessions(conn, user_id=user_id)
     return {"success": True, "message": "Sessions fetched", "data": sessions}
 
+#get session by user id and classroom id
+@router.get("/sessions/{user_id}/classrooms/{classroom_id}")
+def get_session(user_id: int, classroom_id: int, conn=Depends(get_db)):
+    session = chat_store.list_sessions_by_classroom_and_user_id(conn, user_id=user_id, classroom_id=classroom_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"success": True, "message": "Session fetched", "data": session}
+
 
 @router.get("/sessions/detail/{session_id}/messages")
 def get_messages(session_id: int, conn=Depends(get_db)):
@@ -35,6 +43,16 @@ def get_messages(session_id: int, conn=Depends(get_db)):
     messages = chat_store.list_messages(conn, session_id)
     return {"success": True, "message": "Messages fetched", "data": messages}
 
+
+# #list-messages-by-user-and-classroom
+# @router.get("/sessions/{user_id}/classrooms/{classroom_id}/messages")
+# def list_messages_by_user_and_classroom(user_id: int, classroom_id: int, conn=Depends(get_db)):
+#     if not chat_store.get_session(conn, user_id):
+#         raise HTTPException(status_code=404, detail="Session not found")
+#     if not chat_store.get_session(conn, classroom_id):
+#         raise HTTPException(status_code=404, detail="Classroom not found")
+#     messages = chat_store.list_messages_by_classroom_and_users(conn, classroom_id=classroom_id, user_ids=[user_id])
+#     return {"success": True, "message": "Messages fetched", "data": messages}
 
 @router.post("/sessions/{session_id}/message")
 def send_message(session_id: int, payload: ChatRequest, conn=Depends(get_db)):
@@ -61,14 +79,19 @@ def send_message(session_id: int, payload: ChatRequest, conn=Depends(get_db)):
 
     # persist both turns
     chat_store.save_message(conn, session_id, "human", {"content": payload.question}, tool_result=None)
-    chat_store.save_message(conn, session_id, "ai", {"content": answer}, tool_result=result.get("tool_result"))
+    chat_store.save_message(conn, session_id, "ai", {"content": answer}, tool_result=result.get("tool_result"), result_reference=result.get("result_reference"), route_used=result.get("route_used"))
 
-    json_result = None
-    if result.get("tool_result"):
-            json_result = json.loads(result["tool_result"])
+
     
     return {
+        "data": {
         "session_id": session_id,
-        "answer": answer,
-        "tool_result": json_result
-    }
+        "message": {"content": answer},
+        "message_type": "ai",
+        "tool_result": result.get("tool_result"),
+        "route_used": result.get("route_used"),
+        "result_reference": result.get("result_reference")
+
+        },
+            "success": True,
+            "message": "Message processed successfully"}

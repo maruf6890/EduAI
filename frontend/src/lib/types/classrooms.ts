@@ -117,3 +117,13 @@ export interface ClassroomContextType {
         role: "teacher" | "student";
     };
 }
+
+
+export interface ChatSession {
+  id: number;
+  user_id: number;
+  classroom_id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}

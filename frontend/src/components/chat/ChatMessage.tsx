@@ -1,56 +1,12 @@
-// import { Message } from "@/types/chat";
-// import { cn } from "@/lib/utils";
 
-// interface ChatMessageProps {
-//   message: Message;
-// }
-
-// export default function ChatMessage({
-//   message,
-// }: ChatMessageProps) {
-//   const isUser = message.role === "user";
-
-//   return (
-//     <div
-//       className={cn(
-//         "flex w-full",
-//         isUser ? "justify-end" : "justify-start"
-//       )}
-//     >
-//       <div
-//         className={cn(
-//           "max-w-[80%] rounded-2xl px-4 py-3",
-//           isUser
-//             ? "bg-brand-primary text-black"
-//             : "bg-white/5 text-white border border-white/10"
-//         )}
-//       >
-//         <p className="whitespace-pre-wrap">
-//           {message.content}
-//         </p>
-
-//         {message.attachments &&
-//           message.attachments.length > 0 && (
-//             <div className="mt-3 flex flex-wrap gap-2">
-//               {message.attachments.map((file) => (
-//                 <div
-//                   key={file.id}
-//                   className="rounded-md border border-white/10 px-2 py-1 text-xs"
-//                 >
-//                   {file.name}
-//                 </div>
-//               ))}
-//             </div>
-//           )}
-//       </div>
-//     </div>
-//   );
-// }
 "use client";
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Message } from "@/lib/types/chat";
+import { ReactFlow, Background, Controls } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import React from "react";
 
 // ─── Typing indicator bubble (three animated dots) ────────────────────────────
 
@@ -123,6 +79,21 @@ export default function ChatMessage({
     ? formatTime(new Date(message.createdAt))
     : null;
 
+  const [nodes, setNodes] = React.useState(
+    message.tools_response && message.route_used === "planner"
+      ? JSON.parse(message.tools_response as string)?.flow?.nodes
+      : [],
+  );
+  const [edges, setEdges] = React.useState(
+    message.tools_response && message.route_used === "planner"
+      ? JSON.parse(message.tools_response as string)?.flow?.edges
+      : [],
+  );
+
+  const toolsResponse = message.tools_response ? JSON.parse(message.tools_response as string) : null;
+  // console.log("toolsResponse", toolsResponse);
+  // console.log("toolsResponse", nodes);
+
   return (
     <motion.div
       className={cn(
@@ -164,19 +135,18 @@ export default function ChatMessage({
       >
         <div
           className={cn(
-            // ✅ FIX: break-words ensures long words / URLs wrap inside the bubble
-            "px-4 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap",
+            "px-4 py-2.5 text-sm leading-relaxed break-words space-y-3 whitespace-pre-wrap",
             isUser
               ? [
-                "bg-brand-primary text-[#0d0e11] font-medium",
-                "rounded-2xl rounded-br-sm",
-                // subtle pulse ring on the very latest user message
-                isLatest && "ring-1 ring-brand-primary/40",
-              ]
+                  "bg-brand-primary text-[#0d0e11] font-medium",
+                  "rounded-2xl rounded-br-sm",
+                  // subtle pulse ring on the very latest user message
+                  isLatest && "ring-1 ring-brand-primary/40",
+                ]
               : [
-                "bg-white/[0.06] text-white/90 border border-white/[0.08]",
-                "rounded-2xl rounded-bl-sm",
-              ],
+                  "bg-surface text-foreground-muted border ",
+                  "rounded-2xl rounded-bl-sm",
+                ],
           )}
         >
           {message.content}
@@ -204,6 +174,23 @@ export default function ChatMessage({
               ))}
             </div>
           )}
+          <div className="flex flex-col gap-1">
+            {(toolsResponse && message.route_used === "planner") && (
+              <div className="w-full">
+              
+                  <div
+                    style={{ height: "600px", width: "800px" }}
+                    className="border"
+                  >
+                    <ReactFlow nodes={nodes} edges={edges} fitView >
+                      <Background />
+                      <Controls />
+                    </ReactFlow>
+                  </div>
+                
+              </div>
+            )}
+          </div>
         </div>
 
         {time && (

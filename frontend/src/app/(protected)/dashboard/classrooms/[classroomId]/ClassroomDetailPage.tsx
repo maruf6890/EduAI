@@ -1,13 +1,19 @@
 "use client";
 
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { private_api_call } from "@/actions/private_api_call";
 
 import AnnouncementModal from "@/components/classroom/Announcementmodal";
 import { useParams } from "next/navigation";
-import { useClassroom } from "./ClassroomContext";
+import { ClassroomContext, useClassroom } from "./ClassroomContext";
 import { ClassroomProvider } from "./ClassroomProvider";
+import ClassroomHeader from "@/components/classroom/ClassroomHeader";
+import { Check, ClipboardCopy, Clock, GraduationCap, Megaphone, Paperclip, Plus } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+import { Button } from "@/components/ui/button";
+
 
 
 
@@ -19,14 +25,21 @@ interface Comment {
   createdAt: string;
 }
 
+interface AnnouncementFile {
+  id: number | string;
+  file_name: string;
+  file_url: string;
+  file_type?: string;
+  uploaded_at?: string;
+}
+
 interface Announcement {
   id: string;
   title: string;
-  // author: string;
   role: "Instructor" | "Student";
   content: string;
   createdAt: string;
-  files: string[];
+  files: AnnouncementFile[];
   comments: Comment[];
 }
 
@@ -34,7 +47,7 @@ interface BackendAnnouncement {
   id: number | string;
   title: string;
   content?: string | null;
-  files?: string[];
+  files?: AnnouncementFile[] | string[];
   created_at?: string;
   createdAt?: string;
   teacher?: { id: number; name?: string; full_name?: string };
@@ -67,6 +80,22 @@ function formatRelativeTime(dateString?: string) {
   return date.toLocaleDateString();
 }
 
+function normalizeFiles(raw: AnnouncementFile[] | string[] | undefined): AnnouncementFile[] {
+  if (!raw || raw.length === 0) return [];
+  // Backend always returns file objects, but tolerate legacy string arrays.
+  return raw.map((entry) => {
+    if (typeof entry === "string") {
+      return {
+        id: entry,
+        file_name: entry.split("/").pop() || "attachment",
+        file_url: entry,
+        file_type: undefined,
+      };
+    }
+    return entry;
+  });
+}
+
 function mapAnnouncement(item: BackendAnnouncement): Announcement {
   const authorName =
     item.teacher?.full_name ||
@@ -77,11 +106,10 @@ function mapAnnouncement(item: BackendAnnouncement): Announcement {
   return {
     id: String(item.id),
     title: item.title,
-    // author: authorName,
     role: "Instructor",
     content: item.content ?? "",
     createdAt: formatRelativeTime(item.created_at ?? item.createdAt),
-    files: item.files ?? [],
+    files: normalizeFiles(item.files),
     // No comment endpoints exist in the provided API surface —
     // comments stay local/UI-only until that's added on the backend.
     comments: [],
@@ -91,24 +119,12 @@ function mapAnnouncement(item: BackendAnnouncement): Announcement {
 export default function ClassroomDetailPage() {
   const params = useParams();
   const classroomId = params.classroomId as string;
-  // const { classroomId } = params;
+
 
   const classroom = useClassroom();
-
-  // const classroom = {
-  //   id: classroomId,
-  //   name: `Classroom ${classroomId}`,
-  //   stats: {
-  //     students: 10,
-  //     assignments: 5,
-  //     quizzes: 3,
-  //     announcements: 2,
-  //     calendar: 1,
-  //   },
-  // };
+  console.log("Classroom ID from params:", classroom);
   const isTeacher = classroom.current_user.role === "teacher";
-  // console.log("Classroom Context:", classroom);
-  // console.log("Is Teacher:", isTeacher);
+
   const [editingAnnouncement, setEditingAnnouncement] =
     useState<Announcement | null>(null);
 
@@ -116,8 +132,8 @@ export default function ClassroomDetailPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [joinCode, setJoinCode] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [joinCode, setJoinCode] = useState<string>("");
+
 
   useEffect(() => {
     let isMounted = true;
@@ -178,7 +194,13 @@ export default function ClassroomDetailPage() {
     setIsModalOpen(true);
   };
 
-  const handleUpdateSubmit = async (title: string, content: string) => {
+  const handleUpdateSubmit = async (
+    title: string,
+    content: string,
+    _files: File[],
+  ) => {
+    // Backend PUT endpoint only accepts title/content — file edits aren't
+    // supported yet, so we drop `_files` intentionally.
     if (!editingAnnouncement) return;
     await handleEditAnnouncement(editingAnnouncement.id, { title, content });
     setIsModalOpen(false);
@@ -216,15 +238,7 @@ export default function ClassroomDetailPage() {
     loadJoinCode();
   }, [classroomId]);
 
-  async function handleCopyCode() {
-    await navigator.clipboard.writeText(joinCode);
 
-    setCopied(true);
-
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
-  }
 
   const handleEditAnnouncement = async (
     announcementId: string,
@@ -245,51 +259,46 @@ export default function ClassroomDetailPage() {
     } else {
       console.error("Failed to update announcement:", res.message);
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-bg-main text-text-main">
       <div className="flex w-full  flex-col gap-4 px-4 py-6">
-        <div className="rounded-xl border border-white/10 bg-bg-card p-5">
-          <p className="text-xs uppercase tracking-wider text-text-muted">
-            Classroom Code
+        <ClassroomHeader
+          code={joinCode}
+          course={{
+            id: classroom.id,
+            name: classroom.name,
+            course_code: classroom.course_code,
+            semester: classroom.semester,
+            teacher: classroom.teacher,
+            description: classroom.description,
+            course_title: classroom.course_title,
+          }}
+        />
+
+        <div className="flex items-center gap-2 text-sm font-semibold text-text-main">
+          <Megaphone className="h-5 w-5 text-text-main" />
+          <p className="text-xs uppercase tracking-[3px] text-text-muted  text-shadow-2xs">
+            Announcements
           </p>
-
-          <div className="mt-3 flex items-center justify-between">
-            {isTeacher && (
-              <span className="text-2xl font-bold tracking-[0.25em]">
-
-                {joinCode}
-              </span>
-            )}
-            {!isTeacher && (
-              <h3 className="text-2xl font-bold tracking-[0.25em]">
-                Class code is only visible to your teacher.
-              </h3>
-            )}
-
-            {isTeacher && (
-              <button
-                onClick={handleCopyCode}
-                className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white transition hover:opacity-90"
-              >
-                {copied ? "Copied!" : "Copy"}
-              </button>
-            )}
-          </div>
         </div>
-        {isTeacher && (
+
+        {classroom.current_user.role=== "teacher" && (
           <button
             type="button"
             onClick={handleOpenCreateModal}
-            className="flex w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-4 text-left shadow-sm transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+            className="group flex w-full cursor-pointer items-center gap-3 rounded-sm border  bg-bg-card px-5 py-4 text-left transition-colors hover:border-brand-primary/40  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-sm font-semibold text-brand-primary">
-              Y
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-brand-primary transition-colors group-hover:bg-brand-primary/30">
+              <Megaphone className="h-5 w-5" />
             </div>
-            <span className="text-sm text-text-main">
+
+            <span className="flex-1 text-sm text-text-main">
               Announce something to your class
             </span>
+
+            <Plus className="h-4 w-4 flex-shrink-0 text-zinc-500 transition-colors group-hover:text-zinc-300" />
           </button>
         )}
 
@@ -310,23 +319,18 @@ export default function ClassroomDetailPage() {
               const isExpanded = expandedId === announcement.id;
 
               return (
-                // <div
-                //   // // key={announcement.id}
-                //   // key={classroom.teacher.name}
-                //   // className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-sm"
-
                 <div
                   key={announcement.id}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 shadow-sm"
+                  className="rounded-2xl border  bg-bg-card p-5 "
                 >
                   {/* Header */}
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-sm font-semibold text-brand-primary">
-                      {getInitials(classroom.teacher.name)}
+                      <GraduationCap className="size-5" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-100">
+                        <span className="text-sm font-medium capitalize text-foreground ">
                           {classroom.teacher.name}
                         </span>
                         {announcement.role === "Instructor" && (
@@ -335,11 +339,12 @@ export default function ClassroomDetailPage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs flex items-center gap-1 text-zinc-500">
+                        <Clock className="size-3" />
                         {announcement.createdAt}
                       </span>
                     </div>
-                    {isTeacher && (
+                    {classroom.current_user.role === "teacher" && (
                       <div className="ml-auto flex items-center gap-3">
                         <button
                           type="button"
@@ -363,37 +368,52 @@ export default function ClassroomDetailPage() {
 
                   {/* Title (required field from backend) */}
                   {announcement.title && (
-                    <h3 className="mt-4 text-sm font-semibold text-zinc-100">
+                    <h3 className="mt-2 text-sm font-semibold text-foreground">
                       {announcement.title}
                     </h3>
                   )}
 
                   {/* Content */}
                   {announcement.content && (
-                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-zinc-300">
+                    <p className=" whitespace-pre-line text-sm text-muted-foreground leading-relaxed ">
                       {announcement.content}
                     </p>
                   )}
 
-
                   {announcement.files.length > 0 && (
-                    <div className="mt-4 flex flex-col gap-2">
-                      {announcement.files.map((fileUrl, index) => (
-                        <a
-                          key={fileUrl + index}
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-800/40 p-3 hover:border-zinc-700 transition-colors"
-                        >
-                          <span className="text-sm text-zinc-400 truncate">
-                            {fileUrl.split("/").pop()}
-                          </span>
-                        </a>
-                      ))}
+                    <div className="mt-4
+            flex flex-wrap gap-3">
+                      {announcement.files.map((file) => {
+                        const isImage =
+                          (file.file_type || "").startsWith("image/") ||
+                          /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(
+                            file.file_name,
+                          );
+                        return (
+                          <a
+                            key={file.id}
+                            href={file.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative flex items-center gap-2 overflow-hidden rounded-sm border"
+                          >
+                            {isImage ? (
+                              <img
+                                src={file.file_url}
+                                alt={file.file_name}
+                                className="h-14 w-14 shrink-0 rounded-md object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-700/60 text-zinc-300">
+                                <Paperclip className="h-4 w-4" />
+                              </div>
+                            )}
+                            
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
-
                 </div>
               );
             })}

@@ -62,6 +62,40 @@ def list_sessions(conn, user_id: int) -> List[dict]:
     finally:
         curr.close()
 
+def list_sessions_by_classroom_and_user_id(conn, classroom_id: int, user_id: int) -> List[dict]:
+    curr = conn.cursor()
+    try:
+        curr.execute(
+            """
+            SELECT id, user_id, classroom_id, title, created_at, updated_at
+            FROM chat_sessions
+            WHERE classroom_id = %s AND user_id = %s
+            ORDER BY updated_at DESC;
+            """,
+            (classroom_id, user_id),
+        )
+        rows = curr.fetchall()
+        return [_session_row_to_dict(r) for r in rows]
+    finally:
+        curr.close()
+
+
+def get_session_by_user_and_classroom(conn, user_id: int, classroom_id: int) -> Optional[dict]:
+    curr = conn.cursor()
+    try:
+        curr.execute(
+            """
+            SELECT id, user_id, classroom_id, title, created_at, updated_at
+            FROM chat_sessions
+            WHERE user_id = %s AND classroom_id = %s;
+            """,
+            (user_id, classroom_id),
+        )
+        row = curr.fetchone()
+        return _session_row_to_dict(row) if row else None
+    finally:
+        curr.close()
+
 
 def touch_session(conn, session_id: int) -> None:
     curr = conn.cursor()
@@ -92,43 +126,70 @@ def _session_row_to_dict(row) -> dict:
 # ---------------------------------------------------------------------------
 # chat_messages
 # ---------------------------------------------------------------------------
-def save_message(conn, session_id: int, message_type: str, message: Dict[str, Any], tool_result: Dict[str, Any]=None) -> dict:
-    """message_type is one of 'human' | 'ai' | 'system'. `message` is a
-    plain dict stored as JSONB, e.g. {"content": "..."}."""
+def save_message(
+    conn,
+    session_id: int,
+    message_type: str,
+    message: Dict[str, Any],
+    tool_result: Dict[str, Any] = None,
+    result_reference: Dict[str, Any] = None,
+    route_used: str = None
+) -> dict:
+
     curr = conn.cursor()
+
     try:
         curr.execute(
             """
-            INSERT INTO chat_messages (session_id, message_type, message, tool_result)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, session_id, message_type, message, tool_result, created_at;
+            INSERT INTO chat_messages (
+                session_id,
+                message_type,
+                message,
+                tool_result,
+                result_reference,
+                route_used
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, session_id, message_type, message, tool_result, result_reference, route_used, created_at;
             """,
-            (session_id, message_type, json.dumps(message), json.dumps(tool_result) if tool_result else None),
+            (
+                session_id,
+                message_type,
+                json.dumps(message),
+                json.dumps(tool_result) if tool_result else None,
+                json.dumps(result_reference) if result_reference else None,
+                route_used,
+            ),
         )
+
         row = curr.fetchone()
         conn.commit()
+
         touch_session(conn, session_id)
+
         return {
             "id": row[0],
             "session_id": row[1],
             "message_type": row[2],
             "message": row[3],
             "tool_result": row[4],
-            "created_at": row[5].isoformat(),
+            "result_reference": row[5],
+            "route_used": row[6],
+            "created_at": row[7].isoformat() if row[7] else None,
         }
+
     except Exception as e:
         conn.rollback()
         raise e
+
     finally:
         curr.close()
-
-
 def list_messages(conn, session_id: int) -> List[dict]:
     curr = conn.cursor()
     try:
         curr.execute(
             """
-            SELECT id, message_type, message, tool_result, created_at
+            SELECT id, message_type, message, tool_result, created_at,result_reference,route_used
             FROM chat_messages
             WHERE session_id = %s
             ORDER BY created_at ASC;
@@ -137,7 +198,28 @@ def list_messages(conn, session_id: int) -> List[dict]:
         )
         rows = curr.fetchall()
         return [
-            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": r[3], "created_at": r[4].isoformat()}
+            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": r[3], "created_at": r[4].isoformat(), "result_reference": r[5], "route_used": r[6]}
+            for r in rows
+        ]
+    finally:
+        curr.close()
+
+def list_messages_by_classroom_and_users(conn, classroom_id: int, user_ids: List[int]) -> List[dict]:
+    curr = conn.cursor()
+    try:
+        curr.execute(
+            """
+            SELECT cm.id, cm.message_type, cm.message, cm.tool_result, cm.created_at,cs.id as session_id, cm.result_reference,cm.route_used
+            FROM chat_messages cm
+            JOIN chat_sessions cs ON cm.session_id = cs.id
+            WHERE cs.classroom_id = %s AND cs.user_id = ANY(%s)
+            ORDER BY cm.created_at ASC;
+            """,
+            (classroom_id, user_ids),
+        )
+        rows = curr.fetchall()
+        return [
+            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": r[3], "created_at": r[4].isoformat(), "session_id": r[5], "result_reference": r[6], "route_used": r[7]}
             for r in rows
         ]
     finally:

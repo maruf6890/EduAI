@@ -23,7 +23,7 @@ export default async function ClassroomLayout({
     console.log(typeof user_id, user_id);
 
     return (
-        <div className="max-w-7xl mx-auto bg-bg-main">
+        <div className="w-full bg-bg-main">
 
             <ClassroomProvider classroom={{
                 id: classroomDetails?.id ?? "",
@@ -45,7 +45,9 @@ export default async function ClassroomLayout({
                 },
             }}>
                 <ClassroomTabs classroomId={resolvedParams.classroomId as string} />
-                {children}
+                <div className="px-4 ">
+                    {children}
+                </div>
             </ClassroomProvider>
         </div>
     );

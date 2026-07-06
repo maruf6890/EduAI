@@ -3,7 +3,6 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-    Plus,
     FolderOpen,
     Paperclip,
     Calendar,
@@ -20,34 +19,18 @@ import {
     Inbox,
 } from "lucide-react";
 import { private_api_call } from "@/actions/private_api_call";
+import { useClassroom } from "../ClassroomContext";
 
-/* =========================================================================
-   TYPES — mirror your service layer + Pydantic models EXACTLY
-   =========================================================================
-   Source of truth:
-     - UpdateMaterialInput (Pydantic)
-     - upload_material / update_material / delete_material /
-       get_central_materials / get_private_materials / get_material (service)
-     - endpoint list screenshot (/api/v1/classrooms/{classroom_id}/materials/...)
-
-   Every response you return follows: { success, message, data }
-   ========================================================================= */
-
-// RETURNING clause in upload_material's INSERT into material_files
 interface MaterialFile {
     id: number;
     file_name: string;
     file_url: string;
     file_type: string;
-    uploaded_at: string; // ISO datetime, serialized via _serialize()
+    uploaded_at: string;
 }
 
 type MaterialVisibility = "CENTRAL" | "PRIVATE";
 
-// Full material shape as returned by the service. `uploader_name` only shows
-// up on responses that JOIN users (get_central_materials, get_material) —
-// upload_material, update_material, and get_private_materials never select
-// it, since get_private_materials is always scoped to uploaded_by = user_id.
 interface Material {
     id: number;
     classroom_id: number;
@@ -61,16 +44,11 @@ interface Material {
     files: MaterialFile[];
 }
 
-// Matches UpdateMaterialInput exactly — both fields optional, title trimmed
-// and rejected if blank by the `title_not_empty` validator.
 interface UpdateMaterialInput {
     title?: string;
     description?: string;
 }
 
-// Local form shape for the upload modal — upload_material takes
-// classroom_id, uploaded_by (from auth), title, description, visibility,
-// files (multipart), so this mirrors everything the client actually submits.
 interface UploadFormState {
     title: string;
     description: string;
@@ -85,25 +63,11 @@ const emptyUploadForm: UploadFormState = {
     files: [],
 };
 
-/* =========================================================================
-   DUMMY DATA — same field names as get_central_materials / get_private_materials'
-   `data` array. Swap `useState(dummyCentral)` / `useState(dummyPrivate)` for
-   the fetched `json.data` and nothing else needs to change.
-   ========================================================================= */
-
-// ⚠️ ASSUMED: stand-in for the authenticated user until auth is wired up.
-// Mirrors uploaded_by everywhere ownership is checked (_verify_member,
-// the `material["uploaded_by"] != user_id` guards in update/delete).
-const CURRENT_USER_ID = 101;
-
-// ⚠️ ASSUMED: stand-in for `classroom.owner_id === user.id`, which is what
-// gates CENTRAL uploads server-side. Toggle in the header below for demo.
-const dummyIsClassroomOwner = true;
 
 
-/* =========================================================================
-   HELPERS
-   ========================================================================= */
+
+
+
 
 function formatDate(iso: string): string {
     const date = new Date(iso);
@@ -114,10 +78,7 @@ function formatDate(iso: string): string {
     });
 }
 
-function fileExt(name: string): string {
-    const parts = name.split(".");
-    return parts.length > 1 ? parts.pop()!.toUpperCase() : "FILE";
-}
+
 
 function visibilityStyles(visibility: MaterialVisibility): { label: string; className: string; icon: typeof Globe2 } {
     return visibility === "CENTRAL"
@@ -125,18 +86,16 @@ function visibilityStyles(visibility: MaterialVisibility): { label: string; clas
         : { label: "Private", className: "bg-zinc-800 text-zinc-400", icon: Lock };
 }
 
-/* =========================================================================
-   PAGE
-   ========================================================================= */
+
 
 export default function MaterialsPage() {
     const params = useParams();
     const classroomId = params?.classroomId as string;
+    const classroom= useClassroom();
 
     const [tab, setTab] = useState<MaterialVisibility>("CENTRAL");
     const [central, setCentral] = useState<Material[]>([]);
     const [privateMats, setPrivateMats] = useState<Material[]>([]);
-    const [isClassroomOwner, setIsClassroomOwner] = useState(dummyIsClassroomOwner);
 
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [uploadForm, setUploadForm] = useState<UploadFormState>(emptyUploadForm);
@@ -154,7 +113,7 @@ export default function MaterialsPage() {
     /* ------------------------------ handlers ------------------------------ */
 
     function handleOpenUploadModal() {
-        setUploadForm({ ...emptyUploadForm, visibility: isClassroomOwner ? "CENTRAL" : "PRIVATE" });
+        setUploadForm({ ...emptyUploadForm, visibility: classroom?.current_user.role==="teacher" ? "CENTRAL" : "PRIVATE" });
         setIsUploadOpen(true);
     }
 
@@ -164,77 +123,32 @@ export default function MaterialsPage() {
 
     async function handleUploadMaterial(e: React.FormEvent) {
         e.preventDefault();
+        if (!uploadForm.title.trim() || uploadForm.files.length === 0) return;
+
         setIsUploading(true);
+ 
+        const formData = new FormData();
+        formData.append("title", uploadForm.title.trim());
+        formData.append("description", uploadForm.description.trim());
+        formData.append("visibility", uploadForm.visibility);
+        uploadForm.files.forEach((file) => formData.append("files", file));
 
         const res = await private_api_call({
             method: "POST",
-            path: `classrooms/${classroomId}/materials`, body: uploadForm
+            path: `classrooms/${classroomId}/materials`,
+            body: formData,
         });
 
-        const json = res;
+        setIsUploading(false);
+
+        if (!res.success || !res.data) return;
 
         if (uploadForm.visibility === "CENTRAL") {
-            setCentral((prev) => [json.data, ...prev]);
+            setCentral((prev) => [res.data as Material, ...prev]);
         } else {
-            setPrivateMats((prev) => [json.data, ...prev]);
+            setPrivateMats((prev) => [res.data as Material, ...prev]);
         }
-        setIsUploading(false);
         setIsUploadOpen(false);
-
-
-        // ---------------------------------------------------------------------
-        // TODO: POST /api/v1/classrooms/{classroom_id}/materials  (upload_material)
-        // multipart/form-data — do NOT set Content-Type manually, let the
-        // browser attach the boundary.
-        //
-        // const body = new FormData();
-        // body.append("title", uploadForm.title);
-        // if (uploadForm.description) body.append("description", uploadForm.description);
-        // body.append("visibility", uploadForm.visibility);
-        // uploadForm.files.forEach((file) => body.append("files", file));
-        //
-        // const res = await fetch(`/api/v1/classrooms/${classroomId}/materials`, {
-        //   method: "POST",
-        //   body,
-        // });
-        // const json = await res.json(); // { success, message, data: Material }
-        // if (json.data.visibility === "CENTRAL") {
-        //   setCentral((prev) => [json.data, ...prev]);
-        // } else {
-        //   setPrivateMats((prev) => [json.data, ...prev]);
-        // }
-        // ---------------------------------------------------------------------
-
-        // // Temporary local-only insert so the UI is testable without a backend.
-        // const localMaterial: Material = {
-        //     id: Date.now(),
-        //     classroom_id: Number(classroomId) || 0,
-        //     title: uploadForm.title,
-        //     description: uploadForm.description || null,
-        //     visibility: uploadForm.visibility,
-        //     uploaded_by: CURRENT_USER_ID,
-        //     created_at: new Date().toISOString(),
-        //     updated_at: new Date().toISOString(),
-        //     files: uploadForm.files.map((file, i) => ({
-        //         id: Date.now() + i,
-        //         file_name: file.name,
-        //         file_url: "#",
-        //         file_type: fileExt(file.name).toLowerCase(),
-        //         uploaded_at: new Date().toISOString(),
-        //     })),
-        // };
-
-        // setTimeout(() => {
-        //     if (localMaterial.visibility === "CENTRAL") {
-        //         setCentral((prev) => [localMaterial, ...prev]);
-        //         setTab("CENTRAL");
-        //     } else {
-        //         setPrivateMats((prev) => [localMaterial, ...prev]);
-        //         setTab("PRIVATE");
-        //     }
-        //     setIsUploading(false);
-        //     setIsUploadOpen(false);
-        // }, 400);
     }
 
     function handleViewMaterial(material: Material) {
@@ -271,56 +185,27 @@ export default function MaterialsPage() {
         }
         setIsSavingEdit(false);
         setEditTarget(null);
-
-
-        // ---------------------------------------------------------------------
-        // TODO: PUT /api/v1/classrooms/{classroom_id}/materials/{material_id}  (update_material)
-        //
-        // const res = await fetch(
-        //   `/api/v1/classrooms/${classroomId}/materials/${editTarget.id}`,
-        //   {
-        //     method: "PUT",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify(editForm), // { title?, description? }
-        //   }
-        // );
-        // const json = await res.json(); // { success, message, data: Material }
-        // Backend re-runs the `title_not_empty` validator server-side too —
-        // 400 with detail "title cannot be blank" if it fails there.
-        // ---------------------------------------------------------------------
-
-        // setTimeout(() => {
-        //     const title = (editForm.title ?? editTarget.title).trim();
-        //     const description = editForm.description ?? editTarget.description ?? "";
-        //     const apply = (list: Material[]) =>
-        //         list.map((m) => (m.id === editTarget.id ? { ...m, title, description } : m));
-        //     setCentral(apply);
-        //     setPrivateMats(apply);
-        //     setIsSavingEdit(false);
-        //     setEditTarget(null);
-        // }, 400);
     }
 
-    async function handleDeleteMaterial(material: Material) {
-        // TODO: DELETE /api/v1/classrooms/{classroom_id}/materials/{material_id}  (delete_material)
-        // await fetch(`/api/v1/classrooms/${classroomId}/materials/${material.id}`, { method: "DELETE" });
-        // Backend only allows the uploader to delete — `uploaded_by !== user_id` -> 403.
 
+
+
+    async function handleDeleteMaterial(material: Material) {
         const res = await private_api_call({
             method: "DELETE",
             path: `classrooms/${classroomId}/materials/${material.id}`,
         });
+
+        if (!res.success) return;
 
         setCentral((prev) => prev.filter((m) => m.id !== material.id));
         setPrivateMats((prev) => prev.filter((m) => m.id !== material.id));
         setOpenMenuId(null);
     }
 
-    // ---------------------------------------------------------------------
-    // TODO: GET /api/v1/classrooms/{classroom_id}/materials/central  (initial load)
-    // TODO: GET /api/v1/classrooms/{classroom_id}/materials/private  (initial load)
-    //
     useEffect(() => {
+        if (!classroomId) return;
+
         async function loadMaterials() {
             const [centralRes, privateRes] = await Promise.all([
                 private_api_call({
@@ -332,17 +217,11 @@ export default function MaterialsPage() {
                     path: `classrooms/${classroomId}/materials/private`,
                 }),
             ]);
-            setCentral((await centralRes).data);
-            setPrivateMats((await privateRes).data);
+            if (centralRes.success) setCentral(centralRes.data ?? []);
+            if (privateRes.success) setPrivateMats(privateRes.data ?? []);
         }
         loadMaterials();
     }, [classroomId]);
-    //
-    // Other endpoint available on this resource (not wired into this page yet):
-    //   GET /materials/{material_id}   get_material — single-material fetch,
-    //   useful if you later deep-link to a specific material instead of
-    //   reusing the locally-cached row for the view modal.
-    // ---------------------------------------------------------------------
 
     /* -------------------------------- render ------------------------------- */
 
@@ -363,19 +242,6 @@ export default function MaterialsPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* ⚠️ Demo-only role switch — remove once auth tells us who's logged in */}
-                    <label className="flex items-center gap-2 text-xs text-zinc-500">
-                        Viewing as
-                        <select
-                            value={isClassroomOwner ? "teacher" : "student"}
-                            onChange={(e) => setIsClassroomOwner(e.target.value === "teacher")}
-                            className="rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs font-medium text-zinc-300 focus:border-brand-primary focus:outline-none"
-                        >
-                            <option value="teacher">Teacher</option>
-                            <option value="student">Student</option>
-                        </select>
-                    </label>
-
                     <button
                         onClick={handleOpenUploadModal}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
@@ -410,7 +276,7 @@ export default function MaterialsPage() {
                         <MaterialCard
                             key={material.id}
                             material={material}
-                            canManage={material.uploaded_by === CURRENT_USER_ID}
+                            canManage={material.uploaded_by.toString() === classroom?.current_user.id}
                             isMenuOpen={openMenuId === material.id}
                             onToggleMenu={() => setOpenMenuId((prev) => (prev === material.id ? null : material.id))}
                             onView={() => handleViewMaterial(material)}
@@ -427,7 +293,7 @@ export default function MaterialsPage() {
                     form={uploadForm}
                     setForm={setUploadForm}
                     isSubmitting={isUploading}
-                    canPickCentral={isClassroomOwner}
+                    canPickCentral={classroom?.current_user.role === "teacher"}
                     onClose={handleCloseUploadModal}
                     onSubmit={handleUploadMaterial}
                 />
@@ -620,8 +486,20 @@ function UploadMaterialModal({
 }) {
     const isValid = form.title.trim().length > 0 && form.files.length > 0;
 
+    function addFiles(picked: FileList | null) {
+        if (!picked) return;
+        const incoming = Array.from(picked);
+        setForm((prev) => ({ ...prev, files: [...prev.files, ...incoming] }));
+    }
+
     function removeFile(index: number) {
         setForm((prev) => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
+    }
+
+    function formatBytes(bytes: number): string {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     }
 
     return (
@@ -643,7 +521,7 @@ function UploadMaterialModal({
                 </div>
 
                 {/* Form */}
-                <form onSubmit={onSubmit} className="flex-1 overflow-y-auto px-5 py-4">
+                <form id="upload-material-form" onSubmit={onSubmit} className="flex-1 overflow-y-auto px-5 py-4">
                     <div className="flex flex-col gap-4">
                         {/* title */}
                         <div>
@@ -700,33 +578,37 @@ function UploadMaterialModal({
                             <label className="mb-1.5 block text-xs font-medium text-zinc-400">
                                 Files <span className="text-red-400">*</span>
                             </label>
-                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-zinc-700 px-3 py-6 text-center hover:border-brand-secondary">
-                                <Upload className="mb-1 h-5 w-5 text-zinc-500" />
+                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-zinc-700 px-3 py-6 text-center transition-colors hover:border-brand-primary hover:bg-zinc-950/40">
+                                <Upload className="mb-1.5 h-5 w-5 text-zinc-500" />
                                 <span className="text-sm text-zinc-400">Click to choose files</span>
+                                <span className="mt-0.5 text-xs text-zinc-600">Multiple files supported</span>
                                 <input
                                     type="file"
                                     multiple
                                     className="hidden"
-                                    onChange={(e) =>
-                                        setForm((prev) => ({ ...prev, files: Array.from(e.target.files ?? []) }))
-                                    }
+                                    onChange={(e) => {
+                                        addFiles(e.target.files);
+                                        e.target.value = "";
+                                    }}
                                 />
                             </label>
                             {form.files.length > 0 && (
                                 <ul className="mt-2 flex flex-col gap-1">
                                     {form.files.map((file, i) => (
                                         <li
-                                            key={i}
+                                            key={`${file.name}-${i}`}
                                             className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/50 px-2.5 py-1.5 text-xs text-zinc-400"
                                         >
-                                            <span className="flex items-center gap-1.5 truncate">
-                                                <FileText className="h-3.5 w-3.5 shrink-0" />
-                                                {file.name}
+                                            <span className="flex min-w-0 items-center gap-1.5">
+                                                <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                                                <span className="truncate text-zinc-300">{file.name}</span>
+                                                <span className="shrink-0 text-zinc-600">· {formatBytes(file.size)}</span>
                                             </span>
                                             <button
                                                 type="button"
                                                 onClick={() => removeFile(i)}
-                                                className="shrink-0 text-zinc-500 hover:text-red-400"
+                                                className="shrink-0 rounded-md p-1 text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
+                                                aria-label={`Remove ${file.name}`}
                                             >
                                                 <X className="h-3.5 w-3.5" />
                                             </button>
@@ -743,16 +625,20 @@ function UploadMaterialModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                        disabled={isSubmitting}
+                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        onClick={onSubmit}
+                        form="upload-material-form"
                         disabled={!isValid || isSubmitting}
-                        className="rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
+                        className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
                     >
+                        {isSubmitting && (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950" />
+                        )}
                         {isSubmitting ? "Uploading..." : "Upload"}
                     </button>
                 </div>

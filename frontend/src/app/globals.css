@@ -143,6 +143,7 @@ body {
 
   /* Base */
   --color-bg-main: #ffffff;
+  --bg-surface: #f1f5f9;
   --color-text-main: #100a43;
 
   /* Brand */
@@ -181,6 +182,7 @@ body {
 
 .dark {
   --color-bg-main: #09090b;
+  --bg-surface: #0f172a;
   --color-text-main: #f8fafc;
 
   --color-brand-primary: #3897a4;

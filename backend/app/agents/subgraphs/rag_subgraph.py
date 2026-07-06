@@ -103,7 +103,7 @@ def keyword_search_node(state: RagState) -> RagState:
 def merge_node(state: RagState) -> RagState:
     merged: dict = {}
 
-    logger.info(f"merge_node vector results: {state['vector_results']}")
+    # logger.info(f"merge_node vector results: {state['vector_results']}")
     for doc_name, chunk_number, content, distance in state.get("vector_results", []):
         key = f"{doc_name}:{chunk_number}"
         merged[key] = {
@@ -113,7 +113,7 @@ def merge_node(state: RagState) -> RagState:
             "bm25_score": None,
         }
 
-    logger.info(f"merge_node keyword results: {state['keyword_results']}")
+    # logger.info(f"merge_node keyword results: {state['keyword_results']}")
     for doc_name, chunk_number, content, score in state.get("keyword_results", []):
         key = f"kw:{chunk_number}"
         if key in merged:
@@ -130,6 +130,8 @@ def merge_node(state: RagState) -> RagState:
 
 def re_ranking_node(state: RagState) -> RagState:
     candidates = state.get("merged_results", [])
+
+    print(f"re_ranking_node candidates: {candidates}")
 
     def score(c: dict) -> float:
         vector_score = -(c["vector_distance"] or 1.0)
@@ -152,6 +154,11 @@ def context_builder_node(state: RagState) -> RagState:
 def ask_llm_node(state: RagState) -> RagState:
     question = state["question"]
     context = state.get("context", "")
+    reranked_results = state.get("reranked_results", [])
+    print(f"ask_llm_node context: {context}")
+    print(f"ask_llm_node reranked results: {reranked_results}")
+    # logger.info(f"ask_llm_node context: {context}")
+    # logger.info(f"ask_llm_node reranked results: {reranked_results}")
     prompt = (
         "Answer the questio using only the context below. "
         "If the answer isn't in the context, say you don't know. Provide a detailed explanation based on the context provided. and mention sources.\n\n"

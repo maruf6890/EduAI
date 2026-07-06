@@ -28,7 +28,8 @@ class AgentState(TypedDict, total=False):
 
     # final response
     answer: Optional[str]
-
+    route_used: Optional[str]
+    result_reference: Optional[List[str]]
     # metadata
     user_id: Optional[str]
     session_id: Optional[str]
