@@ -3,7 +3,7 @@ import type { Classroom } from '@/lib/types/classrooms';
 
 export default function ClassroomHeader({ classroom }: { classroom: Classroom }) {
     return (
-        <div className="border-b border-white/[0.06] bg-white/[0.02]">
+        <div className="border-b border-border bg-bg-main">
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-primary bg-brand-primary/10 px-3 py-1">
                     <GraduationCap className="h-3.5 w-3.5 text-brand-primary" />

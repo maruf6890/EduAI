@@ -122,7 +122,7 @@ function fileExt(name: string): string {
 function visibilityStyles(visibility: MaterialVisibility): { label: string; className: string; icon: typeof Globe2 } {
     return visibility === "CENTRAL"
         ? { label: "Central", className: "bg-brand-secondary/10 text-brand-secondary", icon: Globe2 }
-        : { label: "Private", className: "bg-zinc-800 text-zinc-400", icon: Lock };
+        : { label: "Private", className: "bg-brand-main text-text-main", icon: Lock };
 }
 
 /* =========================================================================
@@ -355,8 +355,8 @@ export default function MaterialsPage() {
                         <FolderOpen className="h-5 w-5 text-brand-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-semibold text-zinc-100">Materials</h1>
-                        <p className="text-sm text-zinc-500">
+                        <h1 className="text-xl font-semibold text-text-main">Materials</h1>
+                        <p className="text-sm text-text-main">
                             {materials.length} {materials.length === 1 ? "material" : "materials"}
                         </p>
                     </div>
@@ -364,12 +364,12 @@ export default function MaterialsPage() {
 
                 <div className="flex items-center gap-3">
                     {/* ⚠️ Demo-only role switch — remove once auth tells us who's logged in */}
-                    <label className="flex items-center gap-2 text-xs text-zinc-500">
+                    <label className="flex items-center gap-2 text-xs text-text-main">
                         Viewing as
                         <select
                             value={isClassroomOwner ? "teacher" : "student"}
                             onChange={(e) => setIsClassroomOwner(e.target.value === "teacher")}
-                            className="rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs font-medium text-zinc-300 focus:border-brand-primary focus:outline-none"
+                            className="rounded-sm border border-zinc-700 bg-brand-main px-2 py-1.5 text-xs font-medium text-text-main focus:border-brand-primary focus:outline-none"
                         >
                             <option value="teacher">Teacher</option>
                             <option value="student">Student</option>
@@ -378,7 +378,7 @@ export default function MaterialsPage() {
 
                     <button
                         onClick={handleOpenUploadModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
+                        className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
                     >
                         <Upload className="h-4 w-4" strokeWidth={2.5} />
                         Upload material
@@ -387,7 +387,7 @@ export default function MaterialsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="mb-5 inline-flex rounded-lg border border-zinc-800 bg-zinc-900 p-1">
+            <div className="mb-5 inline-flex rounded-sm border border-zinc-800 bg-zinc-900 p-1">
                 {(["CENTRAL", "PRIVATE"] as MaterialVisibility[]).map((v) => (
                     <button
                         key={v}
@@ -480,14 +480,14 @@ function MaterialCard({
             className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
         >
             {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-800 sm:h-12 sm:w-12">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-zinc-800 sm:h-12 sm:w-12">
                 <FileText className="h-5 w-5 text-zinc-400" />
             </div>
 
             {/* Main content */}
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-zinc-100 sm:text-base">{material.title}</h3>
+                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">{material.title}</h3>
 
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${visibility.className}`}>
                         <VisibilityIcon className="h-3 w-3" />
@@ -496,10 +496,10 @@ function MaterialCard({
                 </div>
 
                 {material.description && (
-                    <p className="mt-1 line-clamp-1 text-sm text-zinc-500">{material.description}</p>
+                    <p className="mt-1 line-clamp-1 text-sm text-text-main">{material.description}</p>
                 )}
 
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-main">
                     <span className="inline-flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
                         {formatDate(material.created_at)}
@@ -523,7 +523,7 @@ function MaterialCard({
                         e.stopPropagation();
                         onToggleMenu();
                     }}
-                    className="rounded-lg p-2 text-zinc-500 opacity-0 transition-colors hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
+                    className="rounded-sm p-2 text-text-main opacity-0 transition-colors hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
                     data-open={isMenuOpen}
                     aria-label="Material actions"
                 >
@@ -533,7 +533,7 @@ function MaterialCard({
                 {isMenuOpen && (
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                        className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
                     >
                         <button
                             onClick={onView}
@@ -581,14 +581,14 @@ function EmptyState({ onUpload, tab }: { onUpload: () => void; tab: MaterialVisi
             <h3 className="mt-4 text-sm font-medium text-zinc-200">
                 No {tab === "CENTRAL" ? "central" : "private"} materials yet
             </h3>
-            <p className="mt-1 max-w-sm text-sm text-zinc-500">
+            <p className="mt-1 max-w-sm text-sm text-text-main">
                 {tab === "CENTRAL"
                     ? "Materials uploaded here are visible to the whole class."
                     : "Materials uploaded here are only visible to you."}
             </p>
             <button
                 onClick={onUpload}
-                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
+                className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
             >
                 <Upload className="h-4 w-4" strokeWidth={2.5} />
                 Upload material
@@ -625,17 +625,17 @@ function UploadMaterialModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="fixed inset-0  flex items-end justify-center bg-bg-main/60 backdrop-blur-sm sm:items-center sm:p-4">
             <div
                 onClick={(e) => e.stopPropagation()}
                 className="flex max-h-[92vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-lg sm:rounded-2xl"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-zinc-100">Upload material</h2>
+                    <h2 className="text-base font-semibold text-text-main">Upload material</h2>
                     <button
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
                         aria-label="Close"
                     >
                         <X className="h-4 w-4" />
@@ -656,7 +656,7 @@ function UploadMaterialModal({
                                 value={form.title}
                                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                                 placeholder="e.g. Week 4 lecture slides"
-                                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
@@ -668,7 +668,7 @@ function UploadMaterialModal({
                                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                                 placeholder="A short note about what this covers"
                                 rows={2}
-                                className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full resize-none rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
@@ -683,7 +683,7 @@ function UploadMaterialModal({
                                             key={v}
                                             type="button"
                                             onClick={() => setForm((prev) => ({ ...prev, visibility: v }))}
-                                            className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${form.visibility === v
+                                            className={`rounded-sm border px-3 py-2 text-sm font-medium transition-colors ${form.visibility === v
                                                 ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
                                                 : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
                                                 }`}
@@ -700,8 +700,8 @@ function UploadMaterialModal({
                             <label className="mb-1.5 block text-xs font-medium text-zinc-400">
                                 Files <span className="text-red-400">*</span>
                             </label>
-                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-zinc-700 px-3 py-6 text-center hover:border-brand-secondary">
-                                <Upload className="mb-1 h-5 w-5 text-zinc-500" />
+                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed border-zinc-700 px-3 py-6 text-center hover:border-brand-secondary">
+                                <Upload className="mb-1 h-5 w-5 text-text-main" />
                                 <span className="text-sm text-zinc-400">Click to choose files</span>
                                 <input
                                     type="file"
@@ -717,7 +717,7 @@ function UploadMaterialModal({
                                     {form.files.map((file, i) => (
                                         <li
                                             key={i}
-                                            className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/50 px-2.5 py-1.5 text-xs text-zinc-400"
+                                            className="flex items-center justify-between rounded-sm border border-zinc-800 bg-zinc-950/50 px-2.5 py-1.5 text-xs text-zinc-400"
                                         >
                                             <span className="flex items-center gap-1.5 truncate">
                                                 <FileText className="h-3.5 w-3.5 shrink-0" />
@@ -726,7 +726,7 @@ function UploadMaterialModal({
                                             <button
                                                 type="button"
                                                 onClick={() => removeFile(i)}
-                                                className="shrink-0 text-zinc-500 hover:text-red-400"
+                                                className="shrink-0 text-text-main hover:text-red-400"
                                             >
                                                 <X className="h-3.5 w-3.5" />
                                             </button>
@@ -743,7 +743,7 @@ function UploadMaterialModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
                     >
                         Cancel
                     </button>
@@ -751,7 +751,7 @@ function UploadMaterialModal({
                         type="submit"
                         onClick={onSubmit}
                         disabled={!isValid || isSubmitting}
-                        className="rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
+                        className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-text-main disabled:opacity-100"
                     >
                         {isSubmitting ? "Uploading..." : "Upload"}
                     </button>
@@ -790,10 +790,10 @@ function EditMaterialModal({
                 className="flex w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-md sm:rounded-2xl"
             >
                 <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-zinc-100">Edit material</h2>
+                    <h2 className="text-base font-semibold text-text-main">Edit material</h2>
                     <button
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
                         aria-label="Close"
                     >
                         <X className="h-4 w-4" />
@@ -811,7 +811,7 @@ function EditMaterialModal({
                                 type="text"
                                 value={form.title ?? ""}
                                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
                         <div>
@@ -820,7 +820,7 @@ function EditMaterialModal({
                                 value={form.description ?? ""}
                                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                                 rows={3}
-                                className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full resize-none rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
                     </div>
@@ -829,14 +829,14 @@ function EditMaterialModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                            className="rounded-sm px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={!isValid || isSubmitting}
-                            className="rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
+                            className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-text-main disabled:opacity-100"
                         >
                             {isSubmitting ? "Saving..." : "Save changes"}
                         </button>
@@ -865,10 +865,10 @@ function ViewMaterialModal({ material, onClose }: { material: Material; onClose:
                 className="flex max-h-[85vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-lg sm:rounded-2xl"
             >
                 <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-zinc-100">{material.title}</h2>
+                    <h2 className="text-base font-semibold text-text-main">{material.title}</h2>
                     <button
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
                         aria-label="Close"
                     >
                         <X className="h-4 w-4" />
@@ -881,9 +881,9 @@ function ViewMaterialModal({ material, onClose }: { material: Material; onClose:
                             <VisibilityIcon className="h-3 w-3" />
                             {visibility.label}
                         </span>
-                        <span className="text-xs text-zinc-500">Uploaded {formatDate(material.created_at)}</span>
+                        <span className="text-xs text-text-main">Uploaded {formatDate(material.created_at)}</span>
                         {material.uploader_name && (
-                            <span className="text-xs text-zinc-500">by {material.uploader_name}</span>
+                            <span className="text-xs text-text-main">by {material.uploader_name}</span>
                         )}
                     </div>
 
@@ -891,12 +891,12 @@ function ViewMaterialModal({ material, onClose }: { material: Material; onClose:
                         <p className="mb-4 text-sm text-zinc-400">{material.description}</p>
                     )}
 
-                    <p className="mb-2 text-xs font-medium text-zinc-500">Files</p>
+                    <p className="mb-2 text-xs font-medium text-text-main">Files</p>
                     <ul className="flex flex-col gap-2">
                         {material.files.map((file) => (
                             <li
                                 key={file.id}
-                                className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2"
+                                className="flex items-center justify-between rounded-sm border border-zinc-800 bg-zinc-950/50 px-3 py-2"
                             >
                                 <span className="flex items-center gap-2 text-sm text-zinc-300">
                                     <FileText className="h-4 w-4 text-brand-primary" />
@@ -904,7 +904,7 @@ function ViewMaterialModal({ material, onClose }: { material: Material; onClose:
                                 </span>
                                 <a
                                     href={file.file_url}
-                                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                                    className="rounded-md p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
                                     title="Download"
                                 >
                                     <Download className="h-4 w-4" />

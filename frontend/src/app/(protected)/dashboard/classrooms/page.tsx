@@ -12,6 +12,7 @@ import type { ClassroomCard, Classroom, CreatedClassroomDTO, EnrolledClassroomDT
 import { mapCreatedClassrooms, mapEnrolledClassrooms } from '@/lib/mappers/classroom';
 import { private_api_call } from '@/actions/private_api_call';
 import { useRouter } from 'next/navigation';
+import ThemeToggle from '@/components/theme/theme-toggle';
 
 
 async function fetchCreatedClassrooms(): Promise<ClassroomCard[]> {
@@ -76,12 +77,13 @@ export default function ClassroomPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0C0D10] text-white">
+        <div className="min-h-screen bg-bg-main text-text-main">
+            <ThemeToggle />
             <div
                 onClick={() => router.push('/dashboard/profile')}
-                className="fixed top-4 right-4 flex items-center justify-center w-12 h-12 rounded-full border border-white/20 bg-white/10 backdrop-blur-md cursor-pointer hover:bg-white/20 transition-all duration-300 shadow-lg"
+                className="fixed top-4 right-4 flex items-center justify-center w-12 h-12 rounded-full border border-surface-border bg-surface-main backdrop-blur-md cursor-pointer hover:bg-surface-main hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg"
             >
-                <User className="w-6 h-6 text-white" />
+                <User className="w-6 h-6 text-text-main" />
             </div>
             <div
                 className="pointer-events-none fixed inset-0 opacity-[0.025]"
@@ -101,10 +103,10 @@ export default function ClassroomPage() {
                                 {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-xl">
+                        <h1 className="text-3xl font-bold tracking-tight text-text-main sm:text-xl">
                             My Classrooms
                         </h1>
-                        <p className="mt-1.5 max-w-md text-base leading-relaxed text-white/40">
+                        <p className="mt-1.5 max-w-md text-base leading-relaxed text-text-main/40">
                             Classes you teach and enrolled in, all in one place.
                         </p>
                     </div>
@@ -117,8 +119,8 @@ export default function ClassroomPage() {
                             onClick={() => setIsJoinOpen(true)}
                             className={cn(
                                 'flex items-center gap-2 rounded-xl px-5 py-2.5',
-                                'border border-white/10 bg-white/[0.04] text-[13px] font-semibold text-white/80',
-                                'transition-all duration-200 hover:bg-white/[0.08] hover:scale-[1.02] active:scale-[0.98]',
+                                'border border-brand-secondary/10 bg-brand-secondary/10 text-[13px] font-semibold text-text-main/80',
+                                'transition-all duration-200 hover:bg-brand-secondary/10 hover:scale-[1.02] active:scale-[0.98]',
                             )}
                         >
                             <Plus className="h-4 w-4" /> Join Classroom
@@ -126,7 +128,7 @@ export default function ClassroomPage() {
                         <button
                             onClick={() => setIsCreateOpen(true)}
                             className={cn(
-                                'flex items-center gap-2 rounded-xl px-5 py-2.5 bg-brand-primary text-[13px] font-semibold text-white',
+                                'flex items-center gap-2 rounded-xl px-5 py-2.5 bg-brand-primary text-[13px] font-semibold text-text-main',
                                 'shadow-lg shadow-indigo-950/50 transition-all duration-200 hover:bg-brand-secondary hover:scale-[1.02] active:scale-[0.98]',
                             )}
                         >
@@ -142,9 +144,9 @@ export default function ClassroomPage() {
                     <div className="py-20 text-center text-red-400">{error}</div>
                 ) : classrooms.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 text-center">
-                        <GraduationCap className="mb-4 h-12 w-12 text-white/10" />
-                        <h2 className="text-lg font-semibold text-white/40">No classrooms yet</h2>
-                        <p className="mt-1 text-[13px] text-white/25">
+                        <GraduationCap className="mb-4 h-12 w-12 text-text-main/10" />
+                        <h2 className="text-lg font-semibold text-text-main/40">No classrooms yet</h2>
+                        <p className="mt-1 text-[13px] text-text-main/25">
                             Create a class or join one with a class code to get started.
                         </p>
                     </div>
