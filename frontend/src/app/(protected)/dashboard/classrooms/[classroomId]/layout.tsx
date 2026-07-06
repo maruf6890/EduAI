@@ -1,11 +1,15 @@
 
 
+
+
 import { ReactNode } from "react";
 
 import ClassroomTabs from "@/components/classroom/ClassroomTabs";
 import { getCookie } from "@/lib/cookies";
 import { ClassroomProvider } from "./ClassroomProvider";
 import { getClassroomDetails } from "./action";
+import ChatbotButton from "@/components/chat/chatbotbutton";
+
 
 
 export default async function ClassroomLayout({
@@ -47,6 +51,9 @@ export default async function ClassroomLayout({
                 <ClassroomTabs classroomId={resolvedParams.classroomId as string} />
                 {children}
             </ClassroomProvider>
+            <ChatbotButton />
         </div>
+
     );
 }
+
