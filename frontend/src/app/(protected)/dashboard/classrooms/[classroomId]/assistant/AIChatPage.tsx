@@ -13,7 +13,7 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHe
 import { public_api_call } from "@/actions/public_api_call";
 import { ChatSession } from "@/lib/types/classrooms";
 import { toast } from "sonner";
-import { randomUUID } from "crypto";
+
 
 const AI_MODELS = [
   { id: "gpt-4o", name: "GPT-4o", description: "Advanced multimodal model" },
