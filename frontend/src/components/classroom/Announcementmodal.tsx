@@ -223,7 +223,7 @@ export default function AnnouncementModal({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Create announcement"
-                className="bg-bg-main border border-border-main/80 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden"
+                className="bg-bg-main border border-border-main/80 rounded-sm w-full max-w-2xl shadow-2xl overflow-hidden"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-border-main/80">
@@ -233,7 +233,7 @@ export default function AnnouncementModal({
                     <button
                         onClick={handleClose}
                         aria-label="Close"
-                        className="p-2 rounded-full hover:bg-bg-main text-text-secondary transition-colors"
+                        className="p-2 rounded-sm hover:bg-bg-main text-text-secondary transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -243,11 +243,11 @@ export default function AnnouncementModal({
                 <div className="px-7 pt-5">
                     <p className="text-sm text-text-secondary mb-2">For</p>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <button className="flex items-center gap-2 bg-bg-main border border-surface-border rounded-md px-4 py-2.5 text-sm text-text-main shadow-sm hover:shadow-md transition-shadow">
+                        <button className="flex items-center gap-2 bg-bg-main border border-surface-border rounded-sm px-4 py-2.5 text-sm text-text-main shadow-sm hover:shadow-md transition-shadow">
                             {className}
                             <ChevronDown size={16} className="text-text-secondary" />
                         </button>
-                        <button className="flex items-center gap-2 border border-brand-primary rounded-full px-4 py-2 text-brand-primary text-sm font-medium hover:bg-brand-primary/10 transition-colors">
+                        <button className="flex items-center gap-2 border border-brand-primary rounded-sm px-4 py-2 text-brand-primary text-sm font-medium hover:bg-brand-primary/10 transition-colors">
                             <Users size={16} />
                             All students
                         </button>
@@ -268,7 +268,7 @@ export default function AnnouncementModal({
 
                 {/* Textarea + formatting + attachment chips */}
                 <div className="px-7 pt-5">
-                    <div className="bg-bg-main rounded-md border-b-2 border-brand-primary min-h-[140px] px-5 py-4">
+                    <div className="bg-bg-main rounded-sm border-b-2 border-brand-primary min-h-[140px] px-5 py-4">
                         <textarea
                             ref={textareaRef}
                             value={text}
@@ -283,7 +283,7 @@ export default function AnnouncementModal({
                                 {attachments.map((attachment) => (
                                     <span
                                         key={attachment.id}
-                                        className="flex items-center gap-1.5 bg-bg-card border border-surface-border rounded-full pl-3 pr-1.5 py-1 text-xs text-text-main max-w-[220px]"
+                                        className="flex items-center gap-1.5 bg-bg-card border border-surface-border rounded-sm pl-3 pr-1.5 py-1 text-xs text-text-main max-w-[220px]"
                                     >
                                         {attachment.type === "image" && <ImageIcon size={12} className="shrink-0" />}
                                         {attachment.type === "file" && <FileText size={12} className="shrink-0" />}
@@ -292,7 +292,7 @@ export default function AnnouncementModal({
                                         <button
                                             onClick={() => handleRemoveAttachment(attachment.id)}
                                             aria-label={`Remove ${attachment.name}`}
-                                            className="p-0.5 rounded-full hover:bg-bg-main text-text-secondary shrink-0"
+                                            className="p-0.5 rounded-sm hover:bg-bg-main text-text-secondary shrink-0"
                                         >
                                             <X size={12} />
                                         </button>
@@ -344,7 +344,7 @@ export default function AnnouncementModal({
                     <div className="flex items-center gap-2 relative">
                         <button
                             onClick={() => imageInputRef.current?.click()}
-                            className="p-2.5 rounded-full border border-surface-border text-text-secondary hover:bg-bg-main transition-colors"
+                            className="p-2.5 rounded-sm border border-surface-border text-text-secondary hover:bg-bg-main transition-colors"
                             title="Insert image"
                             aria-label="Insert image"
                         >
@@ -352,7 +352,7 @@ export default function AnnouncementModal({
                         </button>
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="p-2.5 rounded-full border border-surface-border text-text-secondary hover:bg-bg-main transition-colors"
+                            className="p-2.5 rounded-sm border border-surface-border text-text-secondary hover:bg-bg-main transition-colors"
                             title="Upload file"
                             aria-label="Upload file"
                         >
@@ -360,7 +360,7 @@ export default function AnnouncementModal({
                         </button>
                         <button
                             onClick={() => setIsLinkDialogOpen((open) => !open)}
-                            className="p-2.5 rounded-full border border-surface-border text-text-secondary hover:bg-bg-main transition-colors"
+                            className="p-2.5 rounded-sm border border-surface-border text-text-secondary hover:bg-bg-main transition-colors"
                             title="Add link"
                             aria-label="Add link"
                         >

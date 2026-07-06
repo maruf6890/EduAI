@@ -12,6 +12,7 @@ import type { ClassroomCard, Classroom, CreatedClassroomDTO, EnrolledClassroomDT
 import { mapCreatedClassrooms, mapEnrolledClassrooms } from '@/lib/mappers/classroom';
 import { private_api_call } from '@/actions/private_api_call';
 import { useRouter } from 'next/navigation';
+import ThemeToggle from '@/components/theme/theme-toggle';
 
 
 async function fetchCreatedClassrooms(): Promise<ClassroomCard[]> {
@@ -77,6 +78,7 @@ export default function ClassroomPage() {
 
     return (
         <div className="min-h-screen bg-bg-main text-text-main">
+            <ThemeToggle />
             <div
                 onClick={() => router.push('/dashboard/profile')}
                 className="fixed top-4 right-4 flex items-center justify-center w-12 h-12 rounded-full border border-surface-border bg-surface-main backdrop-blur-md cursor-pointer hover:bg-surface-main hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg"

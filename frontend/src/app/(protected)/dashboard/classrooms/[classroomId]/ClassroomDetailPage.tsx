@@ -250,7 +250,7 @@ export default function ClassroomDetailPage() {
   return (
     <div className="min-h-screen bg-bg-main text-text-main">
       <div className="flex w-full  flex-col gap-4 px-4 py-6">
-        <div className="rounded-xl border border-white/10 bg-bg-card p-5">
+        <div className="rounded-sm border border-white/10 bg-bg-card p-5">
           <p className="text-xs uppercase tracking-wider text-text-muted">
             Classroom Code
           </p>
@@ -325,7 +325,7 @@ export default function ClassroomDetailPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-100">
+                        <span className="text-sm font-medium text-text-main">
                           {classroom.teacher.name}
                         </span>
                         {announcement.role === "Instructor" && (
@@ -334,7 +334,7 @@ export default function ClassroomDetailPage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-brand-primary">
                         {announcement.createdAt}
                       </span>
                     </div>
@@ -343,7 +343,7 @@ export default function ClassroomDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(announcement)}
-                          className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors"
+                          className="text-xs text-zinc-500 hover:text-brand-primary transition-colors"
                         >
                           Edit
                         </button>
@@ -362,14 +362,14 @@ export default function ClassroomDetailPage() {
 
                   {/* Title (required field from backend) */}
                   {announcement.title && (
-                    <h3 className="mt-4 text-sm font-semibold text-zinc-100">
+                    <h3 className="mt-4 text-sm font-semibold text-text-main">
                       {announcement.title}
                     </h3>
                   )}
 
                   {/* Content */}
                   {announcement.content && (
-                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-zinc-300">
+                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-text-main">
                       {announcement.content}
                     </p>
                   )}
@@ -383,7 +383,7 @@ export default function ClassroomDetailPage() {
                           href={fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-800/40 p-3 hover:border-zinc-700 transition-colors"
+                          className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-800/40 p-3 hover:border-zinc-700 transition-colors"
                         >
                           <span className="text-sm text-zinc-400 truncate">
                             {fileUrl.split("/").pop()}

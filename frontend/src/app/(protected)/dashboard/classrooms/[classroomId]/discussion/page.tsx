@@ -337,7 +337,7 @@ export default function DiscussionsPage() {
 
                 <button
                     onClick={handleOpenCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 active:opacity-80"
+                    className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 active:opacity-80"
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                     New post
@@ -448,7 +448,7 @@ function PostCard({
     }
 
     return (
-        <div className="rounded-xl border border-surface-border bg-surface-main transition-colors hover:border-surface-border">
+        <div className="rounded-xl border border-surface-border bg-bg-main transition-colors hover:border-surface-border">
             {/* Post header */}
             <div className="flex items-start gap-3 p-4 sm:p-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-secondary/15 text-xs font-semibold text-brand-secondary">
@@ -477,7 +477,7 @@ function PostCard({
                 <div className="flex shrink-0 items-center gap-1">
                     <button
                         onClick={onToggleExpand}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-text-main hover:bg-surface-border hover:text-text-main"
+                        className="flex items-center gap-1 rounded-sm px-2 py-1.5 text-xs text-text-main hover:bg-surface-border hover:text-text-main"
                     >
                         <MessageCircle className="h-3.5 w-3.5" />
                         {totalComments}
@@ -493,7 +493,7 @@ function PostCard({
                                     e.stopPropagation();
                                     onToggleMenu();
                                 }}
-                                className="rounded-lg p-1.5 text-text-main hover:bg-surface-border hover:text-text-main"
+                                className="rounded-sm p-1.5 text-text-main hover:bg-surface-border hover:text-text-main"
                                 aria-label="Post actions"
                             >
                                 <MoreVertical className="h-4 w-4" />
@@ -502,7 +502,7 @@ function PostCard({
                             {isMenuOpen && (
                                 <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-surface-border bg-surface-main shadow-xl shadow-black/40"
+                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-sm border border-surface-border bg-bg-main shadow-xl shadow-black/40"
                                 >
 
                                     {canEditPost && (
@@ -538,7 +538,7 @@ function PostCard({
                                     e.stopPropagation();
                                     onToggleMenu();
                                 }}
-                                className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                                className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                                 aria-label="Post actions"
                             >
                                 <MoreVertical className="h-4 w-4" />
@@ -547,7 +547,7 @@ function PostCard({
                             {isMenuOpen && (
                                 <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
                                 >
                                     <button
                                         onClick={onEdit}
@@ -602,12 +602,12 @@ function PostCard({
                             onChange={(e) => setReplyText(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && submitTopLevelComment()}
                             placeholder="Add a comment..."
-                            className="w-full rounded-lg border border-surface-border bg-surface-main px-3 py-2 text-sm text-text-main placeholder:text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                            className="w-full rounded-sm border border-surface-border bg-surface-main px-3 py-2 text-sm text-text-main placeholder:text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                         />
                         <button
                             onClick={submitTopLevelComment}
                             disabled={!replyText.trim()}
-                            className="shrink-0 rounded-lg p-2 text-brand-primary hover:bg-surface-border hover:text-text-main disabled:text-text-main-disabled disabled:hover:bg-transparent"
+                            className="shrink-0 rounded-sm p-2 text-brand-primary hover:bg-surface-border hover:text-text-main disabled:text-text-main-disabled disabled:hover:bg-transparent"
                             aria-label="Send comment"
                         >
                             <Send className="h-4 w-4" />
@@ -671,10 +671,10 @@ function CommentItem({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className="rounded-lg bg-zinc-800/60 px-3 py-2">
+                    <div className="rounded-sm bg-bg-main/60 px-3 py-2">
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-zinc-200">{comment.created_by.full_name}</span>
-                            <span className="text-xs text-zinc-500">{formatTimestamp(comment.created_at)}</span>
+                            <span className="text-xs font-medium text-text-main">{comment.created_by.full_name}</span>
+                            <span className="text-xs text-text-main">{formatTimestamp(comment.created_at)}</span>
                         </div>
 
                         {isEditing ? (
@@ -685,7 +685,7 @@ function CommentItem({
                                     onChange={(e) => setEditText(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && submitEdit()}
                                     autoFocus
-                                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 focus:border-brand-primary focus:outline-none"
+                                    className="w-full rounded-md border border-zinc-700 bg-bg-main px-2 py-1 text-sm text-zinc-100 focus:border-brand-primary focus:outline-none"
                                 />
                                 <button onClick={submitEdit} className="shrink-0 text-xs font-medium text-brand-primary">
                                     Save
@@ -701,7 +701,7 @@ function CommentItem({
                                 </button>
                             </div>
                         ) : (
-                            <p className="mt-0.5 whitespace-pre-wrap text-sm text-zinc-300">{comment.content}</p>
+                            <p className="mt-0.5 whitespace-pre-wrap text-sm text-text-main">{comment.content}</p>
                         )}
                     </div>
 
@@ -736,7 +736,7 @@ function CommentItem({
                                 onKeyDown={(e) => e.key === "Enter" && submitReply()}
                                 autoFocus
                                 placeholder={`Reply to ${comment.created_by.full_name}...`}
-                                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none"
+                                className="w-full rounded-md border border-zinc-700 bg-bg-main px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none"
                             />
                             <button
                                 onClick={submitReply}
@@ -786,7 +786,7 @@ function EmptyState({ onCreate }: { onCreate?: () => void }) {
             {onCreate && (
                 <button
                     onClick={onCreate}
-                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
+                    className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90"
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                     New post
@@ -834,14 +834,14 @@ function PostFormModal({
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-lg sm:rounded-2xl"
+                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-bg-main sm:max-w-lg sm:rounded-2xl"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-zinc-100">{title}</h2>
+                    <h2 className="text-base font-semibold text-text-main">{title}</h2>
                     <button
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                         aria-label="Close"
                     >
                         <X className="h-4 w-4" />
@@ -852,7 +852,7 @@ function PostFormModal({
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-4">
                     <div className="flex flex-col gap-4">
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                            <label className="mb-1.5 block text-xs font-medium text-text-main">
                                 Title <span className="text-red-400">*</span>
                             </label>
                             <input
@@ -861,23 +861,23 @@ function PostFormModal({
                                 value={postTitle}
                                 onChange={(e) => setPostTitle(e.target.value)}
                                 placeholder="What's this about?"
-                                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
                         <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Content</label>
+                            <label className="mb-1.5 block text-xs font-medium text-text-main">Content</label>
                             <textarea
                                 value={postContent}
                                 onChange={(e) => setPostContent(e.target.value)}
                                 placeholder="Share details, ask a question, or start a discussion..."
                                 rows={5}
-                                className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full resize-none rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
                         {showActiveToggle && (
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                            <div className="rounded-sm border border-zinc-800 bg-bg-main/50 p-3">
                                 <label className="flex cursor-pointer items-center justify-between">
                                     <span className="flex items-center gap-2 text-sm text-zinc-300">
                                         {isActive ? <ArchiveRestore className="h-4 w-4 text-zinc-500" /> : <Archive className="h-4 w-4 text-zinc-500" />}
@@ -895,7 +895,7 @@ function PostFormModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-text-main hover:bg-zinc-800 hover:text-zinc-200"
                     >
                         Cancel
                     </button>
@@ -903,7 +903,7 @@ function PostFormModal({
                         type="submit"
                         onClick={handleSubmit}
                         disabled={!postTitle.trim() || isSubmitting}
-                        className="rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
+                        className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
                     >
                         {isSubmitting ? "Posting..." : submitLabel}
                     </button>
