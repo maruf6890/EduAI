@@ -13,6 +13,7 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHe
 import { public_api_call } from "@/actions/public_api_call";
 import { ChatSession } from "@/lib/types/classrooms";
 import { toast } from "sonner";
+import { p } from "framer-motion/client";
 
 
 const AI_MODELS = [
@@ -33,8 +34,9 @@ const COMMAND_SUGGESTIONS = [
   },
   { icon: null, label: "Debug", description: "Find bugs", prefix: "/debug" },
 ];
-//disable-eslint-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const map_chat_data = (data: any): Message[] => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return data.map((item: any) => ({
     id: item?.id || crypto.randomUUID(),
     role: item?.message_type == "human" ? "user" : "assistant",
@@ -61,11 +63,11 @@ export default function AIChatbotPage() {
   const [selectedSessions, setSelectedSessions] = useState<ChatSession | null>(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
 
 
-  // ✅ Hook methods initialized here
+  //  Hook methods initialized here
   const { isRecording, transcript, startRecording, stopRecording, isSupported } = useSpeechToText();
 
   const [messages, setMessages] = useState<Message[]>([
@@ -392,14 +394,26 @@ export default function AIChatbotPage() {
             Always here to help you
           </p>
         </div>
-        <Button variant="secondary" size="icon" onClick={() => setIsSheetOpen(true)}>
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => setIsSheetOpen(true)}
+        >
           <PanelRightOpen className="size-4" />
         </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <ChatMessages messages={messages} isGenerating={isGenerating} />
-        <div ref={messagesEndRef} />
+        {loadingMessages ? (
+          <div className="flex items-center justify-center h-full">
+           Loading messages...
+          </div>
+        ): (
+            <>
+            <ChatMessages messages={messages} isGenerating={isGenerating} />
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
       <div className="shrink-0 z-20 relative bg-bg-main">
@@ -425,57 +439,64 @@ export default function AIChatbotPage() {
           onToggleCommandPalette={() => setShowCommandPalette((prev) => !prev)}
           onSelectCommand={handleSelectCommand}
           commandPaletteRef={commandPaletteRef}
+          LoadingMessages={loadingMessages}
           isGenerating={isGenerating}
           inputFocused={inputFocused}
           mousePosition={mousePosition}
         />
       </div>
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Sessions</SheetTitle>
             <SheetDescription className="sr-only">
-               List of all sessions created by the user.
+              List of all sessions created by the user.
             </SheetDescription>
-            <Button variant="secondary" disabled={creatingSession} className="flex rounded-sm! items-center gap-2" onClick={handleCreateNewSession}>
-             {creatingSession ? <Loader2 className="size-4" /> : <Plus className="size-4" />}
+            <Button
+              variant="secondary"
+              disabled={creatingSession}
+              className="flex rounded-sm! items-center gap-2"
+              onClick={handleCreateNewSession}
+            >
+              {creatingSession ? (
+                <Loader2 className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               Create New Session
             </Button>
           </SheetHeader>
-          {
-            loadingSessions ? (
-              <div className="flex items-center justify-center h-full">
-                <p>Loading sessions...</p>
-              </div>
-            ) : (
-                chatSessions.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p>No sessions found. Create a new session to get started.</p>
-                </div>
-                ) : (
-                    
-                  <div className="grid flex-1 auto-rows-min gap-6 px-4">
-              
-                <div className="space-y-2">
-                  {chatSessions.map((session) => (
-                    <div onClick={(e) => {
+          {loadingSessions ? (
+            <div className="flex items-center justify-center h-full">
+              <p>Loading sessions...</p>
+            </div>
+          ) : chatSessions.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p>No sessions found. Create a new session to get started.</p>
+            </div>
+          ) : (
+            <div className="grid flex-1 auto-rows-min gap-6 px-4">
+              <div className="space-y-2">
+                {chatSessions.map((session) => (
+                  <div
+                    onClick={(e) => {
                       e.preventDefault();
                       setSelectedSessions(session);
-                    }} key={session.id} className="border cursor-pointer rounded-sm p-2">
-                      <p className="font-medium">{session.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Created: {new Date(session.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                    }}
+                    key={session.id}
+                    className="border cursor-pointer rounded-sm p-2"
+                  >
+                    <p className="font-medium">{session.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Created:{" "}
+                      {new Date(session.created_at).toLocaleDateString()}
+                    </p>
                   </div>
-            
-                ))
-          }
+                ))}
+              </div>
+            </div>
+          )}
           <SheetFooter>
-          
             <SheetClose> </SheetClose>
           </SheetFooter>
         </SheetContent>
