@@ -225,7 +225,19 @@ def quiz_node(state: AgentState) -> AgentState:
 # ---------------------------------------------------------------------------
 def tools_node(state: AgentState) -> AgentState:
     from app.agents.subgraphs.calendar_tools_subgraph import build_calendar_task_agent
-
+    if not state.get("user_id"):
+        return {
+            "route_used": "tools",
+            "answer": "Error: user_id is required for tools_node.",
+            "messages": [HumanMessage(content=state["question"]), AIMessage(content="Error: user_id is required.")],
+        }
+    if not state.get("classroom_id"):
+        return {
+            "route_used": "tools",
+            "answer": "Error: classroom_id is required for tools_node.",
+            "messages": [HumanMessage(content=state["question"]), AIMessage(content="Error: classroom_id is required.")],
+        }
+    print(f"tools_node: user_id={state.get('user_id')}, classroom_id={state.get('classroom_id')}")
     tool_agent = build_calendar_task_agent(
         conn=state["conn"],
         user_id=int(state.get("user_id") or 0),
@@ -233,7 +245,7 @@ def tools_node(state: AgentState) -> AgentState:
     )
 
     result = tool_agent.invoke({"messages": [HumanMessage(content=state["question"])]})
-    answer = result["messages"][-1].content
+    answer = result["ans"]
 
     return {
         "route_used": "tools",

@@ -81,16 +81,16 @@ export default function ChatMessage({
 
   const [nodes, setNodes] = React.useState(
     message.tools_response && message.route_used === "planner"
-      ? JSON.parse(message.tools_response as string)?.flow?.nodes
+      ? message.tools_response?.flow?.nodes
       : [],
   );
   const [edges, setEdges] = React.useState(
     message.tools_response && message.route_used === "planner"
-      ? JSON.parse(message.tools_response as string)?.flow?.edges
+      ? message.tools_response?.flow?.edges
       : [],
   );
 
-  const toolsResponse = message.tools_response ? JSON.parse(message.tools_response as string) : null;
+  const toolsResponse = message.tools_response? message?.tools_response : null;
   // console.log("toolsResponse", toolsResponse);
   // console.log("toolsResponse", nodes);
 
@@ -149,7 +149,7 @@ export default function ChatMessage({
                 ],
           )}
         >
-          {message.content}
+          {message?.content}
 
           {/* Attachment pills inside the bubble */}
           {message.attachments && message.attachments.length > 0 && (

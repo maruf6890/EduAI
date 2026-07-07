@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
 from typing import Literal, Optional
 
 
@@ -41,3 +42,9 @@ class ChatResponse(BaseModel):
     session_id: int
     answer: str
     tool_result: Optional[str] = None
+
+
+class CalendarEventLLMOutput(BaseModel):
+    answer:str=Field (..., description="The natural language response to the user")
+
+
