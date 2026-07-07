@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "Classrooms", href: "/dashboard/classrooms", icon: "M12 4v16m8-8H4" },
   { label: "Calendar", href: "/calendar", icon: "M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-7 4h10a2 2 0 002-2V7a2 2 0 00-2-2H9.41a1 1 0 00-.7.29L5.3 8.7a1 1 0 00-.3.7V19a2 2 0 002 2z" },
   { label: "Profile", href: "/profile", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+  { label: "Community Classrooms", href: "/community-classrooms", icon: "M12 4v16m8-8H4" },
 ];
 
 export default function Sidebar() {
