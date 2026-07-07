@@ -136,9 +136,9 @@ export default function MaterialsSection() {
   }, [classroomId]);
 
   // NOTE: backend upload_material() declares `files: List[UploadFile]` (plural)
-// and only uses files[0], so the multipart field name MUST be "files" to
-// bind correctly — even though we only ever send one file per material.
-const handleUpload = async (
+  // and only uses files[0], so the multipart field name MUST be "files" to
+  // bind correctly — even though we only ever send one file per material.
+  const handleUpload = async (
     title: string,
     description: string,
     visibility: Visibility,
@@ -249,7 +249,7 @@ const handleUpload = async (
         </div>
 
         {isLoading ? (
-          <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-10 text-center">
+          <div className="rounded-sm border border-dashed border-border-main/80 px-5 py-10 text-center">
             <p className="text-sm text-zinc-500">Loading materials…</p>
           </div>
         ) : (
@@ -336,7 +336,7 @@ function IngestionBadge({ status }: { status: IngestionStatus }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${entry.className}`}
+          className={`inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${entry.className}`}
         >
           {entry.icon}
         </span>
@@ -373,7 +373,7 @@ function MaterialGroup({
       </div>
 
       {materials.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-6 text-center">
+        <div className="rounded-sm border border-dashed border-border-main/80 px-5 py-6 text-center">
           <p className="text-sm text-zinc-500">{emptyLabel}</p>
         </div>
       ) : (
@@ -384,8 +384,8 @@ function MaterialGroup({
             const canManage = isTeacher || material.isMine;
 
             return (
-              <div key={material.id} className="flex items-start gap-3 rounded-2xl border bg-bg-card p-4">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-brand-primary/20 text-brand-primary">
+              <div key={material.id} className="flex items-start gap-3 rounded-sm border bg-bg-card p-4">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-sm bg-brand-primary/20 text-brand-primary">
                   <FileText className="h-5 w-5" />
                 </div>
 
@@ -481,8 +481,8 @@ function MaterialModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-2xl border bg-bg-card p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-xs px-4">
+      <div className="w-full max-w-md rounded-sm border bg-white p-6">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-main">
             {mode === "create" ? "Add material" : "Edit material"}
@@ -517,11 +517,10 @@ function MaterialModal({
                   <button
                     type="button"
                     onClick={() => setVisibility("CENTRAL")}
-                    className={`flex-1 rounded-sm border px-3 py-2 text-xs font-medium transition-colors ${
-                      visibility === "CENTRAL"
+                    className={`flex-1 rounded-sm border px-3 py-2 text-xs font-medium transition-colors ${visibility === "CENTRAL"
                         ? "border-brand-primary/40 bg-brand-primary/20 text-brand-primary"
                         : "text-zinc-500 hover:text-text-main"
-                    }`}
+                      }`}
                   >
                     <Globe2 className="mr-1 inline h-3.5 w-3.5" />
                     Central
@@ -530,11 +529,10 @@ function MaterialModal({
                 <button
                   type="button"
                   onClick={() => setVisibility("PRIVATE")}
-                  className={`flex-1 rounded-sm border px-3 py-2 text-xs font-medium transition-colors ${
-                    visibility === "PRIVATE"
+                  className={`flex-1 rounded-sm border px-3 py-2 text-xs font-medium transition-colors ${visibility === "PRIVATE"
                       ? "border-brand-primary/40 bg-brand-primary/20 text-brand-primary"
                       : "text-zinc-500 hover:text-text-main"
-                  }`}
+                    }`}
                 >
                   <Lock className="mr-1 inline h-3.5 w-3.5" />
                   Private (only me)

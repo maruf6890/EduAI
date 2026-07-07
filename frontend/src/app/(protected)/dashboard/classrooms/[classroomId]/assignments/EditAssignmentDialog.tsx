@@ -77,7 +77,7 @@ export default function EditAssignmentDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <div className="flex flex-col gap-3 rounded-sm border border-border bg-muted/30 p-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="edit_late" className="cursor-pointer font-normal">
                 Allow late submissions

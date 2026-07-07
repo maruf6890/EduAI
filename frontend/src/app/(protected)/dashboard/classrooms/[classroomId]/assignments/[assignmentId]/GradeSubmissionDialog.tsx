@@ -42,13 +42,13 @@ export default function GradeSubmissionDialog({
           <DialogTitle>Grade submission</DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-lg bg-muted/30 p-3">
+        <div className="rounded-sm bg-muted/30 p-3">
           <p className="text-sm font-semibold text-foreground">{submission.student.full_name}</p>
           <p className="text-xs text-muted-foreground">{submission.student.email}</p>
         </div>
 
         {submission.submission_text && (
-          <p className="whitespace-pre-wrap rounded-lg border border-border p-3 text-sm text-foreground">
+          <p className="whitespace-pre-wrap rounded-sm border border-border p-3 text-sm text-foreground">
             {submission.submission_text}
           </p>
         )}
