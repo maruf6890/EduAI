@@ -1,956 +1,303 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-    Plus,
-    ListChecks,
-    Calendar,
-    Clock,
-    MoreVertical,
-    Eye,
-    Pencil,
-    Trash2,
-    X,
-    PlayCircle,
-    StopCircle,
-    BarChart3,
-    CircleDashed,
-    Timer,
-    Trophy,
-} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { ListChecks, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { private_api_call } from "@/actions/private_api_call";
-import { useRouter } from "next/navigation";
 import { useClassroom } from "../ClassroomContext";
-
-interface QuizQuestion {
-    id: number;
-    question_text: string;
-    option_a: string;
-    option_b: string;
-    option_c: string | null;
-    option_d: string | null;
-    correct_option: "A" | "B" | "C" | "D";
-    marks: number;
-    order_index: number;
-}
-
-type QuizStatus = "SCHEDULED" | "ACTIVE" | "ENDED";
-
-interface Quiz {
-    id: number;
-    classroom_id: number;
-    title: string;
-    description: string | null;
-    scheduled_at: string | null; // ISO datetime, serialized via _serialize()
-    duration_minutes: number;
-    total_marks: number;
-    is_published: boolean;
-    status: QuizStatus;
-    created_by: number;
-    created_at: string;
-    updated_at: string;
-    // ⚠️ Optional: the student-facing endpoint (get_quizzes_student) does not
-    questions?: QuizQuestion[];
-}
-
-// Matches QuestionInput exactly — used for the create-quiz question builder
-interface QuestionFormRow {
-    question_text: string;
-    option_a: string;
-    option_b: string;
-    option_c: string;
-    option_d: string;
-    correct_option: "A" | "B" | "C" | "D";
-    marks: number;
-    order_index: number;
-}
-
-// Matches CreateQuizInput exactly
-interface QuizFormState {
-    title: string;
-    description: string;
-    scheduled_at: string; // datetime-local input value -> ISO on submit
-    duration_minutes: number;
-    is_published: boolean;
-    questions: QuestionFormRow[];
-}
-
-function emptyQuestionRow(order_index: number): QuestionFormRow {
-    return {
-        question_text: "",
-        option_a: "",
-        option_b: "",
-        option_c: "",
-        option_d: "",
-        correct_option: "A",
-        marks: 1,
-        order_index,
-    };
-}
-
-const emptyForm: QuizFormState = {
-    title: "",
-    description: "",
-    scheduled_at: "",
-    duration_minutes: 30,
-    is_published: false,
-    questions: [emptyQuestionRow(0)],
-};
-
-/* =========================================================================
-   HELPERS
-   ========================================================================= */
-
-function formatScheduledAt(scheduled_at: string | null): string {
-    if (!scheduled_at) return "Not scheduled";
-    const date = new Date(scheduled_at);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        ...(date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
-    }) + `, ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
-}
-
-function statusStyles(status: QuizStatus): { label: string; className: string; icon: typeof CircleDashed } {
-    switch (status) {
-        case "ACTIVE":
-            return { label: "Active", className: "bg-brand-primary/10 text-brand-primary", icon: PlayCircle };
-        case "ENDED":
-            return { label: "Ended", className: "bg-zinc-800 text-text-main", icon: StopCircle };
-        case "SCHEDULED":
-        default:
-            return { label: "Scheduled", className: "bg-brand-secondary/10 text-brand-secondary", icon: Clock };
-    }
-}
-
-/* =========================================================================
-   PAGE
-   ========================================================================= */
+import {
+  Quiz,
+  QuizListItem,
+  QuizFormState,
+  emptyQuizForm,
+  StudentSubmissionSummary,
+} from "./types";
+import QuizCard from "./QuizCard";
+import CreateQuizDialog from "./CreateQuizDialog";
+import EditQuizDialog from "./EditQuizDialog";
+import EmptyState from "./EmptyState";
+import MySubmissionsSummary from "./MySubmissionsSummary";
 
 export default function QuizzesPage() {
-    const router = useRouter();
-    const params = useParams();
-    const classroomId = params?.classroomId as string;
+  const params = useParams();
+  const router = useRouter();
+  const classroomId = params?.classroomId as string;
+  const classroom = useClassroom();
+  const isTeacher = classroom.current_user.role === "teacher";
 
-    // --- ROLE (single source of truth — nothing else determines role) -------
-    const classroom = useClassroom();
-    const isTeacher = classroom.current_user.role === "teacher";
-    const isStudent = classroom.current_user.role === "student";
+  const [quizzes, setQuizzes] = useState<(Quiz | QuizListItem)[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mySubmissions, setMySubmissions] = useState<StudentSubmissionSummary[]>([]);
 
-    // const [quizzes, setQuizzes] = useState<Quiz[]>(dummyQuizzes);
-    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [form, setForm] = useState<QuizFormState>(emptyForm);
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
-    /* ------------------------------ handlers ------------------------------ */
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<QuizFormState>(emptyQuizForm);
+  const [isCreating, setIsCreating] = useState(false);
 
-    function handleOpenCreateModal() {
-        if (!isTeacher) return;
-        setForm(emptyForm);
-        setIsModalOpen(true);
+  const [editingQuiz, setEditingQuiz] = useState<Quiz | QuizListItem | null>(null);
+  const [editForm, setEditForm] = useState<QuizFormState>(emptyQuizForm);
+  const [isEditing, setIsEditing] = useState(false);
+
+  async function loadQuizzes() {
+    setLoading(true);
+    try {
+      const res = await private_api_call({
+        method: "GET",
+        path: `classrooms/${classroomId}/quizzes/${isTeacher ? "teacher" : "student"}`,
+      });
+      if (res.success) {
+        setQuizzes(res.data ?? []);
+      } else {
+        toast.error(res.message || "Failed to load quizzes");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load quizzes");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    function handleCloseModal() {
-        setIsModalOpen(false);
+  async function loadMySubmissions() {
+    try {
+      const res = await private_api_call({
+        method: "GET",
+        path: `classrooms/${classroomId}/submissions`,
+      });
+      if (res.success) {
+        setMySubmissions(res.data ?? []);
+      }
+    } catch {
+      // silent — this is a nice-to-have summary, not critical
     }
+  }
 
-    async function handleCreateQuiz(e: React.FormEvent) {
-        e.preventDefault();
-        if (!isTeacher) return;
-        setIsSubmitting(true);
+  useEffect(() => {
+    loadQuizzes();
+    if (!isTeacher) {
+      loadMySubmissions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroomId]);
 
-        const res = await private_api_call({
-            path: `classrooms/${classroomId}/quizzes`, method: "POST", body: {
-                title: form.title,
-                description: form.description || null,
-                scheduled_at: form.scheduled_at
-                    ? new Date(form.scheduled_at).toISOString()
-                    : null,
-                duration_minutes: form.duration_minutes,
-                is_published: form.is_published,
-                questions: form.questions.map((q) => ({
-                    question_text: q.question_text,
-                    option_a: q.option_a,
-                    option_b: q.option_b,
-                    option_c: q.option_c || null,
-                    option_d: q.option_d || null,
-                    correct_option: q.correct_option,
-                    marks: q.marks,
-                    order_index: q.order_index,
-                })),
-            }
-        });
+  // ── Create ──────────────────────────────────────────────────────────────────
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setIsCreating(true);
 
-        if (!res.success) {
-            console.error(res.message);
-            setIsSubmitting(false);
-            return;
-        }
+    try {
+      const res = await private_api_call({
+        method: "POST",
+        path: `classrooms/${classroomId}/quizzes`,
+        body: {
+          title: createForm.title.trim(),
+          description: createForm.description.trim() || null,
+          scheduled_at: createForm.scheduled_at ? new Date(createForm.scheduled_at).toISOString() : null,
+          duration_minutes: Number(createForm.duration_minutes) || 30,
+          is_published: createForm.is_published,
+          questions: createForm.questions.map((q, index) => ({
+            question_text: q.question_text.trim(),
+            option_a: q.option_a.trim(),
+            option_b: q.option_b.trim(),
+            option_c: q.option_c.trim() || null,
+            option_d: q.option_d.trim() || null,
+            correct_option: q.correct_option,
+            marks: Number(q.marks) || 1,
+            order_index: index + 1,
+          })),
+        },
+      });
 
+      if (res.success) {
         setQuizzes((prev) => [res.data, ...prev]);
-
-        setIsSubmitting(false);
-        setIsModalOpen(false);
+        setCreateForm(emptyQuizForm);
+        setIsCreateOpen(false);
+        toast.success("Quiz created successfully");
+      } else {
+        toast.error(res.message || "Failed to create quiz");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create quiz");
+    } finally {
+      setIsCreating(false);
     }
+  }
 
-    async function handleUpdateQuiz(e: React.FormEvent) {
-        e.preventDefault();
-        if (!isTeacher) return;
-        setIsSubmitting(true);
+  // ── Edit ────────────────────────────────────────────────────────────────────
+  function openEdit(quiz: Quiz | QuizListItem) {
+    setEditingQuiz(quiz);
+    setEditForm({
+      title: quiz.title,
+      description: quiz.description ?? "",
+      scheduled_at: quiz.scheduled_at ? quiz.scheduled_at.slice(0, 16) : "",
+      duration_minutes: String(quiz.duration_minutes),
+      is_published: "is_published" in quiz ? quiz.is_published : false,
+      questions: [],
+    });
+  }
 
-        const res = await private_api_call({
-            path: `classrooms/${classroomId}/quizzes/${editingQuiz?.id}`, method: "PUT", body: {
-                title: form.title,
-                description: form.description || null,
-                scheduled_at: form.scheduled_at
-                    ? new Date(form.scheduled_at).toISOString()
-                    : null,
-                duration_minutes: form.duration_minutes,
-                is_published: form.is_published,
-                questions: form.questions.map((q) => ({
-                    question_text: q.question_text,
-                    option_a: q.option_a,
-                    option_b: q.option_b,
-                    option_c: q.option_c || null,
-                    option_d: q.option_d || null,
-                    correct_option: q.correct_option,
-                    marks: q.marks,
-                    order_index: q.order_index,
-                })),
-            }
-        });
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingQuiz) return;
+    setIsEditing(true);
 
-        if (!res.success) {
-            console.error(res.message);
-            setIsSubmitting(false);
-            return;
-        }
+    try {
+      const res = await private_api_call({
+        method: "PUT",
+        path: `classrooms/${classroomId}/quizzes/${editingQuiz.id}`,
+        body: {
+          title: editForm.title.trim(),
+          description: editForm.description.trim() || null,
+          scheduled_at: editForm.scheduled_at ? new Date(editForm.scheduled_at).toISOString() : null,
+          duration_minutes: Number(editForm.duration_minutes) || 30,
+          is_published: editForm.is_published,
+        },
+      });
 
-        setQuizzes((prev) =>
-            prev.map((q) => (q.id === editingQuiz!.id ? res.data : q))
-        );
-
-        setIsSubmitting(false);
-        setIsModalOpen(false);
+      if (res.success) {
+        setQuizzes((prev) => prev.map((q) => (q.id === editingQuiz.id ? res.data : q)));
+        setEditingQuiz(null);
+        toast.success("Quiz updated successfully");
+      } else {
+        toast.error(res.message || "Failed to update quiz");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update quiz");
+    } finally {
+      setIsEditing(false);
     }
+  }
 
-    // Shared by both roles: teacher clicking a card or opening "View" from the
-    // menu, and student clicking a card, all land on the same detail route.
-    // function handleViewQuiz(quiz: Quiz) {
-    //     router.push(`/dashboard/classrooms/${classroomId}/quiz/${quiz.id}`);
-    //     setOpenMenuId(null);
-    // }
-    function handleTakeQuiz(quiz: Quiz) {
-        router.push(`/dashboard/classrooms/${classroomId}/quiz/${quiz.id}`);
-        setOpenMenuId(null);
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  async function handleDelete(quiz: Quiz | QuizListItem) {
+    try {
+      const res = await private_api_call({
+        method: "DELETE",
+        path: `classrooms/${classroomId}/quizzes/${quiz.id}`,
+      });
+      if (res.success) {
+        setQuizzes((prev) => prev.filter((q) => q.id !== quiz.id));
+        toast.success("Quiz deleted");
+      } else {
+        toast.error(res.message || "Failed to delete quiz");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete quiz");
     }
+  }
 
-    async function handleEditQuiz(quiz: Quiz) {
-        if (!isTeacher) return;
-
-        setEditingQuiz(quiz);
-
-        setForm({
-            title: quiz.title,
-            description: quiz.description ?? "",
-            scheduled_at: quiz.scheduled_at
-                ? new Date(quiz.scheduled_at).toISOString().slice(0, 16)
-                : "",
-            duration_minutes: quiz.duration_minutes,
-            is_published: quiz.is_published,
-            questions: (quiz.questions ?? []).map(q => ({
-                question_text: q.question_text,
-                option_a: q.option_a,
-                option_b: q.option_b,
-                option_c: q.option_c ?? "",
-                option_d: q.option_d ?? "",
-                correct_option: q.correct_option,
-                marks: q.marks,
-                order_index: q.order_index,
-            })),
-        });
-
-        setIsModalOpen(true);
-        setOpenMenuId(null);
+  // ── Start / End ──────────────────────────────────────────────────────────────
+  async function handleStart(quiz: Quiz | QuizListItem) {
+    try {
+      const res = await private_api_call({
+        method: "POST",
+        path: `classrooms/${classroomId}/quizzes/${quiz.id}/start`,
+      });
+      if (res.success) {
+        setQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? res.data : q)));
+        toast.success("Quiz started — students can now take it");
+      } else {
+        toast.error(res.message || "Failed to start quiz");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start quiz");
     }
+  }
 
-    async function handleDeleteQuiz(quiz: Quiz) {
-        if (!isTeacher) return;
-
-        const res = await private_api_call({
-            path: `classrooms/${classroomId}/quizzes/${quiz.id}`,
-            method: "DELETE",
-        });
-
-        if (!res.success) {
-            console.error(res.message);
-            return;
-        }
-
-        setQuizzes(prev => prev.filter(q => q.id !== quiz.id));
-        setOpenMenuId(null);
+  async function handleEnd(quiz: Quiz | QuizListItem) {
+    try {
+      const res = await private_api_call({
+        method: "POST",
+        path: `classrooms/${classroomId}/quizzes/${quiz.id}/end`,
+      });
+      if (res.success) {
+        setQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? res.data : q)));
+        toast.success("Quiz ended");
+      } else {
+        toast.error(res.message || "Failed to end quiz");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to end quiz");
     }
+  }
 
-    async function handleStartQuiz(quiz: Quiz) {
-        if (!isTeacher) return;
-
-        const res = await private_api_call({
-            path: `classrooms/${classroomId}/quizzes/${quiz.id}/start`,
-            method: "POST",
-        });
-        if (!res.success) {
-            console.error(res.message);
-            return;
-        }
-        setQuizzes((prev) =>
-            prev.map((q) => (q.id === quiz.id ? { ...q, status: "ACTIVE", is_published: true } : q))
-        );
-        setOpenMenuId(null);
-    }
-
-    async function handleEndQuiz(quiz: Quiz) {
-        if (!isTeacher) return;
-
-        const res = await private_api_call({
-            path: `classrooms/${classroomId}/quizzes/${quiz.id}/end`,
-            method: "POST",
-        });
-        if (!res.success) {
-            console.error(res.message);
-            return;
-        }
-        setQuizzes((prev) => prev.map((q) => (q.id === quiz.id ? { ...q, status: "ENDED" } : q)));
-        setOpenMenuId(null);
-    }
-
-    async function handleViewResults(quiz: Quiz) {
-        if (!isTeacher) return;
-
-        const res = await private_api_call({
-            path: `classrooms/${classroomId}/quizzes/${quiz.id}/results`,
-            method: "GET",
-        });
-        if (!res.success) {
-            console.error(res.message);
-            return;
-        }
-        console.log("View results", quiz.id);
-        setOpenMenuId(null);
-    }
-
-    // ---------------------------------------------------------------------
-    // Initial load: teachers get the management list, students get their
-    // own list. Backend already has separate endpoints for this.
-    // ---------------------------------------------------------------------
-    useEffect(() => {
-        async function loadQuizzes() {
-            setIsLoading(true);
-
-            const res = await private_api_call({
-                path: isTeacher
-                    ? `classrooms/${classroomId}/quizzes/teacher`
-                    : `classrooms/${classroomId}/quizzes/student`,
-                method: "GET",
-            });
-
-            if (res.success) {
-                setQuizzes(res.data);
-            } else {
-                console.error("Failed to load quizzes:", res.message);
-            }
-
-            setIsLoading(false);
-        }
-
-        if (classroomId) loadQuizzes();
-    }, [classroomId, isTeacher]);
-
-    /* -------------------------------- render ------------------------------- */
-
-    return (
-        <div className="px-4 py-6 sm:px-6 lg:px-8">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                        <ListChecks className="h-5 w-5 text-brand-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-semibold text-text-main">Quizzes</h1>
-                        <p className="text-sm text-zinc-500">
-                            {quizzes.length} {quizzes.length === 1 ? "quiz" : "quizzes"}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Only teachers can create quizzes */}
-                {isTeacher && (
-                    <button
-                        onClick={handleOpenCreateModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        Create quiz
-                    </button>
-                )}
-            </div>
-
-            {/* Quiz list */}
-            {quizzes.length === 0 ? (
-                <EmptyState onCreate={handleOpenCreateModal} showCreate={isTeacher} />
-            ) : (
-                <div className="flex flex-col gap-3">
-                    {quizzes.map((quiz) => (
-                        <QuizCard
-                            key={quiz.id}
-                            quiz={quiz}
-                            isTeacher={isTeacher}
-                            isStudent={isStudent}
-                            isMenuOpen={openMenuId === quiz.id}
-                            onToggleMenu={() => setOpenMenuId((prev) => (prev === quiz.id ? null : quiz.id))}
-                            onTake={() => handleTakeQuiz(quiz)}
-                            onEdit={() => handleEditQuiz(quiz)}
-                            onDelete={() => handleDeleteQuiz(quiz)}
-                            onStart={() => handleStartQuiz(quiz)}
-                            onEnd={() => handleEndQuiz(quiz)}
-                            onResults={() => handleViewResults(quiz)}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Create/edit quiz modal — teacher only */}
-            {isTeacher && isModalOpen && (
-                <CreateQuizModal
-                    editingQuiz={editingQuiz}
-                    form={form}
-                    setForm={setForm}
-                    isSubmitting={isSubmitting}
-                    onClose={handleCloseModal}
-                    onSubmit={editingQuiz ? handleUpdateQuiz : handleCreateQuiz}
-                />
-            )}
-        </div>
-    );
-}
-
-/* =========================================================================
-   QUIZ CARD
-   ========================================================================= */
-
-function QuizCard({
-    quiz,
-    isTeacher,
-    isStudent,
-    isMenuOpen,
-    onToggleMenu,
-    onTake,
-    onEdit,
-    onDelete,
-    onStart,
-    onEnd,
-    onResults,
-}: {
-    quiz: Quiz;
-    isTeacher: boolean;
-    isStudent: boolean;
-    isMenuOpen: boolean;
-    onToggleMenu: () => void;
-    onTake: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-    onStart: () => void;
-    onEnd: () => void;
-    onResults: () => void;
-}) {
-    const status = statusStyles(quiz.status);
-    const StatusIcon = status.icon;
-
-    return (
-        <div
-            // onClick={onView}
-            className="group relative flex  items-start gap-4 rounded-xl border border-brand-secondary bg-bg-main p-4 transition-colors hover:border-brand-secondary hover:bg-brand-primary/20 sm:items-center sm:p-5"
-        >
-            {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-brand-primary/10 sm:h-12 sm:w-12">
-                <ListChecks className="h-5 w-5 text-brand-primary" />
-            </div>
-
-            {/* Main content */}
-            <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">{quiz.title}</h3>
-
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
-                        <StatusIcon className="h-3 w-3" />
-                        {status.label}
-                    </span>
-
-                    {/* Draft badge is a teacher-only management signal */}
-                    {isTeacher && !quiz.is_published && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
-                            <CircleDashed className="h-3 w-3" />
-                            Draft
-                        </span>
-                    )}
-                </div>
-
-                {quiz.description && (
-                    <p className="mt-1 line-clamp-1 text-sm text-zinc-500">{quiz.description}</p>
-                )}
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-                    <span className="inline-flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {formatScheduledAt(quiz.scheduled_at)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                        <Timer className="h-3.5 w-3.5" />
-                        {quiz.duration_minutes} min
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                        <Trophy className="h-3.5 w-3.5" />
-                        {quiz.total_marks} points
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                        <ListChecks className="h-3.5 w-3.5" />
-                        {quiz.questions?.length ?? 0} {(quiz.questions?.length ?? 0) === 1 ? "question" : "questions"}
-                    </span>
-
-                </div>
-            </div>
-            {isStudent && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onTake();
-                    }}
-                    className="shrink-0 rounded-sm bg-brand-primary px-4 py-2 text-sm font-medium text-zinc-950 hover:opacity-90"
-                >
-                    Take Quiz
-                </button>
-            )}
-            {/* Actions menu — teacher only. Students get nothing here; the
-                whole card is already a click-through to the quiz via onView. */}
-            {isTeacher && (
-                <div className="relative shrink-0">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleMenu();
-                        }}
-                        className="rounded-sm p-2 text-text-main opacity-0 transition-colors hover:bg-brand-secondary hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
-                        data-open={isMenuOpen}
-                        aria-label="Quiz actions"
-                    >
-                        <MoreVertical className="h-4 w-4" />
-                    </button>
-
-                    {isMenuOpen && (
-                        <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-sm border border-brand-secondary bg-bg-main shadow-xl shadow-black/40"
-                        >
-                            {/* <button
-                                onClick={onTake}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-brand-secondary/50"
-                            >
-                                <Eye className="h-4 w-4" />
-                                Take Quiz
-                            </button> */}
-                            <button
-                                onClick={onEdit}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-brand-secondary/50"
-                            >
-                                <Pencil className="h-4 w-4" />
-                                Edit
-                            </button>
-                            <button
-                                onClick={onResults}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-brand-secondary/50"
-                            >
-                                <BarChart3 className="h-4 w-4" />
-                                Results
-                            </button>
-
-                            {quiz.status !== "ACTIVE" && quiz.status !== "ENDED" && (
-                                <button
-                                    onClick={onStart}
-                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-brand-primary hover:bg-brand-secondary/50"
-                                >
-                                    <PlayCircle className="h-4 w-4" />
-                                    Start quiz
-                                </button>
-                            )}
-
-                            {quiz.status === "ACTIVE" && (
-                                <button
-                                    onClick={onEnd}
-                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-amber-400 hover:bg-brand-secondary/50"
-                                >
-                                    <StopCircle className="h-4 w-4" />
-                                    End quiz
-                                </button>
-                            )}
-
-                            <button
-                                onClick={onDelete}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-brand-secondary/50"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-/* =========================================================================
-   EMPTY STATE
-   ========================================================================= */
-
-function EmptyState({ onCreate, showCreate }: { onCreate: () => void; showCreate: boolean }) {
-    return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-20 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
-                <ListChecks className="h-6 w-6 text-zinc-600" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium text-zinc-200">No quizzes yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-zinc-500">
-                {showCreate
-                    ? "Create your first quiz to test what students have learned."
-                    : "Your teacher hasn't published any quizzes yet."}
+  return (
+    <div className="px-4 py-6 sm:px-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8168f3]/10">
+            <ListChecks className="h-5 w-5 text-[#8168f3]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Quizzes</h1>
+            <p className="text-sm text-muted-foreground">
+              {quizzes.length} {quizzes.length === 1 ? "quiz" : "quizzes"}
             </p>
-            {showCreate && (
-                <button
-                    onClick={onCreate}
-                    className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
-                >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} />
-                    Create quiz
-                </button>
-            )}
+          </div>
         </div>
-    );
-}
 
-/* =========================================================================
-   CREATE QUIZ MODAL (teacher only — mounted conditionally by the page)
-   Fields match CreateQuizInput EXACTLY: title*, description, scheduled_at,
-   duration_minutes, is_published, questions[] (QuestionInput[])
-   ========================================================================= */
+        {isTeacher && (
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            className="w-full gap-2 bg-[#8168f3] text-white hover:bg-[#6f57e0] sm:w-auto"
+          >
+            <Plus className="h-4 w-4" />
+            Create quiz
+          </Button>
+        )}
+      </div>
 
-function CreateQuizModal({
-    form,
-    setForm,
-    isSubmitting,
-    onClose,
-    onSubmit,
-    editingQuiz,
-}: {
-    form: QuizFormState;
-    setForm: React.Dispatch<React.SetStateAction<QuizFormState>>;
-    isSubmitting: boolean;
-    onClose: () => void;
-    onSubmit: (e: React.FormEvent) => void;
-    editingQuiz: Quiz | null;
-}) {
-    function updateQuestion(index: number, patch: Partial<QuestionFormRow>) {
-        setForm((prev) => ({
-            ...prev,
-            questions: prev.questions.map((q, i) => (i === index ? { ...q, ...patch } : q)),
-        }));
-    }
+      {!isTeacher && <MySubmissionsSummary submissions={mySubmissions} />}
 
-    function addQuestion() {
-        setForm((prev) => ({
-            ...prev,
-            questions: [...prev.questions, emptyQuestionRow(prev.questions.length)],
-        }));
-    }
-
-    function removeQuestion(index: number) {
-        setForm((prev) => ({
-            ...prev,
-            questions: prev.questions
-                .filter((_, i) => i !== index)
-                .map((q, i) => ({ ...q, order_index: i })),
-        }));
-    }
-
-    const totalMarks = form.questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
-    const isValid =
-        form.title.trim().length > 0 &&
-        form.duration_minutes > 0 &&
-        form.questions.every((q) => q.question_text && q.option_a && q.option_b);
-
-    return (
-        <div className="fixed inset-0  flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[92vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-bg-main sm:max-w-2xl rounded-sm"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-text-main">
-                        {editingQuiz ? "Edit Quiz" : "Create Quiz"}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-                        aria-label="Close"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={onSubmit} className="flex-1 overflow-y-auto px-5 py-4">
-                    <div className="flex flex-col gap-4">
-                        {/* title */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                Title <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                value={form.title}
-                                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                                placeholder="e.g. Genetics Fundamentals"
-                                className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-
-                        {/* description */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-text-main">Description</label>
-                            <textarea
-                                value={form.description}
-                                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                                placeholder="What does this quiz cover?"
-                                rows={2}
-                                className="w-full resize-none rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-
-                        {/* scheduled_at + duration_minutes */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-text-main">Scheduled at</label>
-                                <input
-                                    type="datetime-local"
-                                    value={form.scheduled_at}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, scheduled_at: e.target.value }))}
-                                    className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-text-main [color-scheme:dark] focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                    Duration (minutes) <span className="text-red-400">*</span>
-                                </label>
-                                <input
-                                    required
-                                    type="number"
-                                    min={1}
-                                    value={form.duration_minutes}
-                                    onChange={(e) =>
-                                        setForm((prev) => ({ ...prev, duration_minutes: Number(e.target.value) }))
-                                    }
-                                    className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                                />
-                            </div>
-                        </div>
-
-                        {/* is_published */}
-                        <div className="rounded-sm border border-zinc-800 bg-bg-main/50 p-3">
-                            <label className="flex cursor-pointer items-center justify-between">
-                                <span className="text-sm text-zinc-300">Publish immediately</span>
-                                <ToggleSwitch
-                                    checked={form.is_published}
-                                    onChange={(checked) => setForm((prev) => ({ ...prev, is_published: checked }))}
-                                />
-                            </label>
-                        </div>
-
-                        {/* questions */}
-                        <div>
-                            <div className="mb-2 flex items-center justify-between">
-                                <label className="text-xs font-medium text-text-main">
-                                    Questions <span className="text-red-400">*</span>
-                                </label>
-                                <span className="text-xs text-zinc-500">{totalMarks} total points</span>
-                            </div>
-
-                            <div className="flex flex-col gap-3">
-                                {form.questions.map((question, index) => (
-                                    <QuestionRow
-                                        key={index}
-                                        index={index}
-                                        question={question}
-                                        onChange={(patch) => updateQuestion(index, patch)}
-                                        onRemove={() => removeQuestion(index)}
-                                        canRemove={form.questions.length > 1}
-                                    />
-                                ))}
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={addQuestion}
-                                className="mt-3 flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-zinc-700 px-3 py-2.5 text-sm text-text-main hover:border-brand-secondary hover:text-brand-secondary"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Add question
-                            </button>
-                        </div>
-                    </div>
-                </form>
-
-                {/* Footer */}
-                <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-5 py-4">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-text-main hover:bg-zinc-800 hover:text-zinc-200"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        onClick={onSubmit}
-                        disabled={!isValid || isSubmitting}
-                        className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
-                    >
-                        {isSubmitting ? "Creating..." : editingQuiz ? "Update Quiz" : "Create Quiz"}
-                    </button>
-                </div>
-            </div>
+      {loading ? (
+        <div className="flex flex-col gap-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
         </div>
-    );
-}
-
-/* =========================================================================
-   QUESTION ROW — one entry in the create-quiz question builder
-   ========================================================================= */
-
-function QuestionRow({
-    index,
-    question,
-    onChange,
-    onRemove,
-    canRemove,
-}: {
-    index: number;
-    question: QuestionFormRow;
-    onChange: (patch: Partial<QuestionFormRow>) => void;
-    onRemove: () => void;
-    canRemove: boolean;
-}) {
-    const options: { key: "A" | "B" | "C" | "D"; field: keyof QuestionFormRow; required: boolean }[] = [
-        { key: "A", field: "option_a", required: true },
-        { key: "B", field: "option_b", required: true },
-        { key: "C", field: "option_c", required: false },
-        { key: "D", field: "option_d", required: false },
-    ];
-
-    return (
-        <div className="rounded-sm border border-zinc-800 bg-bg-main/50 p-3">
-            <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-brand-secondary">Question {index + 1}</span>
-                {canRemove && (
-                    <button
-                        type="button"
-                        onClick={onRemove}
-                        className="text-zinc-500 hover:text-red-400"
-                        aria-label="Remove question"
-                    >
-                        <X className="h-3.5 w-3.5" />
-                    </button>
-                )}
-            </div>
-
-            <input
-                required
-                type="text"
-                value={question.question_text}
-                onChange={(e) => onChange({ question_text: e.target.value })}
-                placeholder="Question text"
-                className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+      ) : quizzes.length === 0 ? (
+        <EmptyState onCreate={isTeacher ? () => setIsCreateOpen(true) : undefined} />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {quizzes.map((quiz) => (
+            <QuizCard
+              key={quiz.id}
+              quiz={quiz}
+              isTeacher={isTeacher}
+              onView={() => router.push(`/dashboard/classrooms/${classroomId}/quizzes/${quiz.id}`)}
+              onEdit={() => openEdit(quiz)}
+              onDelete={() => handleDelete(quiz)}
+              onStart={() => handleStart(quiz)}
+              onEnd={() => handleEnd(quiz)}
+              onManageQuestions={() =>
+                router.push(`/dashboard/classrooms/${classroomId}/quizzes/${quiz.id}`)
+              }
+              onViewResults={() =>
+                router.push(`/dashboard/classrooms/${classroomId}/quizzes/${quiz.id}`)
+              }
             />
-
-            <div className="mt-2 grid grid-cols-2 gap-2">
-                {options.map(({ key, field, required }) => (
-                    <div key={key} className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => onChange({ correct_option: key })}
-                            title="Mark as correct answer"
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border text-xs font-semibold transition-colors ${question.correct_option === key
-                                ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                                : "border-zinc-700 text-zinc-500 hover:border-zinc-600"
-                                }`}
-                        >
-                            {key}
-                        </button>
-                        <input
-                            required={required}
-                            type="text"
-                            value={question[field] as string}
-                            onChange={(e) => onChange({ [field]: e.target.value } as Partial<QuestionFormRow>)}
-                            placeholder={`Option ${key}${required ? "" : " (optional)"}`}
-                            className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                        />
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-2 flex items-center gap-2">
-                <label className="text-xs text-zinc-500">Marks</label>
-                <input
-                    type="number"
-                    min={1}
-                    value={question.marks}
-                    onChange={(e) => onChange({ marks: Number(e.target.value) })}
-                    className="w-20 rounded-sm border border-zinc-700 bg-bg-main px-2 py-1.5 text-sm text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                />
-                <span className="ml-auto text-xs text-zinc-600">
-                    Correct answer: <span className="font-medium text-brand-primary">{question.correct_option}</span>
-                </span>
-            </div>
+          ))}
         </div>
-    );
-}
+      )}
 
-/* =========================================================================
-   TOGGLE SWITCH
-   ========================================================================= */
+      <CreateQuizDialog
+        open={isCreateOpen}
+        form={createForm}
+        setForm={setCreateForm}
+        isSubmitting={isCreating}
+        onClose={() => setIsCreateOpen(false)}
+        onSubmit={handleCreate}
+      />
 
-function ToggleSwitch({
-    checked,
-    onChange,
-}: {
-    checked: boolean;
-    onChange: (checked: boolean) => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={() => onChange(!checked)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-primary" : "bg-zinc-700"
-                }`}
-        >
-            <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"
-                    }`}
-            />
-        </button>
-    );
+      <EditQuizDialog
+        open={!!editingQuiz}
+        form={editForm}
+        setForm={setEditForm}
+        isSubmitting={isEditing}
+        onClose={() => setEditingQuiz(null)}
+        onSubmit={handleUpdate}
+      />
+    </div>
+  );
 }

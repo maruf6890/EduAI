@@ -1,102 +1,16 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getCookie } from "@/lib/cookies";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { deleteCookie } from "@/lib/cookies";
+export default async function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const token = await getCookie("access_token");
 
-const NAV_ITEMS = [
-  { label: "Home", href: "/dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" },
-  { label: "Classrooms", href: "/dashboard/classrooms", icon: "M12 4v16m8-8H4" },
-  // { label: "Materials", href: "/dashboard/materials", icon: "M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2.13a4 4 0 100-8 4 4 0 000 8zm6 2a4 4 0 11-8 0" },
-  // { label: "Assignments", href: "/dashboard/assignment", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
-  // { label: "Quizzes", href: "/dashboard/quizzes", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-  // { label: "Announcements", href: "/dashboard/announcements", icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.155B1.76 1.76 0 003.76 12H3a1 1 0 01-1-1V7a1 1 0 011-1h4.76a1.76 1.76 0 001.654-1.176l1.188-3.266A1.76 1.76 0 0111 5.882zm10 0v12.358a1.76 1.76 0 01-3.417.592l-2.147-6.155A1.76 1.76 0 0013.76 12H13a1 1 0 01-1-1V7a1 1 0 011-1h4.76a1.76 1.76 0 001.654-1.176l1.188-3.266A1.76 1.76 0 0121 5.882zM11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.155B1.76 1.76 0 003.76 12H3a1 1 0 01-1-1V7a1 1 0 011-1h4.76a1.76 1.76 0 001.654-1.176l1.188-3.266A1.76 1.76 0 0111 5.882zm10 0v12.358a1.76 1.76 0 01-3.417.592l-2.147-6.155A1.76 1.76 0 0013.76 12H13a1 1 0 01-1-1V7a1 1 0 011-1h4.76a1.76 1.76 0 001.654-1.176l1.188-3.266A1.76 1.76 0 0121 5.882z" },
-  { label: "Calendar", href: "/calendar", icon: "M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-7 4h10a2 2 0 002-2V7a2 2 0 00-2-2H9.41a1 1 0 00-.7.29L5.3 8.7a1 1 0 00-.3.7V19a2 2 0 002 2z" },
-];
+  if (!token) {
+    redirect("/login");
+  }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await deleteCookie("access_token");
-      await deleteCookie("refresh_token");
-      await deleteCookie("id");
-      await deleteCookie("email");
-      await deleteCookie("name");
-      router.push("/login");
-    } catch {
-      setLoggingOut(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-white dark:bg-[#09090b] text-gray-900 dark:text-white">
-      {/* Sidebar */}
-      <aside className="group fixed left-0 top-0 z-40 flex h-screen w-[68px] flex-col border-r border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.02] backdrop-blur-md transition-all duration-300 ease-out hover:w-64 hover:shadow-2xl">
-
-        {/* Logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-gray-200 dark:border-white/[0.08] px-4 overflow-hidden">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#8168f3]">
-            <span className="text-white font-black text-sm">E</span>
-          </div>
-          <span className="whitespace-nowrap text-sm font-extrabold text-gray-900 dark:text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            Edu AI
-          </span>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-[12px] px-2.5 py-2.5 text-sm font-bold transition-colors overflow-hidden ${
-                  isActive
-                    ? "bg-[#8168f3]/10 text-[#8168f3]"
-                    : "text-gray-500 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/[0.05] hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
-                </svg>
-                <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Logout button at bottom */}
-        <div className="px-3 py-4 border-t border-gray-200 dark:border-white/[0.08]">
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-[12px] px-2.5 py-2.5 text-sm font-bold transition-colors overflow-hidden text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50"
-          >
-            {/* Logout icon */}
-            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              {loggingOut ? "Logging out..." : "Logout"}
-            </span>
-          </button>
-        </div>
-
-      </aside>
-
-      {/* Main content */}
-      <div className="min-h-screen p-6 pl-[88px] transition-all duration-300">
-        {children}
-      </div>
-    </div>
-  );
+  return <>{children}</>;
 }
