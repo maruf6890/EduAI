@@ -1,715 +1,244 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-    Plus,
-    FileText,
-    Calendar,
-    ClipboardList,
-    MoreVertical,
-    Eye,
-    Pencil,
-    Trash2,
-    Paperclip,
-    X,
-    CheckCircle2,
-    CircleDashed,
-    Clock,
-} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { ClipboardList, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { private_api_call } from "@/actions/private_api_call";
+import { private_upload_call } from "@/actions/private_upload_call";
 import { useClassroom } from "../ClassroomContext";
-
-
-interface Assignment {
-    id: number; // ASSUMED — needed for view/edit/delete routes
-    classroom_id: number; // ASSUMED — matches path param, useful for list responses
-    title: string;
-    description: string | null;
-    total_marks: number | null;
-    due_date: string | null; // $date-time
-    allow_late_submission: boolean;
-    is_published: boolean;
-    files: string[];
-    created_at: string; // ASSUMED — used for "posted" ordering/label
-}
-
-// Shape of the create-assignment form state (matches request body 1:1)
-interface AssignmentFormState {
-    title: string;
-    description: string;
-    total_marks: string; // kept as string for controlled input, cast to number on submit
-    due_date: string; // datetime-local input value
-    allow_late_submission: boolean;
-    is_published: boolean;
-    files: File[];
-}
-
-const emptyForm: AssignmentFormState = {
-    title: "",
-    description: "",
-    total_marks: "",
-    due_date: "",
-    allow_late_submission: false,
-    is_published: false,
-    files: [],
-};
-
-/* =========================================================================
-   HELPERS
-   ========================================================================= */
-
-function formatDueDate(due_date: string | null): string {
-    if (!due_date) return "No due date";
-    const date = new Date(due_date);
-    const now = new Date();
-    const isOverdue = date.getTime() < now.getTime();
-    const formatted = date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
-    });
-    const time = date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-    });
-    return `${isOverdue ? "Was due" : "Due"} ${formatted}, ${time}`;
-}
-
-function isOverdue(due_date: string | null): boolean {
-    if (!due_date) return false;
-    return new Date(due_date).getTime() < Date.now();
-}
-
-/* =========================================================================
-   PAGE
-   ========================================================================= */
+import { Assignment, AssignmentFormState, emptyForm } from "./types";
+import AssignmentCard from "./AssignmentCard";
+import CreateAssignmentDialog from "./CreateAssignmentDialog";
+import EditAssignmentDialog from "./EditAssignmentDialog";
+import EmptyState from "./EmptyState";
 
 export default function AssignmentsPage() {
-    const params = useParams();
-    const classroomId = params?.classroomId as string;
+  const params = useParams();
+  const router = useRouter();
+  const classroomId = params?.classroomId as string;
+  const classroom = useClassroom();
+  const isTeacher = classroom.current_user.role === "teacher";
 
-    const classroom = useClassroom();
-    const isTeacher = classroom.current_user.role === "teacher";
-    // const [role, setRole] = useState<"teacher" | "student">("student");
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState<AssignmentFormState>(emptyForm);
 
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editForm, setEditForm] = useState<AssignmentFormState>(emptyForm);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
-    const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [form, setForm] = useState<AssignmentFormState>(emptyForm);
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+  // ── Load assignments — SAME call for teacher and student ──────────────────
+  async function loadAssignments() {
+    setLoading(true);
+    try {
+      const res = await private_api_call({
+        method: "GET",
+        path: `classrooms/${classroomId}/assignments`,
+      });
+      if (res.success) {
+        setAssignments(res.data ?? []);
+      } else {
+        toast.error(res.message || "Failed to load assignments");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load assignments");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-    const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
-    const [editForm, setEditForm] = useState<AssignmentFormState | null>(null);
+  useEffect(() => {
+    loadAssignments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroomId]);
 
-    /* ------------------------------ handlers ------------------------------ */
+  // ── Create ──────────────────────────────────────────────────────────────────
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSubmitting(true);
 
+    try {
+      const body = new FormData();
+      body.append("title", form.title);
+      if (form.description) body.append("description", form.description);
+      if (form.total_marks) body.append("total_marks", form.total_marks);
+      if (form.due_date) body.append("due_date", new Date(form.due_date).toISOString());
+      body.append("allow_late_submission", String(form.allow_late_submission));
+      body.append("is_published", String(form.is_published));
+      form.files.forEach((file) => body.append("files", file));
 
+      const res = await private_upload_call({
+        method: "POST",
+        path: `classrooms/${classroomId}/assignments`,
+        body,
+      });
 
-    function handleOpenCreateModal() {
+      if (res.success) {
+        setAssignments((prev) => [res.data, ...prev]);
         setForm(emptyForm);
-        setIsModalOpen(true);
+        setIsCreateOpen(false);
+        toast.success("Assignment created successfully");
+      } else {
+        toast.error(res.message || "Failed to create assignment");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create assignment");
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    function handleCloseModal() {
-        setIsModalOpen(false);
+  // ── Edit ────────────────────────────────────────────────────────────────────
+  function openEdit(assignment: Assignment) {
+    setEditingAssignment(assignment);
+    setEditForm({
+      title: assignment.title,
+      description: assignment.description ?? "",
+      total_marks: String(assignment.total_marks ?? ""),
+      due_date: assignment.due_date ? assignment.due_date.slice(0, 16) : "",
+      allow_late_submission: assignment.allow_late_submission,
+      is_published: assignment.is_published,
+      files: [],
+    });
+  }
+
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingAssignment) return;
+    setIsEditSubmitting(true);
+
+    try {
+      const res = await private_api_call({
+        method: "PUT",
+        path: `classrooms/${classroomId}/assignments/${editingAssignment.id}`,
+        body: {
+          title: editForm.title,
+          description: editForm.description || null,
+          total_marks: editForm.total_marks ? Number(editForm.total_marks) : null,
+          due_date: editForm.due_date ? new Date(editForm.due_date).toISOString() : null,
+          allow_late_submission: editForm.allow_late_submission,
+          is_published: editForm.is_published,
+        },
+      });
+
+      if (res.success) {
+        setAssignments((prev) => prev.map((a) => (a.id === editingAssignment.id ? res.data : a)));
+        setEditingAssignment(null);
+        toast.success("Assignment updated successfully");
+      } else {
+        toast.error(res.message || "Failed to update assignment");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update assignment");
+    } finally {
+      setIsEditSubmitting(false);
     }
+  }
 
-    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-        if (!e.target.files) return;
-        setForm((prev) => ({ ...prev, files: [...prev.files, ...Array.from(e.target.files!)] }));
-    }
-
-    function handleRemoveFile(index: number) {
-        setForm((prev) => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
-    }
-
-    async function handleCreateAssignment(e: React.FormEvent) {
-        e.preventDefault();
-        setIsSubmitting(true);
-
-        try {
-            const body = new FormData();
-            body.append("title", form.title);
-            if (form.description) body.append("description", form.description);
-            if (form.total_marks) body.append("total_marks", form.total_marks);
-            if (form.due_date) body.append("due_date", new Date(form.due_date).toISOString());
-            body.append("allow_late_submission", String(form.allow_late_submission));
-            body.append("is_published", String(form.is_published));
-            form.files.forEach((file) => body.append("files", file));
-
-            const res = await private_api_call({
-                method: "POST",
-                path: `classrooms/${classroomId}/assignments`,
-                body,
-            });
-
-            const created: Assignment = res.data;
-            setAssignments((prev) => [created, ...prev]);
-
-            // IMPORTANT: close modal + reset form here
-            setForm(emptyForm);
-            setIsModalOpen(false);
-
-        } catch (err) {
-            console.error("Failed to create assignment", err);
-
-        } finally {
-            // 🔥 THIS is where it must go
-            setIsSubmitting(false);
-        }
-    }
-
-    async function handleViewAssignment(assignment: Assignment) {
-        // TODO: GET /api/v1/classrooms/{classroom_id}/assignments/{assignment.id}
-        // router.push(`/dashboard/classrooms/${classroomId}/assignments/${assignment.id}`);
-        const res = await private_api_call({
-            method: "GET",
-            path: `classrooms/${classroomId}/assignments/${assignment.id}`,
-        });
-        // setAssignment(res.data);
-        setOpenMenuId(null);
-    }
-    function openEditModal(assignment: Assignment) {
-        setEditingAssignment(assignment);
-
-        setEditForm({
-            title: assignment.title,
-            description: assignment.description ?? "",
-            total_marks: String(assignment.total_marks ?? ""),
-            due_date: assignment.due_date ? assignment.due_date.slice(0, 16) : "",
-            allow_late_submission: assignment.allow_late_submission,
-            is_published: assignment.is_published,
-            files: [],
-        });
-    }
-
-    async function handleUpdateAssignment(e: React.FormEvent) {
-        e.preventDefault();
-
-        if (!editingAssignment || !editForm) return;
-
-        setIsSubmitting(true);
-
-        try {
-            const res = await private_api_call({
-                method: "PUT",
-                path: `classrooms/${classroomId}/assignments/${editingAssignment.id}`,
-                body: {
-                    title: editForm.title,
-                    description: editForm.description,
-                    total_marks: editForm.total_marks
-                        ? Number(editForm.total_marks)
-                        : null,
-                    due_date: editForm.due_date
-                        ? new Date(editForm.due_date).toISOString()
-                        : null,
-                    allow_late_submission: editForm.allow_late_submission,
-                    is_published: editForm.is_published,
-                },
-            });
-
-            setAssignments((prev) =>
-                prev.map((a) =>
-                    a.id === editingAssignment.id ? res.data : a
-                )
-            );
-
-            setEditingAssignment(null);
-            setEditForm(null);
-
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-
-    async function handleDeleteAssignment(assignment: Assignment) {
-        // TODO: DELETE /api/v1/classrooms/{classroom_id}/assignments/{assignment.id}
-        // await fetch(`/api/v1/classrooms/${classroomId}/assignments/${assignment.id}`, { method: "DELETE" });
-
-        const res = await private_api_call({
-            method: "DELETE",
-            path: `classrooms/${classroomId}/assignments/${assignment.id}`,
-        });
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  async function handleDelete(assignment: Assignment) {
+    try {
+      const res = await private_api_call({
+        method: "DELETE",
+        path: `classrooms/${classroomId}/assignments/${assignment.id}`,
+      });
+      if (res.success) {
         setAssignments((prev) => prev.filter((a) => a.id !== assignment.id));
-        setOpenMenuId(null);
+        toast.success("Assignment deleted");
+      } else {
+        toast.error(res.message || "Failed to delete assignment");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete assignment");
     }
+  }
 
-    // ---------------------------------------------------------------------
-    // TODO: GET /api/v1/classrooms/{classroom_id}/assignments  (initial load)
-    //
-    useEffect(() => {
-        async function loadAssignments() {
-            const res = await private_api_call({
-                method: "GET",
-                path: `classrooms/${classroomId}/assignments`,
-            });
-            setAssignments(res.data);
-            // if (res.success) {
-            //     setRole(res.data.role);
-            // }
-        }
-        loadAssignments();
-    }, [classroomId]);
-    // ---------------------------------------------------------------------
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files) return;
+    setForm((prev) => ({ ...prev, files: [...prev.files, ...Array.from(e.target.files!)] }));
+  }
 
-    /* -------------------------------- render ------------------------------- */
+  function handleRemoveFile(index: number) {
+    setForm((prev) => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
+  }
 
-    return (
-        <div className="px-4 py-6 sm:px-6 lg:px-8">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                        <ClipboardList className="h-5 w-5 text-brand-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-semibold text-text-main">Assignments</h1>
-                        <p className="text-sm text-text-secondary">
-                            {assignments.length} {assignments.length === 1 ? "assignment" : "assignments"}
-                        </p>
-                    </div>
-                </div>
-
-                {isTeacher && (
-                    <button
-                        onClick={handleOpenCreateModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:bg-brand-primary/80 active:bg-brand-primary/60"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        Create assignment
-                    </button>
-                )}
-            </div>
-
-            {/* Assignment list */}
-            {assignments.length === 0 ? (
-                <EmptyState
-                    onCreate={isTeacher ? handleOpenCreateModal : undefined}
-                />
-            ) : (
-                <div className="flex flex-col gap-3">
-                    {assignments.map((assignment) => (
-                        <AssignmentCard
-                            key={assignment.id}
-                            assignment={assignment}
-                            isMenuOpen={openMenuId === assignment.id}
-                            onToggleMenu={() =>
-                                setOpenMenuId((prev) => (prev === assignment.id ? null : assignment.id))
-                            }
-                            onView={() => handleViewAssignment(assignment)}
-                            onEdit={() => openEditModal(assignment)}
-                            onDelete={() => handleDeleteAssignment(assignment)}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Create assignment modal */}
-            {isModalOpen && (
-                <CreateAssignmentModal
-                    form={form}
-                    setForm={setForm}
-                    isSubmitting={isSubmitting}
-                    onClose={handleCloseModal}
-                    onSubmit={handleCreateAssignment}
-                    onFileChange={handleFileChange}
-                    onRemoveFile={handleRemoveFile}
-                />
-            )}
-            {editingAssignment && editForm && (
-                <CreateAssignmentModal
-                    form={editForm}
-                    setForm={setEditForm as any}
-                    isSubmitting={isSubmitting}
-                    onClose={() => {
-                        setEditingAssignment(null);
-                        setEditForm(null);
-                    }}
-                    onSubmit={handleUpdateAssignment}
-                    onFileChange={() => { }}
-                    onRemoveFile={() => { }}
-                />
-            )}
-        </div>
-    );
-}
-
-/* =========================================================================
-   ASSIGNMENT CARD
-   ========================================================================= */
-
-function AssignmentCard({
-    assignment,
-    isMenuOpen,
-    onToggleMenu,
-    onView,
-    onEdit,
-    onDelete,
-}: {
-    assignment: Assignment;
-    isMenuOpen: boolean;
-    onToggleMenu: () => void;
-    onView: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-}) {
-    const overdue = isOverdue(assignment.due_date) && assignment.is_published;
-
-    const classroom = useClassroom();
-    const isTeacher = classroom.current_user.role === "teacher";
-
-    return (
-        <div
-            onClick={onView}
-            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-brand-primary bg-bg-main p-4 transition-colors hover:border-brand-primary/50 hover:bg-bg-secondary active:bg-brand-primary/60 sm:items-center sm:p-5"
-        >
-            {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-bg-secondary sm:h-12 sm:w-12">
-                <FileText className="h-5 w-5 text-text-main" />
-            </div>
-
-            {/* Main content */}
-            <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">
-                        {assignment.title}
-                    </h3>
-                    {!assignment.is_published && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-2 py-0.5 text-xs font-medium text-amber-400">
-                            <CircleDashed className="h-3 w-3" />
-                            Draft
-                        </span>
-                    )}
-                </div>
-
-                {assignment.description && (
-                    <p className="mt-1 line-clamp-1 text-sm text-zinc-500">{assignment.description}</p>
-                )}
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-                    <span
-                        className={`inline-flex items-center gap-1 ${overdue ? "text-red-400" : ""
-                            }`}
-                    >
-                        <Calendar className="h-3.5 w-3.5" />
-                        {formatDueDate(assignment.due_date)}
-                    </span>
-
-                    {assignment.total_marks !== null && assignment.total_marks > 0 && (
-                        <span className="inline-flex items-center gap-1">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            {assignment.total_marks} points
-                        </span>
-                    )}
-
-                    {assignment.files.length > 0 && (
-                        <span className="inline-flex items-center gap-1">
-                            <Paperclip className="h-3.5 w-3.5" />
-                            {assignment.files.length} {assignment.files.length === 1 ? "file" : "files"}
-                        </span>
-                    )}
-
-                    {assignment.allow_late_submission && (
-                        <span className="inline-flex items-center gap-1 text-zinc-500">
-                            <Clock className="h-3.5 w-3.5" />
-                            Late submissions allowed
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Actions menu */}
-            {isTeacher && (
-                <div className="relative shrink-0">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleMenu();
-                        }}
-                        className="rounded-sm p-2 text-zinc-500 opacity-0 transition-colors hover:bg-brand-primary/10 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
-                        data-open={isMenuOpen}
-                        aria-label="Assignment actions"
-                    >
-                        <MoreVertical className="h-4 w-4" />
-                    </button>
-
-                    {isMenuOpen && (
-                        <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-sm border border-brand-primary bg-bg-main shadow-xl shadow-black/40"
-                        >
-                            <button
-                                onClick={onView}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-brand-primary/30 active:bg-brand-primary/60"
-                            >
-                                <Eye className="h-4 w-4" />
-                                View
-                            </button>
-                            <button
-                                onClick={onEdit}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-main hover:bg-brand-primary/30 active:bg-brand-primary/60"
-                            >
-                                <Pencil className="h-4 w-4" />
-                                Edit
-                            </button>
-                            <button
-                                onClick={onDelete}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-400/10"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-/* =========================================================================
-   EMPTY STATE
-   ========================================================================= */
-
-function EmptyState({ onCreate, }: { onCreate?: () => void; }) {
-    return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-brand-primary py-20 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-900">
-                <ClipboardList className="h-6 w-6 text-zinc-600" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium text-zinc-200">No assignments yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-zinc-500">
-                Create your first assignment to give students something to work on.
+  // ── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <div className="px-4 py-6 sm:px-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8168f3]/10">
+            <ClipboardList className="h-5 w-5 text-[#8168f3]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Assignments</h1>
+            <p className="text-sm text-muted-foreground">
+              {assignments.length} {assignments.length === 1 ? "assignment" : "assignments"}
             </p>
-
-            {onCreate && (
-                <button
-                    onClick={onCreate}
-                    className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950  hover:bg-brand-primary/80"
-                >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} />
-                    Create assignment
-                </button>
-            )}
+          </div>
         </div>
-    );
-}
 
-/* =========================================================================
-   CREATE ASSIGNMENT MODAL
-   Fields match POST /classrooms/{classroom_id}/assignments EXACTLY:
-   title*, description, total_marks, due_date, allow_late_submission,
-   is_published, files[]
-   ========================================================================= */
+        {isTeacher && (
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            className="w-full gap-2 bg-[#8168f3] text-white hover:bg-[#6f57e0] sm:w-auto"
+          >
+            <Plus className="h-4 w-4" />
+            Create assignment
+          </Button>
+        )}
+      </div>
 
-function CreateAssignmentModal({
-    form,
-    setForm,
-    isSubmitting,
-    onClose,
-    onSubmit,
-    onFileChange,
-    onRemoveFile,
-}: {
-    form: AssignmentFormState;
-    setForm: React.Dispatch<React.SetStateAction<AssignmentFormState>>;
-    isSubmitting: boolean;
-    onClose: () => void;
-    onSubmit: (e: React.FormEvent) => void;
-    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onRemoveFile: (index: number) => void;
-}) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-brand-primary bg-bg-main sm:max-w-lg sm:rounded-xl"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-text-main">Create assignment</h2>
-                    <button
-                        onClick={onClose}
-                        className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-                        aria-label="Close"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={onSubmit} className="flex-1 overflow-y-auto px-5 py-4">
-                    <div className="flex flex-col gap-4">
-                        {/* title */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                Title <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                value={form.title}
-                                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                                placeholder="e.g. Photosynthesis Lab Report"
-                                className="w-full rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-
-                        {/* description */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                Description
-                            </label>
-                            <textarea
-                                value={form.description}
-                                onChange={(e) =>
-                                    setForm((prev) => ({ ...prev, description: e.target.value }))
-                                }
-                                placeholder="Instructions for students..."
-                                rows={3}
-                                className="w-full resize-none rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-
-                        {/* total_marks + due_date */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                    Total marks
-                                </label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={form.total_marks}
-                                    onChange={(e) =>
-                                        setForm((prev) => ({ ...prev, total_marks: e.target.value }))
-                                    }
-                                    placeholder="0"
-                                    className="w-full rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                    Due date
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    value={form.due_date}
-                                    onChange={(e) =>
-                                        setForm((prev) => ({ ...prev, due_date: e.target.value }))
-                                    }
-                                    className="w-full rounded-sm border border-brand-primary bg-bg-main px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                                />
-                            </div>
-                        </div>
-
-                        {/* files */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-text-main">
-                                Attachments
-                            </label>
-                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-brand-primary px-3 py-3 text-sm text-text-main hover:border-zinc-600 hover:text-text-main">
-                                <Paperclip className="h-4 w-4" />
-                                Add files
-                                <input type="file" multiple onChange={onFileChange} className="hidden" />
-                            </label>
-
-                            {form.files.length > 0 && (
-                                <ul className="mt-2 flex flex-col gap-1.5">
-                                    {form.files.map((file, index) => (
-                                        <li
-                                            key={`${file.name}-${index}`}
-                                            className="flex items-center justify-between rounded-sm bg-bg-main px-3 py-2 text-xs text-text-main"
-                                        >
-                                            <span className="flex items-center gap-2 truncate">
-                                                <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                                                <span className="truncate">{file.name}</span>
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => onRemoveFile(index)}
-                                                className="ml-2 shrink-0 text-zinc-500 hover:text-red-400"
-                                            >
-                                                <X className="h-3.5 w-3.5" />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-
-                        {/* allow_late_submission + is_published */}
-                        <div className="flex flex-col gap-3 rounded-sm border border-brand-primary/60 bg-bg-main/50 p-3">
-                            <label className="flex cursor-pointer items-center justify-between">
-                                <span className="text-sm text-text-main">Allow late submissions</span>
-                                <ToggleSwitch
-                                    checked={form.allow_late_submission}
-                                    onChange={(checked) =>
-                                        setForm((prev) => ({ ...prev, allow_late_submission: checked }))
-                                    }
-                                />
-                            </label>
-                            <label className="flex cursor-pointer items-center justify-between">
-                                <span className="text-sm text-text-main">Publish immediately</span>
-                                <ToggleSwitch
-                                    checked={form.is_published}
-                                    onChange={(checked) =>
-                                        setForm((prev) => ({ ...prev, is_published: checked }))
-                                    }
-                                />
-                            </label>
-                        </div>
-                    </div>
-                </form>
-
-                {/* Footer */}
-                <div className="flex items-center justify-end gap-2  border-zinc-800 px-5 py-4">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-text-main hover:bg-zinc-800 hover:text-zinc-200"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        onClick={onSubmit}
-                        disabled={!form.title || isSubmitting}
-                        className="rounded-sm bg-emerald-500 px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-brand-primary/50 disabled:text-text-main"
-                    >
-                        {isSubmitting ? "Creating..." : "Create"}
-                    </button>
-                </div>
-            </div>
+      {loading ? (
+        <div className="flex flex-col gap-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
         </div>
-    );
-}
-
-/* =========================================================================
-   TOGGLE SWITCH
-   ========================================================================= */
-
-function ToggleSwitch({
-    checked,
-    onChange,
-}: {
-    checked: boolean;
-    onChange: (checked: boolean) => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={() => onChange(!checked)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-primary" : "bg-brand-primary/70"
-                }`}
-        >
-            <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"
-                    }`}
+      ) : assignments.length === 0 ? (
+        <EmptyState onCreate={isTeacher ? () => setIsCreateOpen(true) : undefined} />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {assignments.map((assignment) => (
+            <AssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              isTeacher={isTeacher}
+              onView={() =>
+                router.push(`/dashboard/classrooms/${classroomId}/assignments/${assignment.id}`)
+              }
+              onEdit={() => openEdit(assignment)}
+              onDelete={() => handleDelete(assignment)}
             />
-        </button>
-    );
+          ))}
+        </div>
+      )}
+
+      <CreateAssignmentDialog
+        open={isCreateOpen}
+        form={form}
+        setForm={setForm}
+        isSubmitting={isSubmitting}
+        onClose={() => setIsCreateOpen(false)}
+        onSubmit={handleCreate}
+        onFileChange={handleFileChange}
+        onRemoveFile={handleRemoveFile}
+      />
+
+      <EditAssignmentDialog
+        open={!!editingAssignment}
+        form={editForm}
+        setForm={setEditForm}
+        isSubmitting={isEditSubmitting}
+        onClose={() => setEditingAssignment(null)}
+        onSubmit={handleUpdate}
+      />
+    </div>
+  );
 }
