@@ -107,8 +107,10 @@ export default function Home() {
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8 flex items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold mb-2">Academic Calendar</h1>
-                        <p className="text-muted-foreground">
+                        <h1 className="text-3xl font-bold mb-2 text-brand-primary">
+                            Academic Calendar
+                        </h1>
+                        <p className="text-[#452e80]">
                             Manage your teaching schedule, deadlines, quizzes, and classroom activities.
                         </p>
                     </div>
