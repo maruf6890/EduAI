@@ -82,7 +82,7 @@
 // function StudentCard({ student }: { student: Student }) {
 //     return (
 //         <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 p-4 hover:bg-zinc-900/60 transition">
-            
+
 //             {/* LEFT */}
 //             <div className="flex items-center gap-3">
 //                 <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center">
@@ -106,3 +106,76 @@
 //         </div>
 //     );
 // }
+
+"use client";
+
+import { useParams } from "next/navigation";
+
+import { useEffect, useState } from "react";
+import { private_api_call } from "@/actions/private_api_call";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableRow
+} from "@/components/ui/table";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Member, PeopleData } from "./types";
+import { useClassroom } from "../ClassroomContext";
+
+export default function PeoplePage() {
+    const params = useParams();
+    const classroomId = params?.classroomId as string;
+    const classroom = useClassroom();
+    const currentUserRole = classroom.current_user.role;
+
+    const [data, setData] = useState<PeopleData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!classroomId) return;
+        async function loadPeople() {
+            setLoading(true);
+            const res = await private_api_call({
+                method: "GET",
+                path: `classrooms/${classroomId}/people`,
+            });
+            if (res.success) setData(res.data);
+            setLoading(false);
+        }
+        loadPeople();
+    }, [classroomId]);
+
+    if (loading) return <div className="p-8 text-center">Loading members...</div>;
+    if (!data) return <div className="p-8 text-center">No members found.</div>;
+
+    const renderSection = (title: string, members: Member[]) => (
+        <div className="mb-10">
+            <h2 className="text-xl font-semibold border-b pb-3 mb-2">{title}</h2>
+            <Table>
+                <TableBody>
+                    {members.map((member) => (
+                        <TableRow key={member.id}>
+                            <TableCell className="w-12">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarFallback>{member.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                            </TableCell>
+                            <TableCell className="font-medium text-base">{member.full_name}</TableCell>
+                            {currentUserRole === "teacher" && (
+                                <TableCell className="text-muted-foreground text-right">{member.email}</TableCell>
+                            )}
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    );
+
+    return (
+        <div className="max-w-4xl mx-auto p-6">
+            {renderSection("Teachers", [data.teacher])}
+            {renderSection("Classmates", data.students)}
+        </div>
+    );
+}
