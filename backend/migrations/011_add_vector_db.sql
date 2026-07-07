@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE if NOT EXISTS classroom_documents (
     id SERIAL PRIMARY KEY,

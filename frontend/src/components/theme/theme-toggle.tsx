@@ -28,7 +28,7 @@ export default function ThemeToggle() {
         setTheme(isDark ? "light" : "dark")
       }
       className={cn(
-        "fixed top-20 right-4 sm:right-6 z-[60]",
+        "fixed top-20 right-10 sm:right-3 z-[60]",
         "flex h-12 w-12 items-center justify-center rounded-full",
 
         // Theme-aware colors
