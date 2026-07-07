@@ -14,9 +14,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id
 ON chat_sessions(user_id);
 
 
-ALTER TABLE chat_messages
-ADD COLUMN result_reference JSONB,
-ADD COLUMN route_used TEXT;
+-- ALTER TABLE chat_messages
+-- ADD COLUMN result_reference JSONB,
+-- ADD COLUMN route_used TEXT;
 
 
 

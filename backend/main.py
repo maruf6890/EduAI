@@ -22,6 +22,8 @@ from app.routers.discussion import router as discussion_router
 from app.routers.material import router as material_router
 from app.routers.chat_routes import router as chat_router
 from app.routers.people import router as people_router
+from app.routers.community_classroom import router as community_classroom_router
+from app.routers.classroom_request import router as classroom_request_router
 
 
 
@@ -89,6 +91,9 @@ app.include_router(discussion_router, prefix="/api/v1")
 app.include_router(material_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(people_router, prefix="/api/v1")
+app.include_router(community_classroom_router, prefix="/api/v1")
+app.include_router(classroom_request_router, prefix="/api/v1")
+
 
 @app.get("/health", tags=["Health"])
 def health():

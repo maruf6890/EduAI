@@ -36,3 +36,5 @@ langchain-core
 langgraph
 langchain-google-genai
 rank-bm25
+
+pypdf
