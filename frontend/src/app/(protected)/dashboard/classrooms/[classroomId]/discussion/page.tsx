@@ -16,6 +16,7 @@ import {
     ArchiveRestore,
     ChevronDown,
     ChevronUp,
+    MessagesSquare,
 } from "lucide-react";
 import { private_api_call } from "@/actions/private_api_call";
 import ClassroomTabs from "@/components/classroom/ClassroomTabs";
@@ -31,6 +32,7 @@ import {
 } from "@/actions/dashboard/discussion";
 import { Dialog } from "@/components/ui/dialog";
 import { useClassroom } from "../ClassroomContext";
+import PageTitle from "../materials/PageTitle";
 
 /* =========================================================================
    TYPES — mirror your service layer + Pydantic models EXACTLY
@@ -320,16 +322,10 @@ export default function DiscussionsPage() {
 
     async function handleDeleteComment(postId: number, commentId: number) {
 
-        const res = await deleteComment(classroomId, postId, commentId);
-        const json = res;
         setPosts((prev) =>
             prev.map((p) => (p.id === postId ? { ...p, comments: removeCommentTree(p.comments, commentId) } : p))
         );
     }
-
-    // ---------------------------------------------------------------------
-    // TODO: GET /api/v1/classrooms/{classroom_id}/discussions  (initial load)
-    //
     useEffect(() => {
         async function loadPosts() {
             const response = await getPosts(classroomId);
@@ -337,8 +333,6 @@ export default function DiscussionsPage() {
         }
         loadPosts();
     }, [classroomId]);
-    // console.log("posts:", posts);
-    // console.log("isTeacher:", isTeacher);
 
     const visiblePosts = isTeacher ? posts : posts.filter((p) => p.is_active);
 
@@ -346,17 +340,10 @@ export default function DiscussionsPage() {
         <div className="px-4 py-6 sm:px-6 lg:px-8">
             {/* Header */}
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-brand-primary/10">
-                        <MessageSquare className="h-5 w-5 text-brand-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-semibold text-text-main">Discussions</h1>
-                        <p className="text-sm text-text-main">
-                            {visiblePosts.length} {visiblePosts.length === 1 ? "post" : "posts"}
-                        </p>
-                    </div>
-                </div>
+                <PageTitle
+                    title="Discussion"
+                    icon={MessagesSquare}
+                />
 
                 <button
                     onClick={handleOpenCreateModal}

@@ -88,9 +88,9 @@ def send_message(session_id: int, payload: ChatRequest, conn=Depends(get_db)):
         "session_id": session_id,
         "message": {"content": answer},
         "message_type": "ai",
-        "tool_result": result.get("tool_result"),
+        "tool_result": json.loads(result.get("tool_result")) if result.get("tool_result") else None,
         "route_used": result.get("route_used"),
-        "result_reference": result.get("result_reference")
+        "result_reference": result.get("result_reference"),
 
         },
             "success": True,

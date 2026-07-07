@@ -9,6 +9,7 @@ class AgentState(TypedDict, total=False):
     # or you'll end up with duplicated history (LangGraph concatenates
     # whatever a node returns onto what's already there).
     messages: Annotated[List[BaseMessage], add]
+    is_safe: Optional[bool]
 
     role: Literal["student", "teacher"]
 

@@ -140,7 +140,7 @@ export default function LandingPage() {
             INSTRUCTOR FEEDBACK
           </span>
           <p className="text-lg sm:text-xl font-medium text-text-main/80 italic leading-relaxed">
-            "Preparing quizzes and course announcements used to take hours. Now Edu AI helps me generate learning materials, evaluate progress, and spend more time actually teaching."
+            &quot;Preparing quizzes and course announcements used to take hours. Now Edu AI helps me generate learning materials, evaluate progress, and spend more time actually teaching.&quot;
           </p>
           <div>
             <h4 className="font-black text-sm text-text-main">

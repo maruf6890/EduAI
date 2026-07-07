@@ -7,7 +7,7 @@ import { Message } from "@/lib/types/chat";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { private_api_call } from "@/actions/private_api_call";
 import { ClassroomContext, useClassroom } from "../ClassroomContext";
-import { PanelRightOpen, Plus, Sparkle } from "lucide-react";
+import { Loader2, PanelRightOpen, Plus, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { public_api_call } from "@/actions/public_api_call";
@@ -34,7 +34,6 @@ const COMMAND_SUGGESTIONS = [
   { icon: null, label: "Debug", description: "Find bugs", prefix: "/debug" },
 ];
 //disable-eslint-next-line @typescript-eslint/no-explicit-any
-
 const map_chat_data = (data: any): Message[] => {
   return data.map((item: any) => ({
     id: item?.id || crypto.randomUUID(),
@@ -61,6 +60,9 @@ export default function AIChatbotPage() {
   const classroom = useClassroom();
   const [selectedSessions, setSelectedSessions] = useState<ChatSession | null>(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(true);
+  const [creatingSession, setCreatingSession] = useState(false);
 
 
   // ✅ Hook methods initialized here
@@ -75,12 +77,14 @@ export default function AIChatbotPage() {
     },
   ]);
 
-  // ✅ Automatically sync spoken words to the input text field
-  useEffect(() => {
-    if (transcript) {
-      setInputText((prev) => prev + transcript);
-    }
 
+  useEffect(() => {
+    const setInputFromTranscript = async () => {
+      if (transcript) {
+        setInputText((prev) => prev + transcript);
+      }
+    }
+    setInputFromTranscript();
   }, [transcript]);
 
 
@@ -154,11 +158,42 @@ export default function AIChatbotPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  
+  const handleCreateNewSession = async () => {
+    try {
+      const payload = {
+        user_id: classroom?.current_user.id,
+        classroom_id: classroom?.id,
+        title: `Session ${new Date().toLocaleString()}`,
+      };
+      setCreatingSession(true);
+      const res = await public_api_call({
+        path: "chat/sessions",
+        method: "POST",
+        body: payload,
+      });
 
+      if (res.success) {
+        toast.success("New session created successfully!");
+        setChatSessions((prev) => [res.data, ...prev]);
+        setSelectedSessions(res.data);
+      } else {
+        toast.error(res.message || "Failed to create session.");
+        console.error("Failed to create session:", res.message);
+      }
+    } catch (error) {
+      toast.error("An error occurred while creating the session.");
+      console.error("Error creating session:", error);
+    } finally {
+      setCreatingSession(false);
+    }
+  };
   const handleSend = useCallback(async () => {
+    
+    
     if (!inputText.trim() || isGenerating) return;
     if (!selectedSessions) {
-      toast.error("Please select or create a session first.");
+      handleCreateNewSession();
       return;
     }
 
@@ -288,6 +323,7 @@ export default function AIChatbotPage() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
+        setLoadingSessions(true);
         const res = await public_api_call({
           path: `chat/sessions/${classroom?.current_user.id}/classrooms/${classroom?.id}`,
           method: "GET",
@@ -302,38 +338,14 @@ export default function AIChatbotPage() {
 
       } catch (error) {
         console.error("Error fetching sessions:", error);
+      } finally {
+        setLoadingSessions(false);
       }
     };
 
     fetchSessions();
   }, []);
 
-  const handleCreateNewSession = async () => {
-    try {
-      const payload = {
-        user_id: classroom?.current_user.id,
-        classroom_id: classroom?.id,
-        title: `Session ${new Date().toLocaleString()}`,
-      };
-      const res = await public_api_call({
-        path: "chat/sessions",
-        method: "POST",
-        body: payload
-      });
-
-      if (res.success) {
-        toast.success("New session created successfully!");
-        setChatSessions((prev) => [...prev, res.data]);
-        setSelectedSessions(res.data);
-      } else {
-        toast.error(res.message || "Failed to create session.");
-        console.error("Failed to create session:", res.message);
-      }
-    } catch (error) {
-      toast.error("An error occurred while creating the session.");
-      console.error("Error creating session:", error);
-    }
-  };
   
   useEffect(() => {
     const fetchMessagesForSession = async () => {
@@ -342,6 +354,7 @@ export default function AIChatbotPage() {
         return;
       }
       try {
+        setLoadingMessages(true);
         const res = await public_api_call({
           path: `chat/sessions/detail/${selectedSessions?.id}/messages`,
           method: "GET",
@@ -354,6 +367,8 @@ export default function AIChatbotPage() {
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
+      }finally {
+        setLoadingMessages(false);
       }
     };
 
@@ -423,27 +438,42 @@ export default function AIChatbotPage() {
             <SheetDescription className="sr-only">
                List of all sessions created by the user.
             </SheetDescription>
-            <Button variant="secondary"  className="flex rounded-sm! items-center gap-2" onClick={handleCreateNewSession}>
-              <Plus className="size-4" />
+            <Button variant="secondary" disabled={creatingSession} className="flex rounded-sm! items-center gap-2" onClick={handleCreateNewSession}>
+             {creatingSession ? <Loader2 className="size-4" /> : <Plus className="size-4" />}
               Create New Session
             </Button>
           </SheetHeader>
-          <div className="grid flex-1 auto-rows-min gap-6 px-4">
-           
-            <div className="space-y-2">
-              {chatSessions.map((session) => (
-                <div onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedSessions(session);
-                }} key={session.id} className="border cursor-pointer rounded-sm p-2">
-                  <p className="font-medium">{session.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Created: {new Date(session.created_at).toLocaleDateString()}
-                  </p>
+          {
+            loadingSessions ? (
+              <div className="flex items-center justify-center h-full">
+                <p>Loading sessions...</p>
+              </div>
+            ) : (
+                chatSessions.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p>No sessions found. Create a new session to get started.</p>
                 </div>
-              ))}
-            </div>
-          </div>
+                ) : (
+                    
+                  <div className="grid flex-1 auto-rows-min gap-6 px-4">
+              
+                <div className="space-y-2">
+                  {chatSessions.map((session) => (
+                    <div onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedSessions(session);
+                    }} key={session.id} className="border cursor-pointer rounded-sm p-2">
+                      <p className="font-medium">{session.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Created: {new Date(session.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                  </div>
+            
+                ))
+          }
           <SheetFooter>
           
             <SheetClose> </SheetClose>

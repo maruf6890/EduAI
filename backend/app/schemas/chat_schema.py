@@ -48,3 +48,7 @@ class CalendarEventLLMOutput(BaseModel):
     answer:str=Field (..., description="The natural language response to the user")
 
 
+class SafetyOutput(BaseModel):
+    is_safe: bool = Field(..., description="Whether the content is safe or not")
+
+

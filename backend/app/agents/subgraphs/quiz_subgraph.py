@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import TypedDict, List, Dict, Any, Optional, Literal, Tuple
-
+from datetime import datetime, UTC
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, ValidationError, field_validator
 from rank_bm25 import BM25Okapi
@@ -371,7 +371,7 @@ def create_quiz_by_agent(
 
     Expects tables:
       quizzes(id, classroom_id, created_by, title, description,
-              scheduled_at, duration_minutes, is_published, created_at)
+              scheduled_at, duration_minutes, is_published, created_at,total_marks)
       quiz_questions(id, quiz_id, question_text, option_a, option_b,
                      option_c, option_d, correct_option, marks, order_index)
     """
@@ -381,14 +381,14 @@ def create_quiz_by_agent(
             """
             INSERT INTO quizzes (
                 classroom_id, created_by, title, description,
-                scheduled_at, duration_minutes, is_published, created_at
+                scheduled_at, duration_minutes, is_published, created_at,total_marks
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s,%s)
             RETURNING id;
             """,
             (
                 classroom_id, created_by, title, description,
-                scheduled_at, duration_minutes, is_published, datetime.utcnow(),
+                scheduled_at, duration_minutes, True, datetime.now(UTC),sum(q["marks"] for q in questions)
             ),
         )
         quiz_id = curr.fetchone()[0]
