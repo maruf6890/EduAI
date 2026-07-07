@@ -1,805 +1,578 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-    FolderOpen,
-    Paperclip,
-    Calendar,
-    MoreVertical,
-    Eye,
-    Pencil,
-    Trash2,
-    X,
-    Globe2,
-    Lock,
-    Download,
-    FileText,
-    Upload,
-    Inbox,
-} from "lucide-react";
+import { useParams } from "next/navigation";
 import { private_api_call } from "@/actions/private_api_call";
 import { useClassroom } from "../ClassroomContext";
+import {
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Download,
+  FileText,
+  Globe2,
+  Loader2,
+  Lock,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+  XCircle,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-interface MaterialFile {
-    id: number;
-    file_name: string;
-    file_url: string;
-    file_type: string;
-    uploaded_at: string;
-}
+// ── Types ──────────────────────────────────────────────────────────────────
 
-type MaterialVisibility = "CENTRAL" | "PRIVATE";
+type Visibility = "CENTRAL" | "PRIVATE";
+type IngestionStatus = "indexed" | "failed" | "no_extractable_text" | "skipped" | undefined;
 
 interface Material {
-    id: number;
-    classroom_id: number;
-    title: string;
-    description: string | null;
-    visibility: MaterialVisibility;
-    uploaded_by: number;
-    uploader_name?: string;
-    created_at: string;
-    updated_at: string;
-    files: MaterialFile[];
+  id: string;
+  title: string;
+  description: string;
+  visibility: Visibility;
+  url: string;
+  uploadedBy: string;
+  uploaderName?: string;
+  createdAt: string;
+  ingestionStatus: IngestionStatus;
+  isMine: boolean;
 }
 
-interface UpdateMaterialInput {
-    title?: string;
-    description?: string;
+interface BackendMaterial {
+  id: number | string;
+  title: string;
+  description?: string | null;
+  visibility: Visibility;
+  url: string;
+  uploaded_by: number | string;
+  uploader_name?: string;
+  created_at?: string;
+  ingestion_status?: IngestionStatus;
 }
 
-interface UploadFormState {
-    title: string;
-    description: string;
-    visibility: MaterialVisibility;
-    files: File[];
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(dateString?: string) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-const emptyUploadForm: UploadFormState = {
-    title: "",
-    description: "",
-    visibility: "PRIVATE",
-    files: [],
-};
+function mapMaterial(item: BackendMaterial, currentUserId: string): Material {
+  return {
+    id: String(item.id),
+    title: item.title,
+    description: item.description ?? "",
+    visibility: item.visibility,
+    url: item.url,
+    uploadedBy: String(item.uploaded_by),
+    uploaderName: item.uploader_name,
+    createdAt: formatDate(item.created_at),
+    ingestionStatus: item.ingestion_status,
+    isMine: String(item.uploaded_by) === currentUserId,
+  };
+}
 
+// ── Main component ───────────────────────────────────────────────────────────
 
+export default function MaterialsSection() {
+  const params = useParams();
+  const classroomId = params.classroomId as string;
+  const classroom = useClassroom();
+  const isTeacher = classroom.current_user.role === "teacher";
+  const currentUserId = String(classroom.current_user.id);
 
+  const [centralMaterials, setCentralMaterials] = useState<Material[]>([]);
+  const [privateMaterials, setPrivateMaterials] = useState<Material[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
 
+  const fetchMaterials = async () => {
+    setIsLoading(true);
 
+    const [centralRes, privateRes] = await Promise.all([
+      private_api_call({ path: `classrooms/${classroomId}/materials/central`, method: "GET" }),
+      private_api_call({ path: `classrooms/${classroomId}/materials/private`, method: "GET" }),
+    ]);
 
+    if (centralRes.success && Array.isArray(centralRes.data)) {
+      setCentralMaterials(centralRes.data.map((m: BackendMaterial) => mapMaterial(m, currentUserId)));
+    } else if (!centralRes.success) {
+      console.error("Failed to load central materials:", centralRes.message);
+    }
 
-function formatDate(iso: string): string {
-    const date = new Date(iso);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        ...(date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
+    if (privateRes.success && Array.isArray(privateRes.data)) {
+      setPrivateMaterials(privateRes.data.map((m: BackendMaterial) => mapMaterial(m, currentUserId)));
+    } else if (!privateRes.success) {
+      console.error("Failed to load private materials:", privateRes.message);
+    }
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      if (isMounted) await fetchMaterials();
+    })();
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroomId]);
+
+  // NOTE: backend upload_material() declares `files: List[UploadFile]` (plural)
+// and only uses files[0], so the multipart field name MUST be "files" to
+// bind correctly — even though we only ever send one file per material.
+const handleUpload = async (
+    title: string,
+    description: string,
+    visibility: Visibility,
+    file: File,
+  ): Promise<boolean> => {
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("visibility", visibility);
+    formData.append("files", file);
+
+    const res = await private_api_call({
+      path: `classrooms/${classroomId}/materials`,
+      method: "POST",
+      body: formData,
     });
-}
 
-
-
-function visibilityStyles(visibility: MaterialVisibility): { label: string; className: string; icon: typeof Globe2 } {
-    return visibility === "CENTRAL"
-        ? { label: "Central", className: "bg-brand-secondary/10 text-brand-secondary", icon: Globe2 }
-        : { label: "Private", className: "bg-brand-main text-text-main", icon: Lock };
-}
-
-
-
-export default function MaterialsPage() {
-    const params = useParams();
-    const classroomId = params?.classroomId as string;
-    const classroom= useClassroom();
-
-    const [tab, setTab] = useState<MaterialVisibility>("CENTRAL");
-    const [central, setCentral] = useState<Material[]>([]);
-    const [privateMats, setPrivateMats] = useState<Material[]>([]);
-
-    const [isUploadOpen, setIsUploadOpen] = useState(false);
-    const [uploadForm, setUploadForm] = useState<UploadFormState>(emptyUploadForm);
-    const [isUploading, setIsUploading] = useState(false);
-
-    const [viewTarget, setViewTarget] = useState<Material | null>(null);
-    const [editTarget, setEditTarget] = useState<Material | null>(null);
-    const [editForm, setEditForm] = useState<UpdateMaterialInput>({});
-    const [isSavingEdit, setIsSavingEdit] = useState(false);
-
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-
-    const materials = tab === "CENTRAL" ? central : privateMats;
-
-    /* ------------------------------ handlers ------------------------------ */
-
-    function handleOpenUploadModal() {
-        setUploadForm({ ...emptyUploadForm, visibility: classroom?.current_user.role==="teacher" ? "CENTRAL" : "PRIVATE" });
-        setIsUploadOpen(true);
+    if (res.success && res.data) {
+      const mapped = mapMaterial(res.data, currentUserId);
+      if (mapped.visibility === "CENTRAL") {
+        setCentralMaterials((prev) => [mapped, ...prev]);
+      } else {
+        setPrivateMaterials((prev) => [mapped, ...prev]);
+      }
+      toast.success("Material uploaded");
+      return true;
     }
 
-    function handleCloseUploadModal() {
-        setIsUploadOpen(false);
+    toast.error(res.message || "Failed to upload material");
+    return false;
+  };
+
+  // Backend update_material() only accepts title/description — visibility
+  // and the file itself aren't editable after upload.
+  const handleUpdate = async (
+    materialId: string,
+    title: string,
+    description: string,
+  ): Promise<boolean> => {
+    const res = await private_api_call({
+      path: `classrooms/${classroomId}/materials/${materialId}`,
+      method: "PUT",
+      body: { title, description },
+    });
+
+    if (res.success && res.data) {
+      const mapped = mapMaterial(res.data, currentUserId);
+      const patch = (list: Material[]) => list.map((m) => (m.id === materialId ? mapped : m));
+      setCentralMaterials(patch);
+      setPrivateMaterials(patch);
+      toast.success("Material updated");
+      return true;
     }
 
-    async function handleUploadMaterial(e: React.FormEvent) {
-        e.preventDefault();
-        if (!uploadForm.title.trim() || uploadForm.files.length === 0) return;
+    toast.error(res.message || "Failed to update material");
+    return false;
+  };
 
-        setIsUploading(true);
- 
-        const formData = new FormData();
-        formData.append("title", uploadForm.title.trim());
-        formData.append("description", uploadForm.description.trim());
-        formData.append("visibility", uploadForm.visibility);
-        uploadForm.files.forEach((file) => formData.append("files", file));
+  const handleDelete = async (material: Material) => {
+    const res = await private_api_call({
+      path: `classrooms/${classroomId}/materials/${material.id}`,
+      method: "DELETE",
+    });
 
-        const res = await private_api_call({
-            method: "POST",
-            path: `classrooms/${classroomId}/materials`,
-            body: formData,
-        });
-
-        setIsUploading(false);
-
-        if (!res.success || !res.data) return;
-
-        if (uploadForm.visibility === "CENTRAL") {
-            setCentral((prev) => [res.data as Material, ...prev]);
-        } else {
-            setPrivateMats((prev) => [res.data as Material, ...prev]);
-        }
-        setIsUploadOpen(false);
+    if (res.success) {
+      setCentralMaterials((prev) => prev.filter((m) => m.id !== material.id));
+      setPrivateMaterials((prev) => prev.filter((m) => m.id !== material.id));
+      toast.success(`Deleted "${material.title}"`);
+    } else {
+      toast.error(res.message || "Failed to delete material");
     }
+  };
 
-    function handleViewMaterial(material: Material) {
-        setViewTarget(material);
-        setOpenMenuId(null);
-    }
+  const openCreateModal = () => {
+    setEditingMaterial(null);
+    setIsModalOpen(true);
+  };
 
-    function handleOpenEditModal(material: Material) {
-        setEditTarget(material);
-        setEditForm({ title: material.title, description: material.description ?? "" });
-        setOpenMenuId(null);
-    }
+  const openEditModal = (material: Material) => {
+    setEditingMaterial(material);
+    setIsModalOpen(true);
+  };
 
-    async function handleSaveEdit(e: React.FormEvent) {
-        e.preventDefault();
-        if (!editTarget) return;
-        setIsSavingEdit(true);
+  // Only the teacher can upload CENTRAL materials; any enrolled member
+  // (teacher or student) can upload their own PRIVATE material — matches
+  // upload_material()'s authorization rules exactly.
+  const canUploadCentral = isTeacher;
 
-        const res = await private_api_call({
-            method: "PUT",
-            path: `classrooms/${classroomId}/materials/${editTarget.id}`,
-            body: editForm,
-        });
-
-        const json = res;
-        if (editTarget.visibility === "CENTRAL") {
-            setCentral((prev) =>
-                prev.map((m) => (m.id === editTarget.id ? { ...m, ...editForm } : m))
-            );
-        } else {
-            setPrivateMats((prev) =>
-                prev.map((m) => (m.id === editTarget.id ? { ...m, ...editForm } : m))
-            );
-        }
-        setIsSavingEdit(false);
-        setEditTarget(null);
-    }
-
-
-
-
-    async function handleDeleteMaterial(material: Material) {
-        const res = await private_api_call({
-            method: "DELETE",
-            path: `classrooms/${classroomId}/materials/${material.id}`,
-        });
-
-        if (!res.success) return;
-
-        setCentral((prev) => prev.filter((m) => m.id !== material.id));
-        setPrivateMats((prev) => prev.filter((m) => m.id !== material.id));
-        setOpenMenuId(null);
-    }
-
-    useEffect(() => {
-        if (!classroomId) return;
-
-        async function loadMaterials() {
-            const [centralRes, privateRes] = await Promise.all([
-                private_api_call({
-                    method: "GET",
-                    path: `classrooms/${classroomId}/materials/central`,
-                }),
-                private_api_call({
-                    method: "GET",
-                    path: `classrooms/${classroomId}/materials/private`,
-                }),
-            ]);
-            if (centralRes.success) setCentral(centralRes.data ?? []);
-            if (privateRes.success) setPrivateMats(privateRes.data ?? []);
-        }
-        loadMaterials();
-    }, [classroomId]);
-
-    /* -------------------------------- render ------------------------------- */
-
-    return (
-        <div className="px-4 py-6 sm:px-6 lg:px-8">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                        <FolderOpen className="h-5 w-5 text-brand-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-semibold text-text-main">Materials</h1>
-                        <p className="text-sm text-text-main">
-                            {materials.length} {materials.length === 1 ? "material" : "materials"}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleOpenUploadModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 active:opacity-80"
-                    >
-                        <Upload className="h-4 w-4" strokeWidth={2.5} />
-                        Upload material
-                    </button>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="mb-5 inline-flex rounded-sm border border-zinc-800 bg-zinc-900 p-1">
-                {(["CENTRAL", "PRIVATE"] as MaterialVisibility[]).map((v) => (
-                    <button
-                        key={v}
-                        onClick={() => setTab(v)}
-                        className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === v ? "bg-brand-primary text-zinc-950" : "text-zinc-400 hover:text-zinc-200"
-                            }`}
-                    >
-                        {v === "CENTRAL" ? "Central" : "Private"}
-                        <span className="ml-1.5 opacity-70">{v === "CENTRAL" ? central.length : privateMats.length}</span>
-                    </button>
-                ))}
-            </div>
-
-            {/* Material list */}
-            {materials.length === 0 ? (
-                <EmptyState onUpload={handleOpenUploadModal} tab={tab} />
-            ) : (
-                <div className="flex flex-col gap-3">
-                    {materials.map((material) => (
-                        <MaterialCard
-                            key={material.id}
-                            material={material}
-                            canManage={material.uploaded_by.toString() === classroom?.current_user.id}
-                            isMenuOpen={openMenuId === material.id}
-                            onToggleMenu={() => setOpenMenuId((prev) => (prev === material.id ? null : material.id))}
-                            onView={() => handleViewMaterial(material)}
-                            onEdit={() => handleOpenEditModal(material)}
-                            onDelete={() => handleDeleteMaterial(material)}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Upload material modal */}
-            {isUploadOpen && (
-                <UploadMaterialModal
-                    form={uploadForm}
-                    setForm={setUploadForm}
-                    isSubmitting={isUploading}
-                    canPickCentral={classroom?.current_user.role === "teacher"}
-                    onClose={handleCloseUploadModal}
-                    onSubmit={handleUploadMaterial}
-                />
-            )}
-
-            {/* Edit material modal */}
-            {editTarget && (
-                <EditMaterialModal
-                    form={editForm}
-                    setForm={setEditForm}
-                    isSubmitting={isSavingEdit}
-                    onClose={() => setEditTarget(null)}
-                    onSubmit={handleSaveEdit}
-                />
-            )}
-
-            {/* View material modal */}
-            {viewTarget && <ViewMaterialModal material={viewTarget} onClose={() => setViewTarget(null)} />}
-        </div>
-    );
-}
-
-/* =========================================================================
-   MATERIAL CARD
-   ========================================================================= */
-
-function MaterialCard({
-    material,
-    canManage,
-    isMenuOpen,
-    onToggleMenu,
-    onView,
-    onEdit,
-    onDelete,
-}: {
-    material: Material;
-    canManage: boolean;
-    isMenuOpen: boolean;
-    onToggleMenu: () => void;
-    onView: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-}) {
-    const visibility = visibilityStyles(material.visibility);
-    const VisibilityIcon = visibility.icon;
-
-    return (
-        <div
-            onClick={onView}
-            className="group relative flex cursor-pointer items-start gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:items-center sm:p-5"
-        >
-            {/* Icon */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-zinc-800 sm:h-12 sm:w-12">
-                <FileText className="h-5 w-5 text-zinc-400" />
-            </div>
-
-            {/* Main content */}
-            <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h3 className="truncate text-sm font-medium text-text-main sm:text-base">{material.title}</h3>
-
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${visibility.className}`}>
-                        <VisibilityIcon className="h-3 w-3" />
-                        {visibility.label}
-                    </span>
-                </div>
-
-                {material.description && (
-                    <p className="mt-1 line-clamp-1 text-sm text-text-main">{material.description}</p>
-                )}
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-main">
-                    <span className="inline-flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {formatDate(material.created_at)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                        <Paperclip className="h-3.5 w-3.5" />
-                        {material.files.length} {material.files.length === 1 ? "file" : "files"}
-                    </span>
-                    {material.uploader_name && (
-                        <span className="inline-flex items-center gap-1">
-                            {material.uploader_name}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Actions menu */}
-            <div className="relative shrink-0">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleMenu();
-                    }}
-                    className="rounded-sm p-2 text-text-main opacity-0 transition-colors hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 data-[open=true]:opacity-100"
-                    data-open={isMenuOpen}
-                    aria-label="Material actions"
-                >
-                    <MoreVertical className="h-4 w-4" />
-                </button>
-
-                {isMenuOpen && (
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
-                    >
-                        <button
-                            onClick={onView}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                        >
-                            <Eye className="h-4 w-4" />
-                            View
-                        </button>
-
-                        {canManage && (
-                            <>
-                                <button
-                                    onClick={onEdit}
-                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800"
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={onDelete}
-                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-zinc-800"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-/* =========================================================================
-   EMPTY STATE
-   ========================================================================= */
-
-function EmptyState({ onUpload, tab }: { onUpload: () => void; tab: MaterialVisibility }) {
-    return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-20 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
-                <Inbox className="h-6 w-6 text-zinc-600" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium text-zinc-200">
-                No {tab === "CENTRAL" ? "central" : "private"} materials yet
-            </h3>
-            <p className="mt-1 max-w-sm text-sm text-text-main">
-                {tab === "CENTRAL"
-                    ? "Materials uploaded here are visible to the whole class."
-                    : "Materials uploaded here are only visible to you."}
+  return (
+    <div className="flex flex-col gap-6">
+      <TooltipProvider>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-text-main">
+            <BookOpen className="h-5 w-5 text-text-main" />
+            <p className="text-xs uppercase tracking-[3px] text-text-muted text-shadow-2xs">
+              Materials
             </p>
-            <button
-                onClick={onUpload}
-                className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90"
-            >
-                <Upload className="h-4 w-4" strokeWidth={2.5} />
-                Upload material
-            </button>
+          </div>
+
+          <Button
+            type="button"
+            onClick={openCreateModal}
+            className="gap-2 rounded-sm bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30"
+          >
+            <Plus className="h-4 w-4" />
+            Add material
+          </Button>
         </div>
-    );
+
+        {isLoading ? (
+          <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-10 text-center">
+            <p className="text-sm text-zinc-500">Loading materials…</p>
+          </div>
+        ) : (
+          <>
+            <MaterialGroup
+              label="Central materials"
+              icon={<Globe2 className="h-4 w-4" />}
+              materials={centralMaterials}
+              isTeacher={isTeacher}
+              onEdit={openEditModal}
+              onDelete={handleDelete}
+              emptyLabel="No central materials yet."
+            />
+
+            <MaterialGroup
+              label="My private materials"
+              icon={<Lock className="h-4 w-4" />}
+              materials={privateMaterials}
+              isTeacher={isTeacher}
+              onEdit={openEditModal}
+              onDelete={handleDelete}
+              emptyLabel="You haven't uploaded any private materials yet."
+            />
+          </>
+        )}
+      </TooltipProvider>
+
+      {isModalOpen && (
+        <MaterialModal
+          mode={editingMaterial ? "edit" : "create"}
+          initialTitle={editingMaterial?.title ?? ""}
+          initialDescription={editingMaterial?.description ?? ""}
+          initialVisibility={editingMaterial?.visibility ?? (canUploadCentral ? "CENTRAL" : "PRIVATE")}
+          allowCentral={canUploadCentral}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingMaterial(null);
+          }}
+          onSubmit={async (title, description, visibility, file) => {
+            let ok = false;
+            if (editingMaterial) {
+              ok = await handleUpdate(editingMaterial.id, title, description);
+            } else if (file) {
+              ok = await handleUpload(title, description, visibility, file);
+            }
+            if (ok) {
+              setIsModalOpen(false);
+              setEditingMaterial(null);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
-/* =========================================================================
-   UPLOAD MATERIAL MODAL
-   Fields match what upload_material accepts EXACTLY: title*, description,
-   visibility (CENTRAL/PRIVATE — CENTRAL gated to classroom owner), files*
-   ========================================================================= */
+// ── Ingestion status badge ────────────────────────────────────────────────────
 
-function UploadMaterialModal({
-    form,
-    setForm,
-    isSubmitting,
-    canPickCentral,
-    onClose,
-    onSubmit,
-}: {
-    form: UploadFormState;
-    setForm: React.Dispatch<React.SetStateAction<UploadFormState>>;
-    isSubmitting: boolean;
-    canPickCentral: boolean;
-    onClose: () => void;
-    onSubmit: (e: React.FormEvent) => void;
-}) {
-    const isValid = form.title.trim().length > 0 && form.files.length > 0;
+function IngestionBadge({ status }: { status: IngestionStatus }) {
+  if (!status || status === "skipped") return null;
 
-    function addFiles(picked: FileList | null) {
-        if (!picked) return;
-        const incoming = Array.from(picked);
-        setForm((prev) => ({ ...prev, files: [...prev.files, ...incoming] }));
-    }
+  const config: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
+    indexed: {
+      icon: <CheckCircle2 className="h-3 w-3" />,
+      label: "Indexed for AI search",
+      className: "bg-emerald-500/15 text-emerald-400",
+    },
+    failed: {
+      icon: <XCircle className="h-3 w-3" />,
+      label: "Indexing failed — try re-uploading",
+      className: "bg-red-500/15 text-red-400",
+    },
+    no_extractable_text: {
+      icon: <XCircle className="h-3 w-3" />,
+      label: "No extractable text found (scanned PDF?)",
+      className: "bg-zinc-500/15 text-zinc-400",
+    },
+  };
 
-    function removeFile(index: number) {
-        setForm((prev) => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
-    }
+  const entry = config[status];
+  if (!entry) return null;
 
-    function formatBytes(bytes: number): string {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
-    return (
-        <div className="fixed inset-0  flex items-end justify-center bg-bg-main/60 backdrop-blur-sm sm:items-center sm:p-4">
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[92vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-lg sm:rounded-2xl"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-text-main">Upload material</h2>
-                    <button
-                        onClick={onClose}
-                        className="rounded-sm p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
-                        aria-label="Close"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-
-                {/* Form */}
-                <form id="upload-material-form" onSubmit={onSubmit} className="flex-1 overflow-y-auto px-5 py-4">
-                    <div className="flex flex-col gap-4">
-                        {/* title */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-                                Title <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                value={form.title}
-                                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                                placeholder="e.g. Week 4 lecture slides"
-                                className="w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-
-                        {/* description */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Description</label>
-                            <textarea
-                                value={form.description}
-                                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                                placeholder="A short note about what this covers"
-                                rows={2}
-                                className="w-full resize-none rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-
-                        {/* visibility — CENTRAL only offered to the classroom owner,
-                            matches the 403 the backend throws otherwise */}
-                        {canPickCentral && (
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-zinc-400">Visibility</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(["PRIVATE", "CENTRAL"] as MaterialVisibility[]).map((v) => (
-                                        <button
-                                            key={v}
-                                            type="button"
-                                            onClick={() => setForm((prev) => ({ ...prev, visibility: v }))}
-                                            className={`rounded-sm border px-3 py-2 text-sm font-medium transition-colors ${form.visibility === v
-                                                ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                                                : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
-                                                }`}
-                                        >
-                                            {v === "CENTRAL" ? "Central (whole class)" : "Private (only me)"}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* files */}
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-                                Files <span className="text-red-400">*</span>
-                            </label>
-                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-zinc-700 px-3 py-6 text-center transition-colors hover:border-brand-primary hover:bg-zinc-950/40">
-                                <Upload className="mb-1.5 h-5 w-5 text-zinc-500" />
-                                <span className="text-sm text-zinc-400">Click to choose files</span>
-                                <span className="mt-0.5 text-xs text-zinc-600">Multiple files supported</span>
-                                <input
-                                    type="file"
-                                    multiple
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        addFiles(e.target.files);
-                                        e.target.value = "";
-                                    }}
-                                />
-                            </label>
-                            {form.files.length > 0 && (
-                                <ul className="mt-2 flex flex-col gap-1">
-                                    {form.files.map((file, i) => (
-                                        <li
-                                            key={`${file.name}-${i}`}
-                                            className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/50 px-2.5 py-1.5 text-xs text-zinc-400"
-                                        >
-                                            <span className="flex min-w-0 items-center gap-1.5">
-                                                <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                                                <span className="truncate text-zinc-300">{file.name}</span>
-                                                <span className="shrink-0 text-zinc-600">· {formatBytes(file.size)}</span>
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeFile(i)}
-                                                className="shrink-0 rounded-md p-1 text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
-                                                aria-label={`Remove ${file.name}`}
-                                            >
-                                                <X className="h-3.5 w-3.5" />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    </div>
-                </form>
-
-                {/* Footer */}
-                <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-5 py-4">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isSubmitting}
-                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        form="upload-material-form"
-                        disabled={!isValid || isSubmitting}
-                        className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
-                    >
-                        {isSubmitting && (
-                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950" />
-                        )}
-                        {isSubmitting ? "Uploading..." : "Upload"}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-/* =========================================================================
-   EDIT MATERIAL MODAL
-   Fields match UpdateMaterialInput EXACTLY: title?, description?
-   ========================================================================= */
-
-function EditMaterialModal({
-    form,
-    setForm,
-    isSubmitting,
-    onClose,
-    onSubmit,
-}: {
-    form: UpdateMaterialInput;
-    setForm: React.Dispatch<React.SetStateAction<UpdateMaterialInput>>;
-    isSubmitting: boolean;
-    onClose: () => void;
-    onSubmit: (e: React.FormEvent) => void;
-}) {
-    // Mirrors the `title_not_empty` validator on UpdateMaterialInput —
-    // blank/whitespace-only titles are rejected client-side too.
-    const isValid = (form.title ?? "").trim().length > 0;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="flex w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-md sm:rounded-2xl"
-            >
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-text-main">Edit material</h2>
-                    <button
-                        onClick={onClose}
-                        className="rounded-sm p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
-                        aria-label="Close"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-
-                <form onSubmit={onSubmit} className="px-5 py-4">
-                    <div className="flex flex-col gap-4">
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-                                Title <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                value={form.title ?? ""}
-                                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                                className="w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Description</label>
-                            <textarea
-                                value={form.description ?? ""}
-                                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                                rows={3}
-                                className="w-full resize-none rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-text-main focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-5 flex items-center justify-end gap-2 border-t border-zinc-800 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="rounded-sm px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!isValid || isSubmitting}
-                            className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-text-main disabled:opacity-100"
-                        >
-                            {isSubmitting ? "Saving..." : "Save changes"}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-/* =========================================================================
-   VIEW MATERIAL MODAL
-   ========================================================================= */
-
-function ViewMaterialModal({ material, onClose }: { material: Material; onClose: () => void }) {
-    const visibility = visibilityStyles(material.visibility);
-    const VisibilityIcon = visibility.icon;
-
-    return (
-        <div
-            onClick={onClose}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${entry.className}`}
         >
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[85vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-zinc-900 sm:max-w-lg sm:rounded-2xl"
-            >
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                    <h2 className="text-base font-semibold text-text-main">{material.title}</h2>
-                    <button
-                        onClick={onClose}
-                        className="rounded-sm p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
-                        aria-label="Close"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
+          {entry.icon}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{entry.label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
-                <div className="flex-1 overflow-y-auto px-5 py-4">
-                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${visibility.className}`}>
-                            <VisibilityIcon className="h-3 w-3" />
-                            {visibility.label}
-                        </span>
-                        <span className="text-xs text-text-main">Uploaded {formatDate(material.created_at)}</span>
-                        {material.uploader_name && (
-                            <span className="text-xs text-text-main">by {material.uploader_name}</span>
-                        )}
-                    </div>
+// ── Material list group ───────────────────────────────────────────────────────
 
-                    {material.description && (
-                        <p className="mb-4 text-sm text-zinc-400">{material.description}</p>
-                    )}
+function MaterialGroup({
+  label,
+  icon,
+  materials,
+  isTeacher,
+  onEdit,
+  onDelete,
+  emptyLabel,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  materials: Material[];
+  isTeacher: boolean;
+  onEdit: (material: Material) => void;
+  onDelete: (material: Material) => void;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-text-muted">
+        {icon}
+        {label}
+      </div>
 
-                    <p className="mb-2 text-xs font-medium text-text-main">Files</p>
-                    <ul className="flex flex-col gap-2">
-                        {material.files.map((file) => (
-                            <li
-                                key={file.id}
-                                className="flex items-center justify-between rounded-sm border border-zinc-800 bg-zinc-950/50 px-3 py-2"
-                            >
-                                <span className="flex items-center gap-2 text-sm text-zinc-300">
-                                    <FileText className="h-4 w-4 text-brand-primary" />
-                                    {file.file_name}
-                                </span>
-                                <a
-                                    href={file.file_url}
-                                    className="rounded-md p-1.5 text-text-main hover:bg-zinc-800 hover:text-zinc-200"
-                                    title="Download"
-                                >
-                                    <Download className="h-4 w-4" />
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
+      {materials.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border-main/80 px-5 py-6 text-center">
+          <p className="text-sm text-zinc-500">{emptyLabel}</p>
         </div>
-    );
+      ) : (
+        <div className="flex flex-col gap-3">
+          {materials.map((material) => {
+            // Teacher can manage any material in the classroom; everyone
+            // else only their own — matches delete_material()'s rule.
+            const canManage = isTeacher || material.isMine;
+
+            return (
+              <div key={material.id} className="flex items-start gap-3 rounded-2xl border bg-bg-card p-4">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-brand-primary/20 text-brand-primary">
+                  <FileText className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-sm font-medium text-foreground">{material.title}</h4>
+                    <IngestionBadge status={material.ingestionStatus} />
+                  </div>
+
+                  {material.description && (
+                    <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                      {material.description}
+                    </p>
+                  )}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                    {material.uploaderName && <span>{material.uploaderName}</span>}
+                    <span className="flex items-center gap-1">
+                      <Clock className="size-3" />
+                      {material.createdAt}
+                    </span>
+                    <a
+                      href={material.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-brand-primary hover:underline"
+                    >
+                      <Download className="h-3 w-3" />
+                      Open file
+                    </a>
+                  </div>
+                </div>
+
+                {canManage && (
+                  <div className="flex flex-shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(material)}
+                      className="text-zinc-500 hover:text-brand-primary transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(material)}
+                      className="text-zinc-500 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Upload / edit modal ───────────────────────────────────────────────────────
+
+function MaterialModal({
+  mode,
+  initialTitle,
+  initialDescription,
+  initialVisibility,
+  allowCentral,
+  onClose,
+  onSubmit,
+}: {
+  mode: "create" | "edit";
+  initialTitle: string;
+  initialDescription: string;
+  initialVisibility: Visibility;
+  allowCentral: boolean;
+  onClose: () => void;
+  onSubmit: (title: string, description: string, visibility: Visibility, file: File | null) => void;
+}) {
+  const [title, setTitle] = useState(initialTitle);
+  const [description, setDescription] = useState(initialDescription);
+  const [visibility, setVisibility] = useState<Visibility>(initialVisibility);
+  const [file, setFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const canSubmit = title.trim().length > 0 && (mode === "edit" || file !== null);
+
+  const handleSubmit = async () => {
+    if (!canSubmit || isSubmitting) return;
+    setIsSubmitting(true);
+    await onSubmit(title.trim(), description.trim(), visibility, file);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-2xl border bg-bg-card p-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-text-main">
+            {mode === "create" ? "Add material" : "Edit material"}
+          </h3>
+          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-text-main transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            className="rounded-sm border bg-bg-main px-3 py-2 text-sm text-text-main outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50"
+          />
+
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description (optional)"
+            rows={3}
+            className="rounded-sm border bg-bg-main px-3 py-2 text-sm text-text-main outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50"
+          />
+
+          {/* Visibility and file are only set at upload time — the backend
+              doesn't support changing either after the fact. */}
+          {mode === "create" && (
+            <>
+              <div className="flex gap-2">
+                {allowCentral && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibility("CENTRAL")}
+                    className={`flex-1 rounded-sm border px-3 py-2 text-xs font-medium transition-colors ${
+                      visibility === "CENTRAL"
+                        ? "border-brand-primary/40 bg-brand-primary/20 text-brand-primary"
+                        : "text-zinc-500 hover:text-text-main"
+                    }`}
+                  >
+                    <Globe2 className="mr-1 inline h-3.5 w-3.5" />
+                    Central
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setVisibility("PRIVATE")}
+                  className={`flex-1 rounded-sm border px-3 py-2 text-xs font-medium transition-colors ${
+                    visibility === "PRIVATE"
+                      ? "border-brand-primary/40 bg-brand-primary/20 text-brand-primary"
+                      : "text-zinc-500 hover:text-text-main"
+                  }`}
+                >
+                  <Lock className="mr-1 inline h-3.5 w-3.5" />
+                  Private (only me)
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  id="material-file-input"
+                  type="file"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="text-sm text-zinc-500 file:mr-3 file:rounded-sm file:border-0 file:bg-brand-primary/20 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-brand-primary"
+                />
+                {file && (
+                  <span className="truncate text-xs text-zinc-500" title={file.name}>
+                    {file.name}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" onClick={onClose} className="rounded-sm bg-transparent text-zinc-500 hover:text-text-main">
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit || isSubmitting}
+            className="gap-2 rounded-sm bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30"
+          >
+            {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {mode === "create" ? "Upload" : "Save changes"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }

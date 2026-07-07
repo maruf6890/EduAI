@@ -147,6 +147,7 @@ def rag_node(state: AgentState) -> AgentState:
     from app.agents.subgraphs.rag_subgraph import rag_subgraph_app
     logger.info(f"rag_node subgraph result: rag_subgraph_app")
     sub_result = rag_subgraph_app.invoke({
+        "user_id": state.get("user_id"),
         "question": state["question"],
         "classroom_id": state.get("classroom_id"),
         "conn": state["conn"],

@@ -4,6 +4,28 @@ from typing import List, Optional, Dict, Any
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
 
+#-------------------------------------------------------------------------
+# store vector data in database 
+#-------------------------------------------------------------------------
+
+
+def save_vector_data(conn, session_id: int, vector_data: List[float]) -> None:
+    curr = conn.cursor()
+    try:
+        curr.execute(
+            """
+            INSERT INTO vector_data (session_id, vector)
+            VALUES (%s, %s);
+            """,
+            (session_id, json.dumps(vector_data)),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        curr.close()
+
 # ---------------------------------------------------------------------------
 # chat_sessions
 # ---------------------------------------------------------------------------

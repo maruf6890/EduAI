@@ -18,9 +18,7 @@ export default async function ClassroomLayout({
     const user_id = await getCookie("id");
     console.log("User ID from cookie:", user_id);
     const classroomDetails = await getClassroomDetails(resolvedParams.classroomId as string);
-    console.log("Classroom Details:", classroomDetails);
-    console.log(typeof classroomDetails.owner_id, classroomDetails.owner_id);
-    console.log(typeof user_id, user_id);
+
 
     return (
         <div className="w-full bg-bg-main">
@@ -39,7 +37,7 @@ export default async function ClassroomLayout({
 
                 current_user: {
                     id: user_id ?? "",
-                    role: String(classroomDetails.owner_id) === user_id ? "teacher" : "student",
+                    role: String(classroomDetails?.owner_id) === user_id ? "teacher" : "student",
                     email: "",
                     full_name: ""
                 },

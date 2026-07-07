@@ -10,7 +10,7 @@ llm = ChatGoogleGenerativeAI(
 )
 
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="gemini-embedding-001",
+    model="gemini-embedding-2-preview",
     output_dimensionality=768,
     api_key=GOOGLE_API_KEY,
 )

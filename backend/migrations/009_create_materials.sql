@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS materials (
     title        VARCHAR(255)        NOT NULL,
     description  TEXT,
     visibility   material_visibility NOT NULL DEFAULT 'CENTRAL',
+    url          VARCHAR(500),       NOT NULL,
     uploaded_by  BIGINT              NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at   TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ         NOT NULL DEFAULT NOW()

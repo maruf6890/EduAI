@@ -1,11 +1,12 @@
 from typing import List, Optional
 
+
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
 from app.core.dependencies import get_current_user
 from app.db.connection import get_db
 from app.schemas.material import UpdateMaterialInput
-from app.services import material_service
+from app.services import materials_service
 
 router = APIRouter(tags=["Materials"])
 
@@ -27,14 +28,14 @@ async def upload_material(
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="visibility must be CENTRAL or PRIVATE")
 
-    return await material_service.upload_material(
+    return await materials_service.upload_material(
         conn,
         classroom_id=classroom_id,
         uploaded_by=current_user["id"],
         title=title,
         description=description,
         visibility=visibility,
-        files=files,
+        file=files[0],
     )
 
 
@@ -48,7 +49,7 @@ def update_material(
     current_user: dict = Depends(get_current_user),
     conn=Depends(get_db),
 ):
-    return material_service.update_material(
+    return materials_service.update_material(
         conn,
         classroom_id=classroom_id,
         material_id=material_id,
@@ -78,7 +79,7 @@ def get_central_materials(
     current_user: dict = Depends(get_current_user),
     conn=Depends(get_db),
 ):
-    return material_service.get_central_materials(conn, classroom_id, current_user["id"])
+    return materials_service.get_central_materials(conn, classroom_id, current_user["id"])
 
 
 # ── Get private materials (only own) ─────────────────────────────────────────
@@ -89,7 +90,7 @@ def get_private_materials(
     current_user: dict = Depends(get_current_user),
     conn=Depends(get_db),
 ):
-    return material_service.get_private_materials(conn, classroom_id, current_user["id"])
+    return materials_service.get_private_materials(conn, classroom_id, current_user["id"])
 
 
 # ── Get single material ───────────────────────────────────────────────────────
@@ -101,4 +102,4 @@ def get_material(
     current_user: dict = Depends(get_current_user),
     conn=Depends(get_db),
 ):
-    return material_service.get_material(conn, classroom_id, material_id, current_user["id"])
+    return materials_service.get_material(conn, classroom_id, material_id, current_user["id"])
