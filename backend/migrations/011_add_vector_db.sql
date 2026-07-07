@@ -1,20 +1,14 @@
 
-CREATE TABLE classroom_documents (
+CREATE TABLE if NOT EXISTS classroom_documents (
     id SERIAL PRIMARY KEY,
-
     classroom_id INT NOT NULL,
-
     uploaded_by INT NOT NULL,
-
     document_name TEXT NOT NULL,
-
     file_type VARCHAR(50),
-
     total_pages INT,
-
     created_at TIMESTAMP DEFAULT NOW()
 );
-CREATE TABLE classroom_embeddings (
+CREATE TABLE IF NOT EXISTS classroom_embeddings (
     id SERIAL PRIMARY KEY,
 
     document_id INT NOT NULL,

@@ -22,12 +22,10 @@ export default async function ClassroomLayout({
     const user_id = await getCookie("id");
     console.log("User ID from cookie:", user_id);
     const classroomDetails = await getClassroomDetails(resolvedParams.classroomId as string);
-    console.log("Classroom Details:", classroomDetails);
-    console.log(typeof classroomDetails.owner_id, classroomDetails.owner_id);
-    console.log(typeof user_id, user_id);
+
 
     return (
-        <div className="max-w-7xl mx-auto bg-bg-main">
+        <div className="w-full bg-bg-main">
 
             <ClassroomProvider classroom={{
                 id: classroomDetails?.id ?? "",
@@ -43,13 +41,15 @@ export default async function ClassroomLayout({
 
                 current_user: {
                     id: user_id ?? "",
-                    role: String(classroomDetails.owner_id) === user_id ? "teacher" : "student",
+                    role: String(classroomDetails?.owner_id) === user_id ? "teacher" : "student",
                     email: "",
                     full_name: ""
                 },
             }}>
                 <ClassroomTabs classroomId={resolvedParams.classroomId as string} />
-                {children}
+                <div className="px-4 ">
+                    {children}
+                </div>
             </ClassroomProvider>
             <ChatbotButton />
         </div>

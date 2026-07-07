@@ -23,13 +23,17 @@ from rank_bm25 import BM25Okapi
 from app.agents.llm import llm, embeddings
 from loguru import logger
 
+
 class RagState(TypedDict, total=False):
     question: str
     classroom_id: int
+    user_id: str
     conn: Any
 
-    vector_results: List[Tuple[str, int, str, float]]
-    keyword_results: List[Tuple[str, int, str, float]]
+    # (embedding_id, chunk_number, content, document_name, distance)
+    vector_results: List[Tuple[int, int, str, str, float]]
+    # (embedding_id, chunk_number, content, document_name, bm25_score)
+    keyword_results: List[Tuple[int, int, str, str, float]]
     merged_results: List[dict]
     reranked_results: List[dict]
     context: str
@@ -40,28 +44,31 @@ def retrieval_node(state: RagState) -> RagState:
     conn = state["conn"]
     curr = conn.cursor()
     question = state["question"]
-    results: List[Tuple[str, int, str, float]] = []
+    results: List[Tuple[int, int, str, str, float]] = []
     try:
         query_vector = embeddings.embed_query(question)
         curr.execute(
             """
             SELECT
-                d.document_name,
+                e.id AS embedding_id,
                 e.chunk_number,
                 e.content,
+                m.title AS document_name,
                 e.embedding <=> %s::vector AS distance
             FROM classroom_embeddings e
             JOIN classroom_documents d ON e.document_id = d.id
-            WHERE d.classroom_id = %s
+            JOIN materials m ON d.material_id = m.id
+            WHERE (d.classroom_id = %s AND m.visibility = 'CENTRAL')
+            OR (d.classroom_id = %s AND m.visibility = 'PRIVATE' AND m.uploaded_by = %s)
             ORDER BY e.embedding <=> %s::vector
             LIMIT 5;
             """,
-            (query_vector, state.get("classroom_id"), query_vector),
+            (query_vector, state.get("classroom_id"), state.get("classroom_id"), state.get("user_id"), query_vector),
         )
         results = curr.fetchall()
     except Exception as e:
         conn.rollback()
-        print(f"rag_subgraph retrieval failed, rolled back. Error: {e}")
+        logger.error(f"rag_subgraph retrieval failed, rolled back. Error: {e}")
     finally:
         curr.close()
 
@@ -72,28 +79,39 @@ def keyword_search_node(state: RagState) -> RagState:
     conn = state["conn"]
     curr = conn.cursor()
     question = state["question"]
-    top: List[Tuple[str, int, str, float]] = []
+    top: List[Tuple[int, int, str, str, float]] = []
     try:
         curr.execute(
             """
-            SELECT e.id, e.content,d.document_name
+            SELECT
+                e.id AS embedding_id,
+                e.chunk_number,
+                e.content,
+                m.title AS document_name
             FROM classroom_embeddings e
             JOIN classroom_documents d ON e.document_id = d.id
-            WHERE d.classroom_id = %s;
+            JOIN materials m ON d.material_id = m.id
+            WHERE (d.classroom_id = %s AND m.visibility = 'CENTRAL')
+            OR (d.classroom_id = %s AND m.visibility = 'PRIVATE' AND m.uploaded_by = %s);
             """,
-            (state.get("classroom_id"),),
+            (state.get("classroom_id"), state.get("classroom_id"), state.get("user_id")),
         )
         rows = curr.fetchall()
         if rows:
             ids = [r[0] for r in rows]
-            docs = [r[1] for r in rows]
-            document_names = [r[2] for r in rows]
+            chunk_numbers = [r[1] for r in rows]
+            docs = [r[2] for r in rows]
+            document_names = [r[3] for r in rows]
             bm25 = BM25Okapi([d.split() for d in docs])
             scores = bm25.get_scores(question.split())
-            top = sorted(zip(ids, docs, document_names, scores), key=lambda x: x[3], reverse=True)[:5]
+            top = sorted(
+                zip(ids, chunk_numbers, docs, document_names, scores),
+                key=lambda x: x[4],
+                reverse=True,
+            )[:5]
     except Exception as e:
         conn.rollback()
-        print(f"rag_subgraph keyword search failed, rolled back. Error: {e}")
+        logger.error(f"rag_subgraph keyword search failed, rolled back. Error: {e}")
     finally:
         curr.close()
 
@@ -103,24 +121,25 @@ def keyword_search_node(state: RagState) -> RagState:
 def merge_node(state: RagState) -> RagState:
     merged: dict = {}
 
-    logger.info(f"merge_node vector results: {state['vector_results']}")
-    for doc_name, chunk_number, content, distance in state.get("vector_results", []):
-        key = f"{doc_name}:{chunk_number}"
-        merged[key] = {
+    # Keyed by embedding_id so the same chunk retrieved by both vector
+    # search and keyword search merges into a single entry with both
+    # scores, instead of producing two disjoint entries.
+    for embedding_id, chunk_number, content, doc_name, distance in state.get("vector_results", []):
+        merged[embedding_id] = {
             "document_name": doc_name,
+            "chunk_number": chunk_number,
             "content": content,
             "vector_distance": distance,
             "bm25_score": None,
         }
 
-    logger.info(f"merge_node keyword results: {state['keyword_results']}")
-    for doc_name, chunk_number, content, score in state.get("keyword_results", []):
-        key = f"kw:{chunk_number}"
-        if key in merged:
-            merged[key]["bm25_score"] = score
+    for embedding_id, chunk_number, content, doc_name, score in state.get("keyword_results", []):
+        if embedding_id in merged:
+            merged[embedding_id]["bm25_score"] = score
         else:
-            merged[key] = {
+            merged[embedding_id] = {
                 "document_name": doc_name,
+                "chunk_number": chunk_number,
                 "content": content,
                 "vector_distance": None,
                 "bm25_score": score,
@@ -131,8 +150,10 @@ def merge_node(state: RagState) -> RagState:
 def re_ranking_node(state: RagState) -> RagState:
     candidates = state.get("merged_results", [])
 
+    logger.debug(f"re_ranking_node candidates: {candidates}")
+
     def score(c: dict) -> float:
-        vector_score = -(c["vector_distance"] or 1.0)
+        vector_score = -(c["vector_distance"] if c["vector_distance"] is not None else 1.0)
         bm25_score = c["bm25_score"] or 0.0
         return vector_score + bm25_score
 
@@ -152,9 +173,13 @@ def context_builder_node(state: RagState) -> RagState:
 def ask_llm_node(state: RagState) -> RagState:
     question = state["question"]
     context = state.get("context", "")
+    reranked_results = state.get("reranked_results", [])
+    logger.debug(f"ask_llm_node context: {context}")
+    logger.debug(f"ask_llm_node reranked results: {reranked_results}")
     prompt = (
-        "Answer the questio using only the context below. "
-        "If the answer isn't in the context, say you don't know. Provide a detailed explanation based on the context provided. and mention sources.\n\n"
+        "Answer the question using only the context below. "
+        "If the answer isn't in the context, say you don't know. Provide a detailed explanation "
+        "based on the context provided, and mention sources.\n\n"
         f"Context:\n{context}\n\nQuestion: {question}"
     )
     response = llm.invoke(prompt)

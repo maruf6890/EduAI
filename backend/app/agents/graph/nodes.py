@@ -27,13 +27,15 @@ Decide where the request should go.
 
 Routes:
 
-rag_node:
+rag_node
 - questions about course materials, notes, assignments, lectures,
-  uploaded documents
+  uploaded documents if anything that is possibly in the course materials, books info and notes info then it must go to rag_node
+  
 
 chat_node:
-- casual conversation
-- explanation without documents
+- only for  casual conversation dont select this route for knowledge questions
+
+
 
 quiz_node:
 - generate quiz / practice questions / evaluate answers
@@ -65,28 +67,43 @@ def student_router(state: AgentState) -> str:
 # Teacher routing
 # ---------------------------------------------------------------------------
 TEACHER_ROUTER_PROMPT = """
-You are a teacher assistant router.
+You are a STRICT routing system for a teacher assistant.
 
-Decide where the request should go.
+You must choose EXACTLY ONE route.
 
 Routes:
 
 rag_node:
-- questions about course materials the teacher has uploaded
+- ANY question related to course content
+- uploaded documents, notes, syllabus, lectures
+- academic explanations using classroom knowledge
+- questions like "explain", "what is", "how does X work in this course"
 
 chat_node:
-- casual conversation / general explanations without documents
+- ONLY casual conversation (greetings, small talk)
+- general non-academic chat not related to teaching or course content
 
 quiz_node:
-- create/generate a quiz for students (this actually SAVES the quiz to
-  the classroom, unlike a student's practice-quiz request)
+- CREATE quizzes, exams, assignments for students
+- IMPORTANT: this is for teacher-generated quizzes that will be saved/shared
+- includes MCQ, short questions, assessments
 
 tools_node:
-- classroom management actions: scheduling, calendar lookups, creating
-  personal tasks/reminders
+- classroom management actions:
+  - scheduling classes
+  - calendar/events
+  - reminders/tasks
+  - administrative actions
 
 planner_node:
-- "build a learning path/roadmap for X" for planning course structure
+- designing course structure
+- syllabus planning
+- roadmap/learning path creation for a subject or semester
+
+RULES:
+- If the message is academic or educational → ALWAYS choose rag_node
+- If unsure between chat and rag → choose rag_node
+- chat_node is ONLY for casual conversation
 
 User message:
 {question}
@@ -116,6 +133,7 @@ User Question:
     response = llm.invoke(prompt)
 
     return {
+        "route_used": "chat",
         "messages": [HumanMessage(content=state["question"]), AIMessage(content=response.content)],
         "answer": response.content,
     }
@@ -129,6 +147,7 @@ def rag_node(state: AgentState) -> AgentState:
     from app.agents.subgraphs.rag_subgraph import rag_subgraph_app
     logger.info(f"rag_node subgraph result: rag_subgraph_app")
     sub_result = rag_subgraph_app.invoke({
+        "user_id": state.get("user_id"),
         "question": state["question"],
         "classroom_id": state.get("classroom_id"),
         "conn": state["conn"],
@@ -138,7 +157,9 @@ def rag_node(state: AgentState) -> AgentState:
     answer = sub_result.get("answer", "")
     documents = [c["content"] for c in sub_result.get("reranked_results", [])]
 
+
     return {
+        "route_used": "rag",
         "documents": documents,
         "context": sub_result.get("context", ""),
         "answer": answer,
@@ -192,6 +213,7 @@ def quiz_node(state: AgentState) -> AgentState:
         tool_result = None
 
     return {
+        "route_used": "quiz",
         "answer": answer,
         "tool_result": tool_result,
         "messages": [HumanMessage(content=state["question"]), AIMessage(content=answer)],
@@ -214,6 +236,7 @@ def tools_node(state: AgentState) -> AgentState:
     answer = result["messages"][-1].content
 
     return {
+        "route_used": "tools",
         "answer": answer,
         "messages": [HumanMessage(content=state["question"]), AIMessage(content=answer)],
     }
@@ -241,6 +264,7 @@ def planner_node(state: AgentState) -> AgentState:
         tool_result = None
 
     return {
+        "route_used": "planner",
         "answer": answer,
         "tool_result": tool_result,
         "messages": [HumanMessage(content=state["question"]), AIMessage(content=answer)],

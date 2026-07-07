@@ -1,11 +1,18 @@
-from fastapi import HTTPException, status
+import logging
+import uuid
+
+from fastapi import HTTPException, UploadFile, status
+
+logger = logging.getLogger(__name__)
+
+VALID_VISIBILITIES = {"CENTRAL", "PRIVATE"}
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _serialize(row: dict) -> dict:
     row = dict(row)
-    for field in ("created_at", "updated_at", "uploaded_at"):
+    for field in ("created_at", "updated_at"):
         if row.get(field):
             row[field] = row[field].isoformat()
     return row
@@ -39,22 +46,7 @@ def _verify_member(conn, classroom_id: int, user_id: int) -> bool:
     return False
 
 
-def _get_files(conn, material_id: int) -> list:
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, file_name, file_url, file_type, uploaded_at
-            FROM material_files
-            WHERE material_id = %s
-            ORDER BY uploaded_at ASC
-            """,
-            (material_id,),
-        )
-        return [_serialize(dict(r)) for r in cur.fetchall()]
-
-
-# ── Upload material + files ───────────────────────────────────────────────────
-
+MATERIAL_COLUMNS = "id, classroom_id, title, description, visibility, url, uploaded_by, created_at, updated_at"
 async def upload_material(
     conn,
     classroom_id: int,
@@ -62,13 +54,19 @@ async def upload_material(
     title: str,
     description,
     visibility: str,
-    files: list,
+    file: UploadFile,
 ) -> dict:
     classroom = _get_classroom(conn, classroom_id)
     is_owner = classroom["owner_id"] == uploaded_by
 
     if not is_owner:
         _verify_enrolled(conn, classroom_id, uploaded_by)
+
+    if visibility not in VALID_VISIBILITIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"visibility must be one of {sorted(VALID_VISIBILITIES)}",
+        )
 
     # Only teacher can upload CENTRAL materials
     if visibility == "CENTRAL" and not is_owner:
@@ -77,44 +75,60 @@ async def upload_material(
             detail="Only the teacher can upload central materials",
         )
 
-    if not files:
+    if not file:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one file is required",
+            detail="A file is required",
         )
+
+    # Read the raw bytes ONCE — both Cloudinary upload and PDF text
+    # extraction need the file contents, and UploadFile.read() drains the
+    # stream, so reusing `file` a second time afterward would return b"".
+    file_bytes = await file.read()
+    is_pdf = file.content_type == "application/pdf"
+
+    # Upload first — we don't have a material id yet, so key the folder off
+    # classroom + a random slug instead of the (not-yet-existing) material id.
+    from app.utils.cloudinary import upload_file_to_cloudinary
+
+    await file.seek(0)  # reset stream position in case cloudinary reads from `file` itself
+    upload_slug = uuid.uuid4().hex
+    file_data = await upload_file_to_cloudinary(
+        file,
+        folder=f"ai_classroom/materials/{visibility.lower()}/{classroom_id}/{upload_slug}",
+    )
 
     with conn.cursor() as cur:
         cur.execute(
-            """
-            INSERT INTO materials (classroom_id, title, description, visibility, uploaded_by)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, classroom_id, title, description, visibility, uploaded_by, created_at, updated_at
+            f"""
+            INSERT INTO materials (title, description, visibility, uploaded_by, classroom_id, url)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING {MATERIAL_COLUMNS}
             """,
-            (classroom_id, title, description, visibility, uploaded_by),
+            (title, description, visibility, uploaded_by, classroom_id, file_data["url"]),
         )
         material = _serialize(dict(cur.fetchone()))
 
-    from app.utils.cloudinary import upload_file_to_cloudinary
-    uploaded_files = []
-    for file in files:
-        if not file.filename:
-            continue
-        file_data = await upload_file_to_cloudinary(
-            file,
-            folder=f"ai_classroom/materials/{visibility.lower()}/{material['id']}",
-        )
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO material_files (material_id, file_name, file_url, file_type)
-                VALUES (%s, %s, %s, %s)
-                RETURNING id, file_name, file_url, file_type, uploaded_at
-                """,
-                (material["id"], file_data["original_filename"], file_data["url"], file_data["file_type"]),
-            )
-            uploaded_files.append(_serialize(dict(cur.fetchone())))
+    ingestion_status = "skipped"
+    if is_pdf:
+        from app.services.pdf_ingestion import ingest_pdf_material
 
-    material["files"] = uploaded_files
+        try:
+            document_id = await ingest_pdf_material(
+                conn,
+                classroom_id=classroom_id,
+                material_id=material["id"],
+                file_bytes=file_bytes,
+            )
+            ingestion_status = "indexed" if document_id else "no_extractable_text"
+        except Exception:
+            # Don't fail the whole upload if embedding/indexing breaks — the
+            # material itself was already saved successfully. Log and
+            # surface a soft status instead of raising.
+            logger.exception("PDF ingestion failed for material_id=%s", material["id"])
+            ingestion_status = "failed"
+
+    material["ingestion_status"] = ingestion_status
 
     return {
         "success": True,
@@ -128,7 +142,6 @@ async def upload_material(
 def update_material(conn, classroom_id: int, material_id: int, user_id: int, title, description) -> dict:
     _verify_member(conn, classroom_id, user_id)
 
-    # Only the uploader can update
     with conn.cursor() as cur:
         cur.execute("SELECT uploaded_by FROM materials WHERE id = %s AND classroom_id = %s", (material_id, classroom_id))
         material = cur.fetchone()
@@ -136,6 +149,7 @@ def update_material(conn, classroom_id: int, material_id: int, user_id: int, tit
     if not material:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
 
+    # Only the uploader can update
     if material["uploaded_by"] != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own materials")
 
@@ -156,13 +170,11 @@ def update_material(conn, classroom_id: int, material_id: int, user_id: int, tit
             f"""
             UPDATE materials SET {set_clause}, updated_at = NOW()
             WHERE id = %s AND classroom_id = %s
-            RETURNING id, classroom_id, title, description, visibility, uploaded_by, created_at, updated_at
+            RETURNING {MATERIAL_COLUMNS}
             """,
             values,
         )
         updated = _serialize(dict(cur.fetchone()))
-
-    updated["files"] = _get_files(conn, updated["id"])
 
     return {
         "success": True,
@@ -190,8 +202,9 @@ def delete_material(conn, classroom_id: int, material_id: int, user_id: int) -> 
     if not material:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
 
-    # Teacher can delete any central material, others can only delete their own
-    if material["uploaded_by"] != user_id:
+    # Teacher can delete any material in their classroom; everyone else can
+    # only delete their own uploads.
+    if not is_owner and material["uploaded_by"] != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own materials")
 
     with conn.cursor() as cur:
@@ -214,7 +227,7 @@ def get_central_materials(conn, classroom_id: int, user_id: int) -> dict:
             """
             SELECT
                 m.id, m.classroom_id, m.title, m.description,
-                m.visibility, m.uploaded_by, m.created_at, m.updated_at,
+                m.visibility, m.url, m.uploaded_by, m.created_at, m.updated_at,
                 u.full_name AS uploader_name
             FROM materials m
             JOIN users u ON u.id = m.uploaded_by
@@ -230,7 +243,6 @@ def get_central_materials(conn, classroom_id: int, user_id: int) -> dict:
         r = dict(r)
         mat = _serialize({k: v for k, v in r.items() if k != "uploader_name"})
         mat["uploader_name"] = r["uploader_name"]
-        mat["files"] = _get_files(conn, mat["id"])
         materials.append(mat)
 
     return {
@@ -240,8 +252,6 @@ def get_central_materials(conn, classroom_id: int, user_id: int) -> dict:
     }
 
 
-# ── Get private materials (only uploader sees their own) ─────────────────────
-
 def get_private_materials(conn, classroom_id: int, user_id: int) -> dict:
     _verify_member(conn, classroom_id, user_id)
 
@@ -250,7 +260,7 @@ def get_private_materials(conn, classroom_id: int, user_id: int) -> dict:
             """
             SELECT
                 m.id, m.classroom_id, m.title, m.description,
-                m.visibility, m.uploaded_by, m.created_at, m.updated_at
+                m.visibility, m.url, m.uploaded_by, m.created_at, m.updated_at
             FROM materials m
             WHERE m.classroom_id = %s AND m.visibility = 'PRIVATE' AND m.uploaded_by = %s
             ORDER BY m.created_at DESC
@@ -259,109 +269,10 @@ def get_private_materials(conn, classroom_id: int, user_id: int) -> dict:
         )
         rows = cur.fetchall()
 
-    materials = []
-    for r in rows:
-        mat = _serialize(dict(r))
-        mat["files"] = _get_files(conn, mat["id"])
-        materials.append(mat)
+    materials = [_serialize(dict(r)) for r in rows]
 
     return {
         "success": True,
         "message": "Private materials fetched successfully",
         "data": materials,
     }
-
-
-# ── Get single material ───────────────────────────────────────────────────────
-
-def get_material(conn, classroom_id: int, material_id: int, user_id: int) -> dict:
-    _verify_member(conn, classroom_id, user_id)
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                m.id, m.classroom_id, m.title, m.description,
-                m.visibility, m.uploaded_by, m.created_at, m.updated_at,
-                u.full_name AS uploader_name
-            FROM materials m
-            JOIN users u ON u.id = m.uploaded_by
-            WHERE m.id = %s AND m.classroom_id = %s
-            """,
-            (material_id, classroom_id),
-        )
-        r = cur.fetchone()
-
-    if not r:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
-
-    r = dict(r)
-
-    # Private material — only uploader can access
-    if r["visibility"] == "PRIVATE" and r["uploaded_by"] != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
-    mat = _serialize({k: v for k, v in r.items() if k != "uploader_name"})
-    mat["uploader_name"] = r["uploader_name"]
-    mat["files"] = _get_files(conn, mat["id"])
-
-    return {
-        "success": True,
-        "message": "Material fetched successfully",
-        "data": mat,
-    }
-
-
-
-
-
-
-def get_material_by_agent(
-    conn,
-    classroom_id: int,
-    material_id: int,
-    user_id: int,
-) -> bool:
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT
-                    m.id, m.classroom_id, m.title, m.description,
-                    m.visibility, m.uploaded_by, m.created_at, m.updated_at,
-                    u.full_name AS uploader_name
-                FROM materials m
-                JOIN users u ON u.id = m.uploaded_by
-                WHERE m.id = %s AND m.classroom_id = %s
-                """,
-                (material_id, classroom_id),
-            )
-            r = cur.fetchone()
-
-        if not r:
-            return False
-
-        r = dict(r)
-
-        # Private material — only uploader can access
-        if r["visibility"] == "PRIVATE" and r["uploaded_by"] != user_id:
-            return False
-
-        mat = _serialize({k: v for k, v in r.items() if k != "uploader_name"})
-        mat["uploader_name"] = r["uploader_name"]
-        mat["files"] = _get_files(conn, mat["id"])
-
-        return True
-
-    except Exception:
-        return False
-
-
-
-
-
-
-
-
-

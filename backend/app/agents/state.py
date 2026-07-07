@@ -26,16 +26,12 @@ class AgentState(TypedDict, total=False):
     # tool outputs
     tool_result: Optional[str]
 
-    # final response
+# final response
     answer: Optional[str]
-
+    route_used: Optional[str]
+    result_reference: Optional[List[str]]
     # metadata
     user_id: Optional[str]
     session_id: Optional[str]
     classroom_id: Optional[int]
-
-    # per-request DB connection, injected by the API layer before invoking
-    # the graph. Not persisted, not part of the "real" conversation state —
-    # just piggybacking on AgentState so nodes can reach the DB without
-    # global module-level connections.
     conn: Any

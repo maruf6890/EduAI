@@ -1,12 +1,19 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useContext } from "react";
 import AnimatedAIChat, { AttachmentFile } from "@/components/chat/chatinput";
-// import { ai_api_call } from '@/actions/ai_api_call'; // ✅ Uncommented — wire your action here
-import ChatMessage from "@/components/chat/ChatMessage";
 import ChatMessages from "@/components/chat/ChatMessages";
 import { Message } from "@/lib/types/chat";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { private_api_call } from "@/actions/private_api_call";
+import { ClassroomContext, useClassroom } from "../ClassroomContext";
+import { PanelRightOpen, Plus, Sparkle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { public_api_call } from "@/actions/public_api_call";
+import { ChatSession } from "@/lib/types/classrooms";
+import { toast } from "sonner";
+
 
 const AI_MODELS = [
   { id: "gpt-4o", name: "GPT-4o", description: "Advanced multimodal model" },
@@ -26,12 +33,35 @@ const COMMAND_SUGGESTIONS = [
   },
   { icon: null, label: "Debug", description: "Find bugs", prefix: "/debug" },
 ];
+//disable-eslint-next-line @typescript-eslint/no-explicit-any
+
+const map_chat_data = (data: any): Message[] => {
+  return data.map((item: any) => ({
+    id: item?.id || crypto.randomUUID(),
+    role: item?.message_type == "human" ? "user" : "assistant",
+    content: item.message?.content ?? "",
+    tools_response: item.tool_result,
+    result_reference: item.result_reference,
+    route_used: item.route_used,
+    attachments: item.attachments ?? [],
+    createdAt: item.createdAt ? new Date(item.createdAt) : undefined,
+    timestamp: item.timestamp,
+  }));
+}
+
+
 
 export default function AIChatbotPage() {
   const [inputText, setInputText] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
+  const classroom_data = useContext(ClassroomContext);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const classroom = useClassroom();
+  const [selectedSessions, setSelectedSessions] = useState<ChatSession | null>(null);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+
 
   // ✅ Hook methods initialized here
   const { isRecording, transcript, startRecording, stopRecording, isSupported } = useSpeechToText();
@@ -53,7 +83,8 @@ export default function AIChatbotPage() {
 
   }, [transcript]);
 
-  // ✅ Mic click handler: starts or stops the Web Speech API
+
+
   const handleMicToggle = useCallback(() => {
     if (!isSupported) {
       alert("Speech recognition is not supported in your browser.");
@@ -67,10 +98,10 @@ export default function AIChatbotPage() {
     }
   }, [isSupported, isRecording, startRecording, stopRecording]);
 
-  // ✅ FIX 1: Ref for the bottom of the message list — enables auto-scroll
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // ✅ FIX 1: Scroll to bottom whenever messages change
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -124,9 +155,12 @@ export default function AIChatbotPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ FIX 3: Clean ai_api_call integration
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || isGenerating) return;
+    if (!selectedSessions) {
+      toast.error("Please select or create a session first.");
+      return;
+    }
 
     const trimmedText = inputText.trim();
 
@@ -147,27 +181,27 @@ export default function AIChatbotPage() {
     setIsGenerating(true);
 
     try {
-      const response = {
-        content: "This is a dummy response from the AI model. In a real implementation, this would be the actual response from your AI API."
+      const payload = {
+        question: trimmedText,
+        role: classroom_data?.current_user?.role ?? "student",
+        user_id: classroom_data?.current_user?.id ?? "",
+        classroom_id: classroom_data?.id ?? "",
       };
+      console.log(payload);
 
-      // const response = await ai_api_call({
-      //   messages: messagesForApi.map((m) => ({
-      //     role: m.role,
-      //     content: m.content,
-      //   })),
-      //   model: selectedModel,
-      //   // If your action supports attachments, include them too:
-      //   // attachments: userMessage.attachments,
-      // });
+      const res = await private_api_call({
+        path: `chat/sessions/${selectedSessions?.id}/message`,
+        method: "POST",
+        body: payload,
+      });
+      console.log("API Response:", res);
 
-      // Assumes ai_api_call resolves to { content: string }.
-      // Adjust the property name (response.text, response.message, etc.) to match yours.
 
-      const assistantMessage: Message = {
+
+      const assistantMessage: Message = map_chat_data([res.data])[0] ?? {
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: response.content,
+        content: "Sorry, I couldn't generate a response. Please try again.",
         createdAt: new Date(),
       };
 
@@ -251,11 +285,101 @@ export default function AIChatbotPage() {
     setShowCommandPalette(false);
   }, []);
 
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await public_api_call({
+          path: `chat/sessions/${classroom?.current_user.id}/classrooms/${classroom?.id}`,
+          method: "GET",
+        });
+        if (res.success) {
+          setChatSessions(res.data ?? []);
+        } else {
+          console.error("Failed to fetch sessions:", res.message);
+          setChatSessions([]);    
+        }
+        
+
+      } catch (error) {
+        console.error("Error fetching sessions:", error);
+      }
+    };
+
+    fetchSessions();
+  }, []);
+
+  const handleCreateNewSession = async () => {
+    try {
+      const payload = {
+        user_id: classroom?.current_user.id,
+        classroom_id: classroom?.id,
+        title: `Session ${new Date().toLocaleString()}`,
+      };
+      const res = await public_api_call({
+        path: "chat/sessions",
+        method: "POST",
+        body: payload
+      });
+
+      if (res.success) {
+        toast.success("New session created successfully!");
+        setChatSessions((prev) => [...prev, res.data]);
+        setSelectedSessions(res.data);
+      } else {
+        toast.error(res.message || "Failed to create session.");
+        console.error("Failed to create session:", res.message);
+      }
+    } catch (error) {
+      toast.error("An error occurred while creating the session.");
+      console.error("Error creating session:", error);
+    }
+  };
+  
+  useEffect(() => {
+    const fetchMessagesForSession = async () => {
+      if (!selectedSessions) {
+        setMessages([]);
+        return;
+      }
+      try {
+        const res = await public_api_call({
+          path: `chat/sessions/detail/${selectedSessions?.id}/messages`,
+          method: "GET",
+        });
+        console.log("Fetched messages for session:", res);
+        if (res.success) {
+          setMessages(map_chat_data(res.data)??[]);
+        } else {
+          console.error("Failed to fetch messages:", res.message);
+        }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+
+    
+   fetchMessagesForSession();
+    
+  }, [selectedSessions]);
+
+  console.log("Messages:", messages);
+ 
+
   return (
-    <div className="flex flex-col h-screen w-full bg-bg-main text-main">
-      <div className="bg-brand-primary px-6 py-4 shadow-md shrink-0 z-20 text-black font-bold">
-        <h1 className="text-xl tracking-tight">AI Assistant</h1>
-        <p className="text-xs opacity-80 font-medium mt-0.5">Always here to help you</p>
+    <div className="flex flex-col px-4 h-[90vh] w-full bg-bg-main text-main">
+      <div className="bg-linear-to-r flex justify-between items-center from-sky-200 to-[] px-6 py-4 shadow-sm rounded-sm shrink-0 z-20 text-black font-bold">
+        <div>
+          <h1 className="text-sm uppercase tracking-[2px] letter-spacing-[3px] flex gap-1 items-center">
+            <Sparkle className="size-4" />
+            <span>AI Assistant</span>
+          </h1>
+          <p className="text-xs opacity-80 font-medium mt-0.5">
+            Always here to help you
+          </p>
+        </div>
+        <Button variant="secondary" size="icon" onClick={() => setIsSheetOpen(true)}>
+          <PanelRightOpen className="size-4" />
+        </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -276,14 +400,12 @@ export default function AIChatbotPage() {
           attachments={attachments}
           onAttachFiles={onAttachFiles}
           onCapturePicture={handleCapturePicture}
-          // ✅ Hook triggers the microphone instead of opening a file input on the UI side
           onCaptureAudio={handleMicToggle}
           onRemoveAttachment={handleRemoveAttachment}
           models={AI_MODELS}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
-          commandSuggestions={COMMAND_SUGGESTIONS}
-          showCommandPalette={showCommandPalette}
+          showCommandPalette={false}
           activeSuggestion={activeSuggestion}
           onToggleCommandPalette={() => setShowCommandPalette((prev) => !prev)}
           onSelectCommand={handleSelectCommand}
@@ -293,6 +415,41 @@ export default function AIChatbotPage() {
           mousePosition={mousePosition}
         />
       </div>
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Sessions</SheetTitle>
+            <SheetDescription className="sr-only">
+               List of all sessions created by the user.
+            </SheetDescription>
+            <Button variant="secondary"  className="flex rounded-sm! items-center gap-2" onClick={handleCreateNewSession}>
+              <Plus className="size-4" />
+              Create New Session
+            </Button>
+          </SheetHeader>
+          <div className="grid flex-1 auto-rows-min gap-6 px-4">
+           
+            <div className="space-y-2">
+              {chatSessions.map((session) => (
+                <div onClick={(e) => {
+                  e.preventDefault();
+                  setSelectedSessions(session);
+                }} key={session.id} className="border cursor-pointer rounded-sm p-2">
+                  <p className="font-medium">{session.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Created: {new Date(session.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <SheetFooter>
+          
+            <SheetClose> </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
