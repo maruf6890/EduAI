@@ -46,13 +46,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className={cn("flex flex-col w-[256px] h-full bg-background border-r border-border pt-3 pb-4 overflow-y-auto hidden lg:flex", className)}>
       {!readOnly && (
         <div className="px-4 mb-6">
-            <Button
-            className="rounded-full shadow-md bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 gap-3 min-w-[140px] justify-start transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+          <Button
+            className="rounded-full shadow-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 h-12 px-6 gap-3 min-w-[140px] justify-start transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
             onClick={onEventCreate}
-            >
+          >
             <Plus className="w-6 h-6" />
-            <span className="text-sm font-medium">Create</span>
-            </Button>
+            <span className="text-sm font-medium ">Create</span>
+          </Button>
         </div>
       )}
 
@@ -69,17 +69,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div key={cal.id} className="flex items-center gap-3 py-1.5 px-1">
                 <div className="relative flex items-center justify-center">
                   <input
-                      type="checkbox"
-                      checked={cal.active ?? true}
-                      onChange={(e) => onCalendarToggle?.(cal.id, e.target.checked)}
-                      className="peer h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer appearance-none border-2 checked:bg-primary checked:border-primary transition-all"
-                      style={{ '--primary-color': cal.color } as React.CSSProperties}
-                      data-cal-id={cal.id}
+                    type="checkbox"
+                    checked={cal.active ?? true}
+                    onChange={(e) => onCalendarToggle?.(cal.id, e.target.checked)}
+                    className="peer h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer appearance-none border-2 checked:bg-primary checked:border-primary transition-all"
+                    style={{ '--primary-color': cal.color } as React.CSSProperties}
+                    data-cal-id={cal.id}
                   />
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 peer-checked:opacity-100">
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
                   {/* Custom checkbox color override */}
                   <style>{`

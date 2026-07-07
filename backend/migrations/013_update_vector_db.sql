@@ -15,8 +15,8 @@ ON chat_sessions(user_id);
 
 
 ALTER TABLE chat_messages
-ADD COLUMN result_reference JSONB,
-ADD COLUMN route_used TEXT;
+ADD COLUMN IF NOT EXISTS result_reference JSONB,
+ADD COLUMN IF NOT EXISTS route_used TEXT;
 
 
 

@@ -255,29 +255,52 @@ export default function DiscussionsPage() {
 
     /* ---------------------------- comment handlers ---------------------------- */
 
+    // async function handleAddComment(postId: number, parentId: number | null, content: string) {
+
+    //     const res = await addComment(classroomId, postId, parentId, content)
+    //     if (!res?.success || !res?.data) return;
+
+    //     const json = res;
+    //     const localComment: Comment = {
+    //         id: Date.now(),
+    //         post_id: postId,
+    //         parent_id: parentId,
+    //         content,
+    //         created_at: new Date().toISOString(),
+    //         updated_at: new Date().toISOString(),
+    //         created_by: {
+    //             id: Number(classroom.current_user.id),
+    //             full_name: classroom.current_user.full_name,
+    //             email: classroom.current_user.email,
+    //         },
+    //         replies: [],
+    //     };
+
+
+    //     setPosts((prev) =>
+    //         prev.map((p) =>
+    //             p.id === postId ? { ...p, comments: insertComment(p.comments, parentId, localComment) } : p
+    //         )
+    //     );
+    // }
     async function handleAddComment(postId: number, parentId: number | null, content: string) {
+        const res = await addComment(classroomId, postId, parentId, content);
 
-        const res = await addComment(classroomId, postId, parentId, content)
-        const json = res;
-        const localComment: Comment = {
-            id: Date.now(),
-            post_id: postId,
-            parent_id: parentId,
-            content,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            created_by: {
-                id: Number(classroom.current_user.id),
-                full_name: classroom.current_user.full_name,
-                email: classroom.current_user.email,
-            },
-            replies: [],
-        };
+        // If the server didn't return success or the data, stop here
+        if (!res?.success || !res?.data) {
+            console.error("Failed to add comment:", res?.message);
+            return;
+        }
 
+        // Use the actual data from the server
+        const newComment: Comment = res.data;
 
+        // Update state using the server's data
         setPosts((prev) =>
             prev.map((p) =>
-                p.id === postId ? { ...p, comments: insertComment(p.comments, parentId, localComment) } : p
+                p.id === postId
+                    ? { ...p, comments: insertComment(p.comments, parentId, newComment) }
+                    : p
             )
         );
     }
@@ -324,7 +347,7 @@ export default function DiscussionsPage() {
             {/* Header */}
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-brand-primary/10">
                         <MessageSquare className="h-5 w-5 text-brand-primary" />
                     </div>
                     <div>
@@ -448,7 +471,7 @@ function PostCard({
     }
 
     return (
-        <div className="rounded-xl border border-surface-border bg-bg-main transition-colors hover:border-surface-border">
+        <div className="rounded-sm border-2 border-border-main-2/10 bg-bg-main transition-colors hover:border-surface-border">
             {/* Post header */}
             <div className="flex items-start gap-3 p-4 sm:p-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-secondary/15 text-xs font-semibold text-brand-secondary">
@@ -574,7 +597,7 @@ function PostCard({
 
             {/* Expanded: full content + comment thread */}
             {isExpanded && (
-                <div className="border-t border-surface-border px-4 pb-4 pt-3 sm:px-5">
+                <div className="border-2 border-surface-border px-4 pb-4 pt-3 sm:px-5">
                     {post.content && <p className="mb-4 whitespace-pre-wrap text-sm text-text-main">{post.content}</p>}
 
                     {/* Comment thread */}
@@ -594,7 +617,7 @@ function PostCard({
                     {/* New top-level comment */}
                     <div className="mt-4 flex items-center gap-2">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-[10px] font-semibold text-text-main">
-                            {initials(classroom.current_user.id)}
+                            {initials('+')}
                         </div>
                         <input
                             type="text"
@@ -671,7 +694,7 @@ function CommentItem({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className="rounded-sm bg-bg-main/60 px-3 py-2">
+                    <div className="rounded-sm border border-border-main bg-bg-main/60 px-3 py-2">
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-text-main">{comment.created_by.full_name}</span>
                             <span className="text-xs text-text-main">{formatTimestamp(comment.created_at)}</span>
@@ -685,7 +708,7 @@ function CommentItem({
                                     onChange={(e) => setEditText(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && submitEdit()}
                                     autoFocus
-                                    className="w-full rounded-md border border-zinc-700 bg-bg-main px-2 py-1 text-sm text-zinc-100 focus:border-brand-primary focus:outline-none"
+                                    className="w-full rounded-md border border-zinc-700 bg-bg-main px-2 py-1 text-sm text-text-main focus:border-brand-primary focus:outline-none"
                                 />
                                 <button onClick={submitEdit} className="shrink-0 text-xs font-medium text-brand-primary">
                                     Save
@@ -695,13 +718,13 @@ function CommentItem({
                                         setIsEditing(false);
                                         setEditText(comment.content);
                                     }}
-                                    className="shrink-0 text-xs text-zinc-500 hover:text-zinc-300"
+                                    className="shrink-0 text-xs text-text-main hover:text-brand-primary"
                                 >
                                     Cancel
                                 </button>
                             </div>
                         ) : (
-                            <p className="mt-0.5 whitespace-pre-wrap text-sm text-text-main">{comment.content}</p>
+                            <p className="mt-0.5  whitespace-pre-wrap text-sm text-text-main">{comment.content}</p>
                         )}
                     </div>
 
@@ -709,13 +732,13 @@ function CommentItem({
                         <div className="mt-1 flex items-center gap-3 px-1 text-xs text-zinc-500">
                             <button
                                 onClick={() => setIsReplying((prev) => !prev)}
-                                className="flex items-center gap-1 hover:text-zinc-300"
+                                className="flex items-center gap-1 hover:text-brand-primary/40"
                             >
                                 <Reply className="h-3 w-3" />
                                 Reply
                             </button>
                             {isOwnComment && (
-                                <button onClick={() => setIsEditing(true)} className="hover:text-zinc-300">
+                                <button onClick={() => setIsEditing(true)} className="hover:text-brand-primary/40">
                                     Edit
                                 </button>
                             )}

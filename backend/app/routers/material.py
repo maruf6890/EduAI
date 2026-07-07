@@ -1,3 +1,4 @@
+
 from typing import List, Optional
 
 
@@ -68,7 +69,7 @@ def delete_material(
     current_user: dict = Depends(get_current_user),
     conn=Depends(get_db),
 ):
-    return material_service.delete_material(conn, classroom_id, material_id, current_user["id"])
+    return materials_service.delete_material(conn, classroom_id, material_id, current_user["id"])
 
 
 # ── Get central materials ─────────────────────────────────────────────────────

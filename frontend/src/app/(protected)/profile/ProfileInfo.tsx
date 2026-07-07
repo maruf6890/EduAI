@@ -74,7 +74,7 @@ export default function ProfileInfo({ initialName, initialEmail }: Props) {
 
   return (
     <div className="lg:col-span-2 flex flex-col gap-6">
-      <div className="rounded-[20px] border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 p-6 shadow-sm">
+      <div className="rounded-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 p-6 shadow-sm">
         <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">
           Personal Information
         </h3>
