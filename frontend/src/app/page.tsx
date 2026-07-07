@@ -13,7 +13,7 @@ export default function LandingPage() {
       {/* 🧭 Modular Glassmorphic Floating Navbar */}
       <Navbar />
 
-      <ThemeToggle />
+      {/* <ThemeToggle /> */}
 
       {/* 🚀 Section 2: Main Hero Display Canvas Area */}
       <section

@@ -21,7 +21,7 @@ export default async function ProfilePage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left — Avatar + name card */}
         <div className="lg:col-span-1">
-          <div className="rounded-[20px] border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 p-6 flex flex-col items-center text-center shadow-sm">
+          <div className="rounded-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-zinc-900 p-6 flex flex-col items-center text-center shadow-sm">
             {/* Avatar */}
             <div className="h-20 w-20 rounded-full bg-[#8168f3] flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg">
               {name?.charAt(0).toUpperCase() ?? "U"}
@@ -47,7 +47,7 @@ export default async function ProfilePage() {
         {/* Right — Edit forms */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <ProfileInfo initialName={name ?? ""} initialEmail={email ?? ""} />
-          
+
         </div>
       </div>
     </div>

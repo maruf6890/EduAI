@@ -4,11 +4,11 @@ import { CalendarEventResponse, CalendarEventType } from "@/actions/dashboard/ca
 
 const EVENT_TYPE_COLORS: Record<CalendarEventType, string> = {
     QUIZ: "#f59e0b",       // amber
-    ASSIGNMENT: "#8b5cf6", // violet
-    TASK: "#3897a4",       // teal (classroom-created tasks, rare but possible)
+    ASSIGNMENT: "#80392e", // violet
+    TASK: "#57adcd",       // teal (classroom-created tasks, rare but possible)
 };
 
-const PERSONAL_COLOR = "#47b793";
+const PERSONAL_COLOR = "#6853ba";
 
 // Backend only stores a single point in time (event_date), no end time.
 // We synthesize a display duration so the week/day grid can render a block.
