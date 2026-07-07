@@ -36,10 +36,12 @@ export default function Sidebar() {
 
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-gray-200 dark:border-white/[0.08] px-4 overflow-hidden">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#8168f3]">
-          <span className="text-white font-black text-sm">E</span>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white">
+          <span className="text-white font-black text-sm">
+            <img width="64" height="64" src="https://img.icons8.com/nolan/64/cursor-ai.png" alt="cursor-ai" />
+          </span>
         </div>
-        <span className="whitespace-nowrap text-sm font-extrabold text-gray-900 dark:text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <span className="whitespace-nowrap text-sm font-extrabold text-brand-primary dark:text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           Edu AI
         </span>
       </div>
@@ -53,8 +55,8 @@ export default function Sidebar() {
               key={item.label}
               href={item.href}
               className={`flex items-center gap-3 rounded-[12px] px-2.5 py-2.5 text-sm font-bold transition-colors overflow-hidden ${isActive
-                  ? "bg-[#8168f3]/10 text-[#8168f3]"
-                  : "text-gray-500 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/[0.05] hover:text-gray-900 dark:hover:text-white"
+                ? "bg-[#8168f3]/10 text-[#8168f3]"
+                : "text-gray-500 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/[0.05] hover:text-gray-900 dark:hover:text-white"
                 }`}
             >
               <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
