@@ -62,7 +62,11 @@ export default function ClassroomPage() {
         setIsLoading(false);
     };
     useEffect(() => {
-        loadClassrooms();
+          const load = async () => {
+            await loadClassrooms();
+          };
+
+          load();
     }, []);
 
     const handleClassroomCreated = (classroom: Classroom) => {
