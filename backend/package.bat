@@ -9,7 +9,7 @@ if "%1"=="dev" (
 )
 
 if "%1"=="run" (
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
+    uvicorn main:app --host 0.0.0.0 --port 8000
 )
 if "%1"=="env" (
    conda activate ai_starter
