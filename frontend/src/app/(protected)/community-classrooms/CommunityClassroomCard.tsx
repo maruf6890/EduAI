@@ -43,7 +43,9 @@ export default function CommunityClassroomCard({
             </div>
             <div className="min-w-0">
               <h3 className="truncate text-base font-semibold text-foreground">
-                {classroom.course_title}
+                {classroom?.course_title.length > 50
+                  ? classroom?.course_title.slice(0,50)
+                  : classroom?.course_title}
               </h3>
             </div>
           </div>
@@ -64,9 +66,13 @@ export default function CommunityClassroomCard({
 
         {/* Description */}
         {classroom.description ? (
-          <p className="line-clamp-2 text-sm text-muted-foreground">{classroom.description}</p>
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            {classroom.description}
+          </p>
         ) : (
-          <p className="text-sm text-muted-foreground/60">Community study group</p>
+          <p className="text-sm text-muted-foreground/60">
+            Community study group
+          </p>
         )}
 
         {/* Status row */}

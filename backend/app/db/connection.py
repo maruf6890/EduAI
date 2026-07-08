@@ -12,6 +12,11 @@ _pool: pool.ThreadedConnectionPool = None
 
 def init_db_pool():
     global _pool
+
+    logger.info(f"DB_HOST={settings.DB_HOST}")
+    logger.info(f"DB_USER={settings.DB_USER}")
+    logger.info(f"DB_NAME={settings.DB_NAME}")
+    logger.info(f"DB_PASSWORD length={settings.DB_PASSWORD}")
     _pool = pool.ThreadedConnectionPool(
         minconn=2,
         maxconn=20,
