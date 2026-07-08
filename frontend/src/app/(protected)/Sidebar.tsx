@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { label: "Profile", href: "/profile", icon: User },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ name }: { name: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -64,7 +64,7 @@ export default function Sidebar() {
             >
               <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
               <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                {item.label}
+                {item.label==="Profile" && name ? `${name}` : item.label}
               </span>
             </Link>
           );
