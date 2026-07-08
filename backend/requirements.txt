@@ -38,3 +38,4 @@ langchain-google-genai
 rank-bm25
 
 pypdf
+psycopg2
