@@ -8,10 +8,13 @@ Invoked from app/graph/nodes.py::quiz_node as:
     quiz_subgraph_app.invoke({
         "classroom_id": ..., "created_by": ..., "title": ...,
         "description": ..., "scheduled_at": ..., "duration_minutes": ...,
-        "is_published": ..., "topic_scope": ..., "num_questions": ...,
+        "topic_scope": ..., "num_questions": ...,
         "conn": ...,
         "max_attempts": 3, "attempts": 0, "validation_errors": [],
     })
+
+Note: quizzes created by this subgraph are always saved as published
+(is_published is hardcoded True in create_quiz_by_agent).
 """
 
 from __future__ import annotations
@@ -69,7 +72,6 @@ class QuizAgentState(TypedDict, total=False):
     description: str
     scheduled_at: Any
     duration_minutes: int
-    is_published: bool
     topic_scope: str
     num_questions: int
     conn: Any
@@ -342,7 +344,6 @@ def save_quiz_node(state: QuizAgentState) -> QuizAgentState:
         description=state.get("description", ""),
         scheduled_at=state["scheduled_at"],
         duration_minutes=state["duration_minutes"],
-        is_published=state.get("is_published", False),
         questions=questions,
     )
 
@@ -362,16 +363,19 @@ def create_quiz_by_agent(
     description: str,
     scheduled_at,
     duration_minutes: int,
-    is_published: bool,
     questions: list,
 ) -> Tuple[bool, Optional[int]]:
     """Insert a quiz and its questions in a single transaction.
 
     Returns (success, quiz_id). quiz_id is None on failure.
 
+    is_published is intentionally always True for agent-created quizzes.
+    total_marks is computed as the sum of each question's marks.
+
     Expects tables:
       quizzes(id, classroom_id, created_by, title, description,
-              scheduled_at, duration_minutes, is_published, created_at,total_marks)
+              scheduled_at, duration_minutes, is_published, created_at,
+              total_marks)
       quiz_questions(id, quiz_id, question_text, option_a, option_b,
                      option_c, option_d, correct_option, marks, order_index)
     """
