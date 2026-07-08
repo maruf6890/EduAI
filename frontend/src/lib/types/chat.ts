@@ -5,9 +5,10 @@ export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-
-  tools_response?: unknown;
-  result_reference?: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tools_response?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result_reference?: any;
 
   route_used?: string | null;
 

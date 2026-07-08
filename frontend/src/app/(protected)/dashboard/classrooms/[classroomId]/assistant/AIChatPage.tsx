@@ -379,7 +379,7 @@ export default function AIChatbotPage() {
     
   }, [selectedSessions]);
 
-  console.log("Messages:", messages);
+  // console.log("Messages:", messages);
  
 
   return (
