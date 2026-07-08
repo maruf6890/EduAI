@@ -120,10 +120,10 @@ export default function MaterialModal({
                 />
                 {file && (
                   <span
-                    className="truncate text-xs text-zinc-500"
+                    className="truncate text-xs text-zinc-500 "
                     title={file.name}
                   >
-                    {file.name}
+                    {file.name.length > 5 ? `${file.name.slice(0, 5)}...` : file.name}
                   </span>
                 )}
               </div>
