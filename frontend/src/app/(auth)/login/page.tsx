@@ -91,7 +91,8 @@ export default function LoginPage() {
         {/* Icon */}
         <div className="flex justify-center">
           <div className="flex items-center justify-center">
-            <img width="150" height="150" src="./LOGO.png" alt="cursor-ai" />
+            {/* <img width="150" height="150" src="./LOGO.png" alt="cursor-ai" /> */}
+            <img width="64" height="64" src="https://img.icons8.com/nolan/64/cursor-ai.png" alt="cursor-ai" />
           </div>
         </div>
 
@@ -104,7 +105,8 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
             <div className="p-3 text-xs font-semibold text-danger flex items-center gap-2">
-              <img width="25" height="25" src="https://img.icons8.com/sci-fi/48/cancel.png" alt="cancel" />
+              {/* <img width="25" height="25" src="https://img.icons8.com/sci-fi/48/cancel.png" alt="cancel" /> */}
+              <img width="25" height="25" src="https://img.icons8.com/dusk/64/error--v1.png" alt="error--v1" />
               {error}
             </div>
           )}
@@ -224,7 +226,7 @@ export default function LoginPage() {
 
         <p className="text-center text-xs text-text-main/40">
           New here?{" "}
-          <a href="/register" className="text-brand-primary hover:text-brand-accent transition">
+          <a href="/register" className="text-brand-primary hover:text-brand-primary/70 transition">
             Create an account
           </a>
         </p>

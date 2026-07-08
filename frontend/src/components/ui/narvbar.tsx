@@ -66,8 +66,9 @@ export function Navbar() {
               'transition-all duration-200',
             )}
           >
-            <img width="250" height="250" src="./LOGO.png" alt="cursor-ai" />
-            <span className="text-[15px] font-semibold tracking-tight text-brand-primary group-hover:text-brand-accent transition-colors duration-150">
+            {/* <img width="250" height="250" src="./LOGO.png" alt="cursor-ai" /> */}
+            <img width="64" height="64" src="https://img.icons8.com/nolan/64/cursor-ai.png" alt="cursor-ai" />
+            <span className="text-[15px] font-semibold tracking-tight text-brand-primary group-hover:text-brand-primary/70 transition-colors duration-150">
               EduAI
             </span>
           </span>

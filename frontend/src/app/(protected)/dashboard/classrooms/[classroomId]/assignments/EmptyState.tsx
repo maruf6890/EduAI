@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 
 export default function EmptyState({ onCreate }: { onCreate?: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/30 py-16 sm:py-20 text-center px-4">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#8168f3]/10">
+    <div className="flex flex-col items-center justify-center rounded-sm border border-dashed border-border bg-muted/30 py-16 sm:py-20 text-center px-4">
+      <div className="flex h-14 w-14 items-center justify-center rounded-sm bg-[#8168f3]/10">
         <ClipboardList className="h-6 w-6 text-[#8168f3]" />
       </div>
       <h3 className="mt-4 text-sm font-semibold text-foreground">No assignments yet</h3>

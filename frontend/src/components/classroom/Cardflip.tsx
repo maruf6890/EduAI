@@ -23,7 +23,7 @@ export default function CardFlip({ classroom }: CardFlipProps) {
   const [flipped, setFlipped] = useState(false);
   const router = useRouter();
 
-  const gradient = 'from-brand-primary to-brand-primary';
+  const gradient = 'from-brand-primary/50 to-brand-primary';
   const showCourseTitle =
     classroom.courseTitle && classroom.courseTitle !== classroom.name;
 
@@ -37,7 +37,7 @@ export default function CardFlip({ classroom }: CardFlipProps) {
       <div
         className={cn(
           'relative h-full w-full [transform-style:preserve-3d]',
-          'transition-transform duration-700 ease-[cubic-bezier(0.4,0.2,0.2,1)]',
+          // 'transition-transform duration-700 ease-[cubic-bezier(0.4,0.2,0.2,1)]',
           flipped ? '[transform:rotateY(180deg)]' : '[transform:rotateY(0deg)]',
         )}
       >
@@ -80,7 +80,7 @@ export default function CardFlip({ classroom }: CardFlipProps) {
               }}
             />
             {/* Fade into card body */}
-            <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-bg-main to-transparent" />
+            {/* <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-bg-main to-transparent" /> */}
             {/* Role badge — dynamic per-card, since the dashboard now mixes
                 taught and enrolled classes in one grid. */}
             <span
@@ -248,3 +248,4 @@ export default function CardFlip({ classroom }: CardFlipProps) {
     </div>
   );
 }
+

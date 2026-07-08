@@ -162,7 +162,7 @@ export default function Register() {
                         type="submit"
                         disabled={loading}
                         className="h-11 mt-2 rounded-[var(--radius-sm)] bg-brand-primary text-bg-main text-sm font-semibold
-                     hover:bg-brand-accent active:scale-[0.98] transition
+                     hover:bg-brand-primary/70 active:scale-[0.98] transition
                      disabled:opacity-50 cursor-pointer shadow-[var(--shadow-glow)]"
                     >
                         {loading ? "Signing up..." : "Sign up"}
@@ -171,7 +171,7 @@ export default function Register() {
 
                 <p className="text-center text-xs text-text-main/40">
                     Already have an account?{" "}
-                    <a href="/login" className="text-brand-primary hover:text-brand-accent transition">
+                    <a href="/login" className="text-brand-primary hover:text-brand-secondary transition">
                         Sign in
                     </a>
                 </p>

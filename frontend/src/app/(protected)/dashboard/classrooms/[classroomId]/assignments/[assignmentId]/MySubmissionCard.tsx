@@ -20,7 +20,7 @@ export default function MySubmissionCard({
   const badge = getStatusBadge(submission.status);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-sm border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-foreground">Your submission</h3>
         <Badge variant="secondary" className={badge.className}>
@@ -33,7 +33,7 @@ export default function MySubmissionCard({
       </p>
 
       {submission.submission_text && (
-        <p className="mt-4 whitespace-pre-wrap rounded-lg bg-muted/30 p-3 text-sm text-foreground">
+        <p className="mt-4 whitespace-pre-wrap rounded-sm bg-muted/30 p-3 text-sm text-foreground">
           {submission.submission_text}
         </p>
       )}
@@ -54,7 +54,7 @@ export default function MySubmissionCard({
             </span>
           </div>
           {submission.feedback && (
-            <div className="mt-3 flex gap-2 rounded-lg bg-muted/30 p-3">
+            <div className="mt-3 flex gap-2 rounded-sm bg-muted/30 p-3">
               <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="text-sm text-foreground">{submission.feedback}</p>
             </div>

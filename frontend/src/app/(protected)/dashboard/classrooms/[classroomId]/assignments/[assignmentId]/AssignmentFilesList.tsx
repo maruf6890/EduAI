@@ -29,7 +29,7 @@ export default function AssignmentFilesList({
               href={file.file_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm transition hover:border-[#8168f3]/40 hover:bg-[#8168f3]/5"
+              className="flex items-center justify-between rounded-sm border border-border bg-muted/30 px-3 py-2.5 text-sm transition hover:border-[#8168f3]/40 hover:bg-[#8168f3]/5"
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 <Icon className="h-4 w-4 shrink-0 text-[#8168f3]" />
