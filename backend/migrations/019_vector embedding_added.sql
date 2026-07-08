@@ -18,4 +18,3 @@ ADD COLUMN IF NOT EXISTS embedding vector(3072);
 
 ALTER TABLE community_classrooms_embeddings
 DROP COLUMN IF EXISTS content;
-Notes:
