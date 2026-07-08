@@ -30,6 +30,12 @@ _SELECT_FIELDS = """
 
 # ── Search related community classrooms (plain text match — no AI yet) ───────
 
+
+
+
+
+
+
 def search_community_classrooms(conn, topic: str) -> list:
     slug = _slugify(topic)
     like_pattern = f"%{topic.strip()}%"

@@ -68,8 +68,8 @@ export default function RequestClassroomModal({
         toast.error(res.message || "Failed to submit request");
         return;
       }
-
-      setRelatedClassrooms(res.data.matched_classrooms ?? []);
+      console.log("Request submitted successfully:", res.data);
+      setRelatedClassrooms([]);
       toast.success("Your request has been submitted");
       setStep("results");
     } catch (err) {

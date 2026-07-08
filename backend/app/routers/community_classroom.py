@@ -1,11 +1,8 @@
 from typing import Optional
-
 from fastapi import APIRouter, Depends, Query
-
+from app.services import community_classroom_service
 from app.core.dependencies import get_current_user
 from app.db.connection import get_db
-from app.services import community_classroom_service
-
 router = APIRouter(prefix="/community-classrooms", tags=["Community Classrooms"])
 
 

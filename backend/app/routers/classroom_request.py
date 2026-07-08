@@ -20,6 +20,7 @@ def create_classroom_request(
         title=body.title,
         description=body.description,
     )
+    r
 
 
 @router.get("/my")

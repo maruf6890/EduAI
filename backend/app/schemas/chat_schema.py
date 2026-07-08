@@ -51,4 +51,5 @@ class CalendarEventLLMOutput(BaseModel):
 class SafetyOutput(BaseModel):
     is_safe: bool = Field(..., description="Whether the content is safe or not")
 
-
+class SummaryOutput(BaseModel):
+    summary: str = Field(..., description="The prepare a proper summary of the the from the given data.")
