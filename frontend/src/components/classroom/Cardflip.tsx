@@ -5,8 +5,6 @@
 import { cn } from '@/lib/utils';
 import type { ClassroomCard } from '@/lib/types/classrooms';
 import {
-  BookOpen,
-  CalendarDays,
   GraduationCap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
