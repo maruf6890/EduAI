@@ -40,7 +40,7 @@ def fetch_all_my_events(conn, user_id: int, classroom_id: int) -> dict:
             f"""
             SELECT {", ".join(_COLUMNS)}
             FROM calendar_events
-            WHERE classroom_id = %s AND is_personal = FALSE
+            WHERE classroom_id = %s AND is_personal = FALSE AND  event_date >= NOW()
             ORDER BY event_date;
             """,
             (classroom_id,),
@@ -51,7 +51,7 @@ def fetch_all_my_events(conn, user_id: int, classroom_id: int) -> dict:
             f"""
             SELECT {", ".join(_COLUMNS)}
             FROM calendar_events
-            WHERE classroom_id = %s AND is_personal = TRUE AND created_by = %s
+            WHERE classroom_id = %s AND is_personal = TRUE AND created_by = %s AND event_date >= NOW()
             ORDER BY event_date;
             """,
             (classroom_id, user_id),
