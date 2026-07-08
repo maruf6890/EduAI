@@ -11,7 +11,7 @@ export default function SearchBar({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="relative mb-6">
+    <div className="relative mb-6 md:max-w-[50%] max-w-full">
       <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}

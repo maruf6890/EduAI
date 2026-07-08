@@ -108,52 +108,61 @@ export default function CommunityClassroomsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#8168f3] to-[#6f57e0] shadow-sm">
-            <Users className="h-5 w-5 text-white" />
+    <div className="px-4 py-6 sm:px-6">
+
+      {/* Header + search stay narrow and centered */}
+      <div className=" mb-6 max-w-width">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#8168f3] to-[#6f57e0] shadow-sm">
+              <Users className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">Community Classrooms</h1>
+              <p className="text-sm text-muted-foreground">Search a topic to find a study group</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Community Classrooms</h1>
-            <p className="text-sm text-muted-foreground">Search a topic to find a study group</p>
-          </div>
+
+          <Button
+            onClick={() => setIsRequestModalOpen(true)}
+            className="w-full gap-2 bg-[#8168f3] text-white hover:bg-[#6f57e0] sm:w-auto"
+          >
+            <Plus className="h-4 w-4" />
+            Request a classroom
+          </Button>
         </div>
 
-        <Button
-          onClick={() => setIsRequestModalOpen(true)}
-          className="w-full gap-2 bg-[#8168f3] text-white hover:bg-[#6f57e0] sm:w-auto"
-        >
-          <Plus className="h-4 w-4" />
-          Request a classroom
-        </Button>
+        <SearchBar value={topic} onChange={setTopic} />
       </div>
 
-      <SearchBar value={topic} onChange={setTopic} />
-
-      {loading ? (
-        <div className="flex flex-col gap-3">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-36 rounded-2xl" />
-          ))}
-        </div>
-      ) : classrooms.length === 0 ? (
-        <EmptyState topic={debouncedTopic} />
-      ) : (
-        <div className="flex flex-col gap-3">
-          {classrooms.map((classroom) => (
-            <CommunityClassroomCard
-              key={classroom.id}
-              classroom={classroom}
-              onOpen={() => handleOpen(classroom)}
-              onJoinAsTeacher={() => setTeacherDialogClassroom(classroom)}
-              onJoinAsStudent={() => handleJoinAsStudent(classroom)}
-              isJoiningTeacher={isJoiningTeacher && teacherDialogClassroom?.id === classroom.id}
-              isJoiningStudent={joiningStudentId === classroom.id}
-            />
-          ))}
-        </div>
-      )}
+      {/* Card grid gets a wider container */}
+      <div className="mx-auto max-w-[1400px]">
+        {loading ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-52 rounded-2xl" />
+            ))}
+          </div>
+        ) : classrooms.length === 0 ? (
+          <div className="mx-auto max-w-3xl">
+            <EmptyState topic={debouncedTopic} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {classrooms.map((classroom) => (
+              <CommunityClassroomCard
+                key={classroom.id}
+                classroom={classroom}
+                onOpen={() => handleOpen(classroom)}
+                onJoinAsTeacher={() => setTeacherDialogClassroom(classroom)}
+                onJoinAsStudent={() => handleJoinAsStudent(classroom)}
+                isJoiningTeacher={isJoiningTeacher && teacherDialogClassroom?.id === classroom.id}
+                isJoiningStudent={joiningStudentId === classroom.id}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <JoinAsTeacherDialog
         classroom={teacherDialogClassroom}
