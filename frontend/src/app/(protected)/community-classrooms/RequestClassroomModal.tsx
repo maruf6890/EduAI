@@ -48,7 +48,6 @@ export default function RequestClassroomModal({
     onClose();
   }
 
-  // ── Step 1: save the request — backend also returns related classrooms ──────
   // ── Step 1: save the request, then enrich each suggestion with full details ──
   async function handleSubmitRequest(e: React.FormEvent) {
     e.preventDefault();
@@ -143,7 +142,7 @@ export default function RequestClassroomModal({
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => !v && resetAndClose()}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden sm:max-w-lg">
           {step === "form" ? (
             <>
               <DialogHeader>
@@ -195,7 +194,7 @@ export default function RequestClassroomModal({
                 <DialogTitle>Related community classrooms</DialogTitle>
               </DialogHeader>
 
-              <p className="text-sm text-muted-foreground">
+              <p className="break-words text-sm text-muted-foreground">
                 Your request for &quot;{title}&quot; has been saved. Here&apos;s what already
                 exists — join one below, or close this and wait for a new classroom to be created.
               </p>
@@ -205,7 +204,7 @@ export default function RequestClassroomModal({
                   No related classrooms found yet.
                 </p>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="flex min-w-0 flex-col gap-3">
                   {relatedClassrooms.map((classroom) => (
                     <CommunityClassroomCard
                       key={classroom.id}
