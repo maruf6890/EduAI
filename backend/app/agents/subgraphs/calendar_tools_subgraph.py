@@ -1,126 +1,120 @@
-"""
-Calendar / personal-task tool-calling subgraph. Ported from the standalone
-calendar_task_agent.py, using the shared app.llm instance.
-
-Invoked from app/graph/nodes.py::tools_node as:
-
-    app = build_calendar_task_agent(conn=state["conn"], user_id=..., classroom_id=...)
-    result = app.invoke({"messages": [HumanMessage(content=state["question"])]})
-"""
 
 from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Annotated, TypedDict, List
+from typing import Annotated, TypedDict, List, Optional
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.tools import tool
 from langchain_core.messages import BaseMessage, SystemMessage
-from  app.services.calendar_service import get_my_calendar, create_personal_task_by_agent
 from app.agents.llm import llm
 
 
-# ---------------------------------------------------------------------------
-# get_classroom_calendar / create_personal_task_by_agent — real DB logic
-# ---------------------------------------------------------------------------
-# def get_classroom_calendar(conn, classroom_id: int, user_id: int) -> dict:
-#     """Expects an `events` table:
-#     events(id, classroom_id, title, description, event_date, event_type,
-#            reference_id, created_by, is_personal, created_at, updated_at)
-#     """
-#     curr = conn.cursor()
-#     try:
-#         curr.execute(
-#             """
-#             SELECT id, classroom_id, title, description, event_date,
-#                    event_type, reference_id, created_by, is_personal,
-#                    created_at, updated_at
-#             FROM events
-#             WHERE classroom_id = %s AND is_personal = FALSE
-#             ORDER BY event_date;
-#             """,
-#             (classroom_id,),
-#         )
-#         classroom_rows = curr.fetchall()
+_COLUMNS = [
+    "id", "classroom_id", "event_date", "event_type", "reference_id",
+    "created_by", "is_personal", "title", "description",
+    "created_at", "updated_at",
+]
 
-#         curr.execute(
-#             """
-#             SELECT id, classroom_id, title, description, event_date,
-#                    event_type, reference_id, created_by, is_personal,
-#                    created_at, updated_at
-#             FROM events
-#             WHERE classroom_id = %s AND is_personal = TRUE AND created_by = %s
-#             ORDER BY event_date;
-#             """,
-#             (classroom_id, user_id),
-#         )
-#         personal_rows = curr.fetchall()
-
-#         columns = [
-#             "id", "classroom_id", "title", "description", "event_date",
-#             "event_type", "reference_id", "created_by", "is_personal",
-#             "created_at", "updated_at",
-#         ]
-
-#         def row_to_dict(row):
-#             d = dict(zip(columns, row))
-#             for key in ("event_date", "created_at", "updated_at"):
-#                 if isinstance(d[key], datetime):
-#                     d[key] = d[key].isoformat()
-#             return d
-
-#         return {
-#             "success": True,
-#             "message": "Calendar fetched successfully",
-#             "data": {
-#                 "classroom_events": [row_to_dict(r) for r in classroom_rows],
-#                 "personal_tasks": [row_to_dict(r) for r in personal_rows],
-#             },
-#         }
-
-#     except Exception as e:
-#         conn.rollback()
-#         print(f"get_classroom_calendar failed, rolled back. Error: {e}")
-#         return {"success": False, "message": f"Failed to fetch calendar: {e}", "data": None}
-
-#     finally:
-#         curr.close()
+# Keep this in sync with the `calendar_event_type` Postgres enum.
+EVENT_TYPES = ["TASK"]
 
 
-# def create_personal_task_by_agent(
-#     conn,
-#     user_id: int,
-#     title: str,
-#     description,
-#     event_date,
-#     classroom_id,
-# ) -> bool:
-#     curr = conn.cursor()
-#     try:
-#         now = datetime.now(timezone.utc)
-#         curr.execute(
-#             """
-#             INSERT INTO events (
-#                 classroom_id, title, description, event_date, event_type,
-#                 reference_id, created_by, is_personal, created_at, updated_at
-#             )
-#             VALUES (%s, %s, %s, %s, 'TASK', NULL, %s, TRUE, %s, %s);
-#             """,
-#             (classroom_id, title, description, event_date, user_id, now, now),
-#         )
-#         conn.commit()
-#         return True
+def _row_to_dict(row) -> dict:
+    d = dict(zip(_COLUMNS, row))
+    for key in ("event_date", "created_at", "updated_at"):
+        if isinstance(d.get(key), datetime):
+            d[key] = d[key].isoformat()
+    return d
 
-#     except Exception as e:
-#         conn.rollback()
-#         print(f"create_personal_task_by_agent failed, rolled back. Error: {e}")
-#         return False
 
-#     finally:
-#         curr.close()
+def fetch_all_my_events(conn, user_id: int, classroom_id: int) -> dict:
+    """Fetch all classroom-wide events for `classroom_id`, plus the current
+    user's own personal events within that classroom."""
+    curr = conn.cursor()
+    try:
+        curr.execute(
+            f"""
+            SELECT {", ".join(_COLUMNS)}
+            FROM calendar_events
+            WHERE classroom_id = %s AND is_personal = FALSE
+            ORDER BY event_date;
+            """,
+            (classroom_id,),
+        )
+        classroom_rows = curr.fetchall()
+
+        curr.execute(
+            f"""
+            SELECT {", ".join(_COLUMNS)}
+            FROM calendar_events
+            WHERE classroom_id = %s AND is_personal = TRUE AND created_by = %s
+            ORDER BY event_date;
+            """,
+            (classroom_id, user_id),
+        )
+        personal_rows = curr.fetchall()
+        print(f"fetch_all_my_events: classroom_rows={len(classroom_rows)}, personal_rows={len(personal_rows)}")
+
+        return {
+            "success": True,
+            "message": "Events fetched successfully",
+            "data": {
+                "classroom_events": [_row_to_dict(r) for r in classroom_rows],
+                "personal_events": [_row_to_dict(r) for r in personal_rows],
+            },
+        }
+
+    except Exception as e:
+        conn.rollback()
+        print(f"fetch_all_my_events failed, rolled back. Error: {e}")
+        return {"success": False, "message": f"Failed to fetch events: {e}", "data": None}
+
+    finally:
+        curr.close()
+
+
+def insert_event(
+    conn,
+    classroom_id: Optional[int],
+    user_id: int,
+    title: str,
+    description: Optional[str],
+    event_date: str,
+    event_type: str = "TASK",
+    reference_id: Optional[int] = None,
+) -> dict:
+    """Insert a personal event. Always created with classroom_id = NULL and
+    is_personal = TRUE — this never attaches an event to a classroom."""
+    curr = conn.cursor()
+    try:
+        now = datetime.now(timezone.utc)
+        curr.execute(
+            """
+            INSERT INTO calendar_events (
+                classroom_id, event_date, event_type, reference_id,
+                created_by, is_personal, title, description,
+                created_at, updated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s)
+            RETURNING id;
+            """,
+            (classroom_id, event_date, event_type, reference_id, user_id, title, description, now, now),
+        )
+        new_id = curr.fetchone()[0]
+        conn.commit()
+        return {"success": True, "message": f"Event created successfully at {now.isoformat()}", "data": {"id": new_id}}
+
+    except Exception as e:
+        conn.rollback()
+        print(f"insert_event failed, rolled back. Error: {e}")
+        return {"success": False, "message": f"Failed to create event: {e}", "data": None}
+
+    finally:
+        curr.close()
 
 
 # ---------------------------------------------------------------------------
@@ -129,30 +123,51 @@ from app.agents.llm import llm
 def build_tools(conn, user_id: int, classroom_id: int):
 
     @tool
-    def check_classroom_calendar() -> str:
-        """Fetch the classroom's upcoming events (assignments, quizzes, etc.)
-        and the current user's personal tasks for this classroom. Use this
-        whenever the user asks what's on their calendar, what's due, what's
-        coming up, or similar — do not guess dates from memory."""
-        result = get_my_calendar(conn, user_id=user_id)
+    def get_all_my_events() -> str:
+        """Fetch every event for the current classroom: the classroom's
+        shared events (assignments, quizzes, meetings, etc.) plus this
+        user's own personal events in it. Takes no arguments — the
+        classroom and user are already known from context. Always call
+        this when the user asks what's on their calendar, what's due,
+        what's coming up, or anything about existing events — never guess
+        dates or event details from memory."""
+        result = fetch_all_my_events(conn, user_id=user_id, classroom_id=classroom_id)
         return json.dumps(result)
 
     @tool
-    def create_personal_task(title: str, description: str, event_date: str) -> str:
-        """Create a personal task/reminder for the current user in this
-        classroom. `event_date` must be an ISO-8601 datetime string
-        (e.g. "2026-07-10T18:00:00Z"). Use this when the user asks to be
-        reminded of something, or to add a personal to-do/task."""
-        saved = create_personal_task_by_agent(
-            conn, user_id=user_id, title=title, description=description,
-            event_date=event_date, classroom_id=classroom_id,
-        )
-        return json.dumps({
-            "success": saved,
-            "message": "Task created successfully" if saved else "Failed to create task",
-        })
+    def add_event(
+        title: str,
+        description: str,
+        event_date: str,
+        event_type: str = "TASK",
+    ) -> str:
+        """Create a new personal event/reminder for the current user.
 
-    return [check_classroom_calendar, create_personal_task]
+        Args:
+            title: Short name of the event.
+            description: Longer detail about the event. Pass an empty
+                string if the user gave none.
+            event_date: ISO-8601 datetime WITH timezone offset, e.g.
+                "2026-07-10T18:00:00Z" or "2026-07-10T18:00:00+06:00".
+                Resolve any relative date/time the user gives (e.g.
+                "tomorrow at 6pm", "next Friday") against the current
+                date and timezone given in the system prompt — never
+                guess a date.
+            event_type: One of TASK (must match the calendar_event_type enum exactly).
+                Defaults to "TASK" for a generic personal reminder/to-do.
+
+        This tool ALWAYS creates a personal event: classroom_id is always
+        NULL and is_personal is always TRUE. It can never create or modify
+        a classroom-wide event — if the user asks to add something to the
+        shared classroom calendar, say you can only add it as a personal
+        event instead."""
+        result = insert_event(
+            conn, user_id=user_id, classroom_id=classroom_id, title=title, description=description,
+            event_date=event_date, event_type=event_type,
+        )
+        return json.dumps(result)
+
+    return [get_all_my_events, add_event]
 
 
 # ---------------------------------------------------------------------------
@@ -160,16 +175,46 @@ def build_tools(conn, user_id: int, classroom_id: int):
 # ---------------------------------------------------------------------------
 class ToolAgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
+    ans: str
 
 
-SYSTEM_PROMPT = (
-    "You are a helpful classroom assistant. You can check the classroom "
-    "calendar or create personal tasks/reminders for the user via the "
-    "tools available to you. Always use a tool rather than guessing dates "
-    "or event details. After a tool call returns, summarize the result "
-    "for the user in plain language — don't just repeat raw JSON."
-)
+def build_system_prompt(user_id: int, classroom_id: int) -> str:
+    """Built fresh per invocation so the model is always grounded in the
+    real current date/time and the actual classroom/user it's bound to.
+    A static prompt string can't resolve relative dates like 'tomorrow'
+    and doesn't tell the model which classroom is already in scope."""
+    now = datetime.now(timezone.utc)
+    return (
+        "You are a helpful classroom assistant embedded in a chat.\n\n"
+        f"Current date and time (UTC): {now.isoformat()}\n"
+        f"Current classroom_id: {classroom_id}\n"
+        f"Current user_id: {user_id}\n\n"
+        "You have two tools:\n"
+        "- get_all_my_events: fetch this classroom's shared events plus "
+        "the user's own personal events in it. Call this whenever the "
+        "user asks about what's on their calendar, due dates, or "
+        "upcoming events — never answer from memory or guess dates.\n"
+        "- add_event: create a personal reminder/to-do for the user. "
+        "This always creates a *personal* event, never a classroom "
+        "event — if the user explicitly asks to add something to the "
+        "classroom's shared calendar, explain that you can only add "
+        "personal events and offer to add it as one instead.\n\n"
+        "When creating an event, resolve any relative date or time "
+        "(e.g. 'tomorrow', 'next Friday at 6pm') against the current "
+        "date/time above and pass a full ISO-8601 datetime with a "
+        "timezone offset — never guess or invent a date. If the "
+        "date/time is ambiguous or missing, ask the user to clarify "
+        "before calling add_event.\n\n"
+        "After any tool call returns, summarize the result for the user "
+        "in plain, natural language — never repeat raw JSON or field "
+        "names verbatim."
+    )
 
+
+def route_debug(state):
+    result = tools_condition(state)
+    print("ROUTER RESULT:", result)
+    return result
 
 def build_calendar_task_agent(conn, user_id: int, classroom_id: int):
     tools = build_tools(conn, user_id=user_id, classroom_id=classroom_id)
@@ -177,10 +222,14 @@ def build_calendar_task_agent(conn, user_id: int, classroom_id: int):
 
     def agent_node(state: ToolAgentState) -> ToolAgentState:
         messages = state["messages"]
-        if not any(isinstance(m, SystemMessage) for m in messages):
-            messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
+        system_prompt = build_system_prompt(user_id=user_id, classroom_id=classroom_id)
+        if messages and isinstance(messages[0], SystemMessage):
+            messages = [SystemMessage(content=system_prompt)] + messages[1:]
+        else:
+            messages = [SystemMessage(content=system_prompt)] + messages
         response = llm_with_tools.invoke(messages)
-        return {"messages": [response]}
+        print(f"calendar_task_agent: response.answer={response}")
+        return {"messages": [response], "ans": response.text}
 
     graph = StateGraph(ToolAgentState)
     graph.add_node("agent", agent_node)
@@ -188,7 +237,7 @@ def build_calendar_task_agent(conn, user_id: int, classroom_id: int):
 
     graph.add_edge(START, "agent")
     graph.add_conditional_edges(
-        "agent", tools_condition, {"tools": "tools", "__end__": END}
+        "agent", route_debug, {"tools": "tools", "__end__": END}
     )
     graph.add_edge("tools", "agent")
 

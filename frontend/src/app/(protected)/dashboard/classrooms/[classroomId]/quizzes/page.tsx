@@ -20,6 +20,7 @@ import CreateQuizDialog from "./CreateQuizDialog";
 import EditQuizDialog from "./EditQuizDialog";
 import EmptyState from "./EmptyState";
 import MySubmissionsSummary from "./MySubmissionsSummary";
+import PageTitle from "../materials/PageTitle";
 
 export default function QuizzesPage() {
   const params = useParams();
@@ -74,12 +75,18 @@ export default function QuizzesPage() {
   }
 
   useEffect(() => {
-    loadQuizzes();
-    if (!isTeacher) {
-      loadMySubmissions();
+    const load = async () => {
+      loadQuizzes();
+    };
+    async function loadSubmissions() {
+      if (!isTeacher) {
+        await loadMySubmissions();
+      }
     }
+    load();
+    loadSubmissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classroomId]);
+  }, []);
 
   // ── Create ──────────────────────────────────────────────────────────────────
   async function handleCreate(e: React.FormEvent) {
@@ -225,17 +232,7 @@ export default function QuizzesPage() {
   return (
     <div className="px-4 py-6 sm:px-6">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8168f3]/10">
-            <ListChecks className="h-5 w-5 text-[#8168f3]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Quizzes</h1>
-            <p className="text-sm text-muted-foreground">
-              {quizzes.length} {quizzes.length === 1 ? "quiz" : "quizzes"}
-            </p>
-          </div>
-        </div>
+      <PageTitle title="Quizzes" icon={ListChecks} />
 
         {isTeacher && (
           <Button

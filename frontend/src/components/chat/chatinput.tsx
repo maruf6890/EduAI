@@ -55,6 +55,7 @@ export interface AnimatedAIChatProps {
   selectedModel?: string;
   onSelectModel?: (modelId: string) => void;
   commandSuggestions?: CommandSuggestion[];
+  LoadingMessages: boolean;
   showCommandPalette: boolean;
   activeSuggestion: number;
   onToggleCommandPalette: () => void;
@@ -132,6 +133,7 @@ export default function AnimatedAIChat({
   onToggleCommandPalette,
   onSelectCommand,
   commandPaletteRef,
+  LoadingMessages,
   isGenerating,
   inputFocused,
   mousePosition,
@@ -218,7 +220,7 @@ export default function AnimatedAIChat({
                 onClick={onSend}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
-                disabled={isGenerating || !value.trim()}
+                disabled={isGenerating || !value.trim() || LoadingMessages}
                 className={cn(
                   "shrink-0 cursor-pointer rounded-lg px-4 py-2 text-sm font-bold transition-all",
                   "flex items-center gap-2",

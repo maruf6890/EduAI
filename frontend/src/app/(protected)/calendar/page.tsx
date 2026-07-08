@@ -16,6 +16,8 @@ import {
     mapEventResponseToCalendarEvent,
     buildCalendarsFromEvents,
 } from "@/components/calendar/scheduler/lib/adapter";
+import PageTitle from "../dashboard/classrooms/[classroomId]/materials/PageTitle";
+import { CalendarDays } from "lucide-react";
 
 export default function Home() {
     const [rawEvents, setRawEvents] = useState<CalendarEventResponse[]>([]);
@@ -43,7 +45,10 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        fetchCalendar();
+        const fetchCalendarData = async () => {
+            fetchCalendar();
+        }
+        fetchCalendarData();
     }, [fetchCalendar]);
 
     const events = useMemo(
@@ -104,16 +109,9 @@ export default function Home() {
 
     return (
         <main className="min-h-screen p-4 md:p-8">
-            <div className="max-w-7xl mx-auto">
+            <div className="">
                 <div className="mb-8 flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold mb-2 text-brand-primary">
-                            Academic Calendar
-                        </h1>
-                        <p className="text-[#452e80]">
-                            Manage your teaching schedule, deadlines, quizzes, and classroom activities.
-                        </p>
-                    </div>
+                    <PageTitle title="Calendar" icon={CalendarDays} />
                     {error && (
                         <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">
                             {error}
@@ -121,7 +119,7 @@ export default function Home() {
                     )}
                 </div>
 
-                <div className="h-[700px] border rounded-lg overflow-hidden">
+                <div className="h-[700px] border rounded-sm overflow-hidden">
                     <BasicScheduler
                         events={filteredEvents}
                         view={view}

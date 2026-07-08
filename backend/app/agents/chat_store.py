@@ -220,7 +220,7 @@ def list_messages(conn, session_id: int) -> List[dict]:
         )
         rows = curr.fetchall()
         return [
-            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": r[3], "created_at": r[4].isoformat(), "result_reference": r[5], "route_used": r[6]}
+            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": json.loads(r[3]) if r[3] else None, "created_at": r[4].isoformat(), "result_reference": json.loads(r[5]) if r[5] else None, "route_used": r[6]}
             for r in rows
         ]
     finally:
@@ -241,7 +241,7 @@ def list_messages_by_classroom_and_users(conn, classroom_id: int, user_ids: List
         )
         rows = curr.fetchall()
         return [
-            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": r[3], "created_at": r[4].isoformat(), "session_id": r[5], "result_reference": r[6], "route_used": r[7]}
+            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": json.loads(r[3]) if r[3] else None, "created_at": r[4].isoformat(), "session_id": r[5], "result_reference": json.loads(r[6]) if r[6] else None, "route_used": r[7]}
             for r in rows
         ]
     finally:

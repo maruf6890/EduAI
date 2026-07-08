@@ -55,12 +55,6 @@ const TABS = [
     label: "AI Assistant",
     path: "assistant",
     icon: Bot,
-  },
-  {
-    key: "submissions",
-    label: "My Submissions",
-    path: "submissions",
-    icon: ClipboardList,
   }
 ] as const;
 
@@ -74,7 +68,7 @@ export default function ClassroomTabs({
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
-      <div className="flex gap-3 overflow-x-auto border-b border-white/[0.06] py-2">
+      <div className="flex overflow-x-auto  py-2">
         {TABS.map((tab) => {
           const fullPath = `/dashboard/classrooms/${classroomId}${
             tab.path ? `/${tab.path}` : ""
@@ -89,10 +83,10 @@ export default function ClassroomTabs({
               variant="ghost"
               onClick={() => router.push(fullPath)}
               className={cn(
-                "shrink-0 rounded-md border px-4 py-2 text-[13px] font-medium transition-all",
+                "shrink rounded-none !border-b-1.5 cursor-pointer hover:bg-brand-primary/1 border-gray-300 border-r-0  border-l-0 border-t-0 px-4 py-2 text-text-muted text-[13px] font-medium transition-all duration-200",
                 isActive
-                  ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                  : "border-border bg-surface text-muted-foreground hover:bg-brand-primary/5 hover:text-brand-primary",
+                  ? " text-text-main border-gray-900"
+                  : " ",
               )}
             >
               <Icon className="mr-1 h-4 w-4" />

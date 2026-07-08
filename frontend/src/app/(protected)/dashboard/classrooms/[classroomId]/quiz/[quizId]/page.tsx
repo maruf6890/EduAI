@@ -40,9 +40,7 @@ import {
     Send,
 } from "lucide-react";
 
-interface PageProps {
-    params: Promise<{ classroomId: string; quizId: string }>;
-}
+
 
 const OPTION_KEYS: { key: QuizOption; field: keyof QuizQuestion }[] = [
     { key: "A", field: "option_a" },
@@ -232,7 +230,7 @@ export default function TakeQuizPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
                     <AlertTriangle className="h-6 w-6 text-red-500" />
                 </div>
-                <h2 className="text-lg font-semibold">Couldn't load this quiz</h2>
+                <h2 className="text-lg font-semibold">Could&apos;t load this quiz</h2>
                 <p className="text-sm text-muted-foreground">{error}</p>
                 <Button
                     variant="outline"
@@ -250,137 +248,146 @@ export default function TakeQuizPage() {
         const questionCount = quiz.questions?.length ?? 0;
 
         return (
-            <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-10 md:py-16">
-                <Card className="w-full rounded-xl">
-                    <CardHeader>
-                        <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-xl">
-                            <span>{quiz.title}</span>
-                            <Badge
-                                variant="outline"
-                                className={`rounded-lg ${quiz.status === "ACTIVE"
-                                    ? "border-brand-secondary/30 text-brand-secondary"
-                                    : "border-muted-foreground/30 text-muted-foreground"
-                                    }`}
-                            >
-                                {quiz.status}
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {quiz.description && (
-                            <p className="text-sm text-muted-foreground">{quiz.description}</p>
-                        )}
+          <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-10 md:py-16">
+            <Card className="w-full rounded-xl">
+              <CardHeader>
+                <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-xl">
+                  <span>{quiz.title}</span>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-lg ${
+                      quiz.status === "ACTIVE"
+                        ? "border-brand-secondary/30 text-brand-secondary"
+                        : "border-muted-foreground/30 text-muted-foreground"
+                    }`}
+                  >
+                    {quiz.status}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {quiz.description && (
+                  <p className="text-sm text-muted-foreground">
+                    {quiz.description}
+                  </p>
+                )}
 
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                            <div className="rounded-xl border border-border px-4 py-3">
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <ListChecks className="h-3.5 w-3.5" />
-                                    Questions
-                                </div>
-                                <p className="mt-1 text-lg font-semibold text-brand-primary">
-                                    {questionCount}
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-border px-4 py-3">
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Clock className="h-3.5 w-3.5" />
-                                    Duration
-                                </div>
-                                <p className="mt-1 text-lg font-semibold text-brand-primary">
-                                    {quiz.duration_minutes} min
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-border px-4 py-3">
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Total marks
-                                </div>
-                                <p className="mt-1 text-lg font-semibold text-brand-primary">
-                                    {quiz.total_marks}
-                                </p>
-                            </div>
-                        </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-border px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <ListChecks className="h-3.5 w-3.5" />
+                      Questions
+                    </div>
+                    <p className="mt-1 text-lg font-semibold text-brand-primary">
+                      {questionCount}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      Duration
+                    </div>
+                    <p className="mt-1 text-lg font-semibold text-brand-primary">
+                      {quiz.duration_minutes} min
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Total marks
+                    </div>
+                    <p className="mt-1 text-lg font-semibold text-brand-primary">
+                      {quiz.total_marks}
+                    </p>
+                  </div>
+                </div>
 
-                        {quiz.scheduled_at && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <CalendarClock className="h-3.5 w-3.5" />
-                                Scheduled for {new Date(quiz.scheduled_at).toLocaleString()}
-                            </div>
-                        )}
+                {quiz.scheduled_at && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    Scheduled for {new Date(quiz.scheduled_at).toLocaleString()}
+                  </div>
+                )}
 
-                        {error && (
-                            <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                                <AlertTriangle className="h-4 w-4 shrink-0" />
-                                {error}
-                            </div>
-                        )}
+                {error && (
+                  <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
 
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button
-                                    className="w-full rounded-xl bg-brand-primary text-white hover:bg-brand-primary/90"
-                                    disabled={starting || !quiz.is_published || questionCount === 0}
-                                >
-                                    {starting ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Starting…
-                                        </>
-                                    ) : (
-                                        "Start quiz"
-                                    )}
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-xl">
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Start this quiz?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Once you start, the {quiz.duration_minutes}-minute timer begins
-                                        immediately and can't be paused.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel className="rounded-xl">Not yet</AlertDialogCancel>
-                                    <AlertDialogAction
-                                        className="rounded-xl bg-brand-primary hover:bg-brand-primary/90"
-                                        onClick={handleStartQuiz}
-                                    >
-                                        Start quiz
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      className="w-full rounded-xl bg-brand-primary text-white hover:bg-brand-primary/90"
+                      disabled={
+                        starting || !quiz.is_published || questionCount === 0
+                      }
+                    >
+                      {starting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Starting…
+                        </>
+                      ) : (
+                        "Start quiz"
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Start this quiz?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Once you start, the {quiz.duration_minutes}-minute timer
+                        begins immediately and cant be paused.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="rounded-xl">
+                        Not yet
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        className="rounded-xl bg-brand-primary hover:bg-brand-primary/90"
+                        onClick={handleStartQuiz}
+                      >
+                        Start quiz
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
-                        {!quiz.is_published && (
-                            <p className="text-center text-xs text-muted-foreground">
-                                This quiz isn't published yet.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                {!quiz.is_published && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    This quiz isn&apos;t published yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         );
     }
 
     // ── Empty state (attempt started but no questions returned) ────────────
     if (quizStarted && totalQuestions === 0) {
         return (
-            <div className="mx-auto flex max-w-xl flex-col items-center gap-3 px-4 py-16 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-secondary/10">
-                    <ListChecks className="h-6 w-6 text-brand-secondary" />
-                </div>
-                <h2 className="text-lg font-semibold">No questions yet</h2>
-                <p className="text-sm text-muted-foreground">
-                    This quiz doesn't have any questions to answer right now.
-                </p>
-                <Button
-                    variant="outline"
-                    className="rounded-xl"
-                    onClick={() => router.push(`/dashboard/classrooms/${classroomId}/quizzes`)}
-                >
-                    Back to quizzes
-                </Button>
+          <div className="mx-auto flex max-w-xl flex-col items-center gap-3 px-4 py-16 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-secondary/10">
+              <ListChecks className="h-6 w-6 text-brand-secondary" />
             </div>
+            <h2 className="text-lg font-semibold">No questions yet</h2>
+            <p className="text-sm text-muted-foreground">
+              This quiz doesn&apos;t have any questions to answer right now.
+            </p>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() =>
+                router.push(`/dashboard/classrooms/${classroomId}/quizzes`)
+              }
+            >
+              Back to quizzes
+            </Button>
+          </div>
         );
     }
 
