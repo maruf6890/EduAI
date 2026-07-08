@@ -15,8 +15,8 @@ export default function TeacherSubmissionsPanel({
 }) {
   if (submissions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/30 py-12 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#8168f3]/10">
+      <div className="flex flex-col items-center justify-center rounded-sm border border-dashed border-border bg-muted/30 py-12 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#8168f3]/10">
           <Users className="h-5 w-5 text-[#8168f3]" />
         </div>
         <h3 className="mt-3 text-sm font-semibold text-foreground">No submissions yet</h3>
@@ -34,7 +34,7 @@ export default function TeacherSubmissionsPanel({
         return (
           <div
             key={submission.id}
-            className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+            className="flex flex-col gap-3 rounded-sm border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#8168f3] text-sm font-bold text-white">

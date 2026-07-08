@@ -52,7 +52,7 @@ export default function SubmitAssignmentDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label>Attach files</Label>
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-sm text-muted-foreground transition hover:border-[#8168f3] hover:text-[#8168f3]">
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-border px-3 py-3 text-sm text-muted-foreground transition hover:border-[#8168f3] hover:text-[#8168f3]">
               <Paperclip className="h-4 w-4" />
               Add files
               <input type="file" multiple onChange={onFileChange} className="hidden" />
@@ -63,7 +63,7 @@ export default function SubmitAssignmentDialog({
                 {files.map((file, index) => (
                   <li
                     key={`${file.name}-${index}`}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs"
+                    className="flex items-center justify-between rounded-sm border border-border bg-muted/40 px-3 py-2 text-xs"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

@@ -32,6 +32,7 @@ import {
 } from "@/actions/dashboard/discussion";
 import { Dialog } from "@/components/ui/dialog";
 import { useClassroom } from "../ClassroomContext";
+import { Switch } from "@/components/ui/switch";
 import PageTitle from "../materials/PageTitle";
 
 /* =========================================================================
@@ -198,20 +199,69 @@ export default function DiscussionsPage() {
         setIsCreateModalOpen(true);
     }
 
+    // async function handleCreatePost(postTitle: string, postContent: string) {
+    //     setIsSubmittingPost(true);
+    //     const res = await createPost(classroomId, postTitle, postContent);
+    //     const json = res;
+
+    //     if (!json?.success || !json?.data) {
+    //         console.error("Failed to create post:", json?.message);
+    //         setIsSubmittingPost(false);
+    //         return; // don't touch posts state, don't close modal
+    //     }
+
+    //     setPosts((prev) => [json.data, ...prev]);
+    //     setIsSubmittingPost(false);
+    //     setIsCreateModalOpen(false);
+    // }
+
     async function handleCreatePost(postTitle: string, postContent: string) {
         setIsSubmittingPost(true);
         const res = await createPost(classroomId, postTitle, postContent);
-        const json = res;
 
-        if (!json?.success || !json?.data) {
-            console.error("Failed to create post:", json?.message);
+        if (!res?.success || !res?.data) {
+            console.error("Failed to create post:", res?.message);
             setIsSubmittingPost(false);
-            return; // don't touch posts state, don't close modal
+            return;
         }
 
-        setPosts((prev) => [json.data, ...prev]);
+        // create endpoint doesn't hydrate created_by the way getPosts does —
+        // fall back to the logged-in user until a refetch fixes it.
+        const newPost: Post = {
+            ...res.data,
+            created_by: res.data.created_by?.full_name
+                ? res.data.created_by
+                : {
+                    id: Number(classroom.current_user.id),
+                    full_name: classroom.current_user.full_name,
+                    email: classroom.current_user.email,
+                },
+        };
+
+        setPosts((prev) => [newPost, ...prev]);
         setIsSubmittingPost(false);
         setIsCreateModalOpen(false);
+    }
+
+    async function handleUpdatePost(postTitle: string, postContent: string, isActive: boolean) {
+        if (!editingPost) return;
+
+        const res = await updatePost(classroomId, editingPost.id, postTitle, postContent, isActive);
+
+        if (!res?.success || !res?.data) {
+            console.error("Failed to update post:", res?.message);
+            return; // don't corrupt state with undefined
+        }
+
+        const updatedPost: Post = {
+            ...res.data,
+            created_by: res.data.created_by?.full_name
+                ? res.data.created_by
+                : editingPost.created_by, // keep what we already knew
+        };
+
+        setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? updatedPost : p)));
+        setEditingPost(null);
     }
 
     function handleOpenEditModal(post: Post) {
@@ -220,24 +270,24 @@ export default function DiscussionsPage() {
         setOpenMenuId(null);
     }
 
-    async function handleUpdatePost(postTitle: string, postContent: string, isActive: boolean) {
-        if (!editingPost) return;
+    // async function handleUpdatePost(postTitle: string, postContent: string, isActive: boolean) {
+    //     if (!editingPost) return;
 
-        const res = await updatePost(
-            classroomId,
-            editingPost.id,
-            postTitle,
-            postContent,
-            isActive
-        );
-        const json = res;
-        setPosts((prev) =>
-            prev.map((p) =>
-                p.id === editingPost.id ? json.data : p
-            )
-        );
-        setEditingPost(null);
-    }
+    //     const res = await updatePost(
+    //         classroomId,
+    //         editingPost.id,
+    //         postTitle,
+    //         postContent,
+    //         isActive
+    //     );
+    //     const json = res;
+    //     setPosts((prev) =>
+    //         prev.map((p) =>
+    //             p.id === editingPost.id ? json.data : p
+    //         )
+    //     );
+    //     setEditingPost(null);
+    // }
 
     async function handleDeletePost(post: Post) {
 
@@ -557,7 +607,7 @@ function PostCard({
                             {isMenuOpen && (
                                 <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
+                                    className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-sm border border-zinc-400 bg-zinc-900 shadow-xl shadow-black/40"
                                 >
                                     <button
                                         onClick={onEdit}
@@ -584,7 +634,7 @@ function PostCard({
 
             {/* Expanded: full content + comment thread */}
             {isExpanded && (
-                <div className="border-2 border-surface-border px-4 pb-4 pt-3 sm:px-5">
+                <div className="px-4 pb-4 pt-3 sm:px-5">
                     {post.content && <p className="mb-4 whitespace-pre-wrap text-sm text-text-main">{post.content}</p>}
 
                     {/* Comment thread */}
@@ -674,7 +724,7 @@ function CommentItem({
     }
 
     return (
-        <div className={depth > 0 ? "ml-6 border-l border-zinc-800 pl-4 sm:ml-8" : ""}>
+        <div className={depth > 0 ? "ml-6 border-l border-zinc-400 pl-4 sm:ml-8" : ""}>
             <div className="flex items-start gap-2.5">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-semibold text-zinc-300">
                     {initials(comment.created_by.full_name)}
@@ -695,7 +745,7 @@ function CommentItem({
                                     onChange={(e) => setEditText(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && submitEdit()}
                                     autoFocus
-                                    className="w-full rounded-md border border-zinc-700 bg-bg-main px-2 py-1 text-sm text-text-main focus:border-brand-primary focus:outline-none"
+                                    className="w-full rounded-md border border-zinc-300 bg-bg-main px-2 py-1 text-sm text-text-main focus:border-brand-primary focus:outline-none"
                                 />
                                 <button onClick={submitEdit} className="shrink-0 text-xs font-medium text-brand-primary">
                                     Save
@@ -746,7 +796,7 @@ function CommentItem({
                                 onKeyDown={(e) => e.key === "Enter" && submitReply()}
                                 autoFocus
                                 placeholder={`Reply to ${comment.created_by.full_name}...`}
-                                className="w-full rounded-md border border-zinc-700 bg-bg-main px-2 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none"
+                                className="w-full rounded-md border border-zinc-300 bg-bg-main px-2 py-1.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none"
                             />
                             <button
                                 onClick={submitReply}
@@ -785,9 +835,9 @@ function CommentItem({
 
 function EmptyState({ onCreate }: { onCreate?: () => void }) {
     return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-20 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
-                <MessageSquare className="h-6 w-6 text-zinc-600" />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-400 py-20 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-soft">
+                <MessageSquare className="h-6 w-6 text-brand-primary" />
             </div>
             <h3 className="mt-4 text-sm font-medium text-zinc-200">No discussions yet</h3>
             <p className="mt-1 max-w-sm text-sm text-zinc-500">
@@ -841,13 +891,13 @@ function PostFormModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-white/10 backdrop-blur-sm sm:items-center sm:p-4">
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-zinc-800 bg-bg-main sm:max-w-lg sm:rounded-2xl"
+                className="flex max-h-[90vh] w-full flex-col rounded-t-2xl border border-border-main bg-bg-main sm:max-w-lg sm:rounded-2xl"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+                <div className="flex items-center justify-between border-b border-border-main/50 px-5 py-4">
                     <h2 className="text-base font-semibold text-text-main">{title}</h2>
                     <button
                         onClick={onClose}
@@ -871,7 +921,7 @@ function PostFormModal({
                                 value={postTitle}
                                 onChange={(e) => setPostTitle(e.target.value)}
                                 placeholder="What's this about?"
-                                className="w-full rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full rounded-sm border border-zinc-300 bg-bg-main px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
@@ -882,18 +932,18 @@ function PostFormModal({
                                 onChange={(e) => setPostContent(e.target.value)}
                                 placeholder="Share details, ask a question, or start a discussion..."
                                 rows={5}
-                                className="w-full resize-none rounded-sm border border-zinc-700 bg-bg-main px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                                className="w-full resize-none rounded-sm border border-zinc-300 bg-bg-main px-3 py-2.5 text-sm text-text-main placeholder:text-zinc-600 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
                             />
                         </div>
 
                         {showActiveToggle && (
-                            <div className="rounded-sm border border-zinc-800 bg-bg-main/50 p-3">
+                            <div className="rounded-sm border border-border-main bg-bg-main/50 p-3">
                                 <label className="flex cursor-pointer items-center justify-between">
                                     <span className="flex items-center gap-2 text-sm text-zinc-300">
                                         {isActive ? <ArchiveRestore className="h-4 w-4 text-zinc-500" /> : <Archive className="h-4 w-4 text-zinc-500" />}
                                         {isActive ? "Visible to students" : "Archived (hidden from students)"}
                                     </span>
-                                    <ToggleSwitch checked={isActive} onChange={setIsActive} />
+                                    <Switch checked={isActive} onCheckedChange={setIsActive} className="data-checked:bg-brand-primary" />
                                 </label>
                             </div>
                         )}
@@ -901,11 +951,11 @@ function PostFormModal({
                 </form>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-5 py-4">
+                <div className="flex items-center justify-end gap-2 border-t border-border-main/50 px-5 py-4">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-text-main hover:bg-zinc-800 hover:text-zinc-200"
+                        className="rounded-sm px-4 py-2.5 text-sm font-medium text-brand-primary hover:bg-brand-primary/10 transition-colors"
                     >
                         Cancel
                     </button>
@@ -913,38 +963,12 @@ function PostFormModal({
                         type="submit"
                         onClick={handleSubmit}
                         disabled={!postTitle.trim() || isSubmitting}
-                        className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500 disabled:opacity-100"
+                        className="rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isSubmitting ? "Posting..." : submitLabel}
                     </button>
                 </div>
             </div>
         </div>
-    );
-}
-
-/* =========================================================================
-   TOGGLE SWITCH
-   ========================================================================= */
-
-function ToggleSwitch({
-    checked,
-    onChange,
-}: {
-    checked: boolean;
-    onChange: (checked: boolean) => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={() => onChange(!checked)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-primary" : "bg-zinc-700"
-                }`}
-        >
-            <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"
-                    }`}
-            />
-        </button>
     );
 }
