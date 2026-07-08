@@ -108,10 +108,10 @@ export default function CommunityClassroomsPage() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="px-4 py-6 md:px-6">
 
       {/* Header + search stay narrow and centered */}
-      <div className=" mb-6 max-w-width">
+      <div className=" mb-6 max-w-full">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#8168f3] to-[#6f57e0] shadow-sm">
@@ -136,9 +136,9 @@ export default function CommunityClassroomsPage() {
       </div>
 
       {/* Card grid gets a wider container */}
-      <div className="mx-auto max-w-[1400px]">
+      <div className="max-w-full">
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ">
             {[...Array(6)].map((_, i) => (
               <Skeleton key={i} className="h-52 rounded-2xl" />
             ))}

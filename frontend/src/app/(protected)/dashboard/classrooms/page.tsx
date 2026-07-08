@@ -13,7 +13,6 @@ import { mapCreatedClassrooms, mapEnrolledClassrooms } from '@/lib/mappers/class
 import { private_api_call } from '@/actions/private_api_call';
 import { useRouter } from 'next/navigation';
 import ChatbotButton from '@/components/chat/chatbotbutton';
-import ProfileButton from '../../profile/profileicon';
 
 
 async function fetchCreatedClassrooms(): Promise<ClassroomCard[]> {

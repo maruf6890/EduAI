@@ -69,7 +69,7 @@ export default function Register() {
                 <div className="flex items-center justify-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-primary/50" />
                     <span className="text-[11px] font-medium text-text-main/50 tracking-widest uppercase">
-                        ClassMind AI
+                        Edu-AI
                     </span>
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-primary/50" />
                 </div>
