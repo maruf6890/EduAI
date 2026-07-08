@@ -20,6 +20,7 @@ def init_db_pool():
         dbname=settings.DB_NAME,
         user=settings.DB_USER,
         password=settings.DB_PASSWORD,
+        # sslmode="require",         
         cursor_factory=psycopg2.extras.RealDictCursor,
     )
     logger.info("DB pool initialized")

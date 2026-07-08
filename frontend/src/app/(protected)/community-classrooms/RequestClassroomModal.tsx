@@ -49,6 +49,7 @@ export default function RequestClassroomModal({
   }
 
   // ── Step 1: save the request — backend also returns related classrooms ──────
+  // ── Step 1: save the request, then enrich each suggestion with full details ──
   async function handleSubmitRequest(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
@@ -68,8 +69,22 @@ export default function RequestClassroomModal({
         toast.error(res.message || "Failed to submit request");
         return;
       }
-      console.log("Request submitted successfully:", res.data);
-      setRelatedClassrooms([]);
+
+      const suggestions: { id: number }[] = res.data.suggested_classrooms ?? [];
+
+      // The AI response only gives lightweight suggestions (id, similarity, etc.) —
+      // fetch full details for each so we can reuse the same card with role/has_teacher
+      const details = await Promise.all(
+        suggestions.map(async (s) => {
+          const detailRes = await private_api_call({
+            method: "GET",
+            path: `community-classrooms/${s.id}`,
+          });
+          return detailRes.success ? (detailRes.data as CommunityClassroom) : null;
+        })
+      );
+
+      setRelatedClassrooms(details.filter((c): c is CommunityClassroom => c !== null));
       toast.success("Your request has been submitted");
       setStep("results");
     } catch (err) {
