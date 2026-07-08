@@ -14,6 +14,7 @@ import AssignmentCard from "./AssignmentCard";
 import CreateAssignmentDialog from "./CreateAssignmentDialog";
 import EditAssignmentDialog from "./EditAssignmentDialog";
 import EmptyState from "./EmptyState";
+import PageTitle from "../materials/PageTitle";
 
 export default function AssignmentsPage() {
   const params = useParams();
@@ -54,7 +55,10 @@ export default function AssignmentsPage() {
   }
 
   useEffect(() => {
-    loadAssignments();
+    const load = async () => {
+      await loadAssignments();
+    }
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroomId]);
 
@@ -171,18 +175,8 @@ export default function AssignmentsPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8168f3]/10">
-            <ClipboardList className="h-5 w-5 text-[#8168f3]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Assignments</h1>
-            <p className="text-sm text-muted-foreground">
-              {assignments.length} {assignments.length === 1 ? "assignment" : "assignments"}
-            </p>
-          </div>
-        </div>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center items-center sm:justify-between">
+        <PageTitle title="Assignments" icon={ClipboardList} />
 
         {isTeacher && (
           <Button
@@ -202,7 +196,9 @@ export default function AssignmentsPage() {
           ))}
         </div>
       ) : assignments.length === 0 ? (
-        <EmptyState onCreate={isTeacher ? () => setIsCreateOpen(true) : undefined} />
+        <EmptyState
+          onCreate={isTeacher ? () => setIsCreateOpen(true) : undefined}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {assignments.map((assignment) => (
@@ -211,7 +207,9 @@ export default function AssignmentsPage() {
               assignment={assignment}
               isTeacher={isTeacher}
               onView={() =>
-                router.push(`/dashboard/classrooms/${classroomId}/assignments/${assignment.id}`)
+                router.push(
+                  `/dashboard/classrooms/${classroomId}/assignments/${assignment.id}`,
+                )
               }
               onEdit={() => openEdit(assignment)}
               onDelete={() => handleDelete(assignment)}

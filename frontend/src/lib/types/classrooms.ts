@@ -1,25 +1,25 @@
 export type ClassroomRole = "teacher" | "student";
 
 export interface ClassroomInstructor {
-    id?: string;
-    name: string;
-    avatarUrl?: string;
+  id?: string;
+  name: string;
+  avatarUrl?: string;
 }
 
 export type UpcomingItemType = "assignment" | "quiz" | "announcement";
 
 export interface UpcomingItem {
-    id: string;
-    title: string;
-    type: UpcomingItemType;
-    dueAt: string;
+  id: string;
+  title: string;
+  type: UpcomingItemType;
+  dueAt: string;
 }
 
 export interface ClassroomStats {
-    students: number;
-    materials: number;
-    assignments: number;
-    quizzes: number;
+  students: number;
+  materials: number;
+  assignments: number;
+  quizzes: number;
 }
 
 // ─── Raw backend shapes (DTOs) ──────────────────────────────────────────────
@@ -29,22 +29,22 @@ export interface ClassroomStats {
 
 /** Row shape for `GET /classrooms` (classes the current user teaches). */
 export interface CreatedClassroomDTO {
-    id: string;
-    name?: string;
-    course_code?: string;
-    courseCode?: string;
-    course_title?: string;
-    courseTitle?: string;
-    description?: string;
-    semester?: string;
-    cover_image?: string;
-    coverImage?: string;
-    owner_name?: string;
-    accent_gradient?: string;
-    accentGradient?: string;
-    instructor?: string | ClassroomInstructor;
-    stats?: Partial<ClassroomStats>;
-    upcoming?: UpcomingItem[];
+  id: string;
+  name?: string;
+  course_code?: string;
+  courseCode?: string;
+  course_title?: string;
+  courseTitle?: string;
+  description?: string;
+  semester?: string;
+  cover_image?: string;
+  coverImage?: string;
+  owner_name?: string;
+  accent_gradient?: string;
+  accentGradient?: string;
+  instructor?: string | ClassroomInstructor;
+  stats?: Partial<ClassroomStats>;
+  upcoming?: UpcomingItem[];
 }
 
 /**
@@ -54,9 +54,9 @@ export interface CreatedClassroomDTO {
  * both — this type just documents that both are possible.
  */
 export interface EnrolledClassroomDTO extends Omit<CreatedClassroomDTO, "id"> {
-    id?: string;
-    classroom_id?: string;
-    classroom?: CreatedClassroomDTO;
+  id?: string;
+  classroom_id?: string;
+  classroom?: CreatedClassroomDTO;
 }
 
 // ─── UI-facing shape ─────────────────────────────────────────────────────────
@@ -66,20 +66,20 @@ export interface EnrolledClassroomDTO extends Omit<CreatedClassroomDTO, "id"> {
  * Produced exclusively by `mapToClassroomCard` in `lib/mappers/classroom.ts`.
  */
 export interface ClassroomCard {
-    id: string;
-    name: string;
-    courseCode: string;
-    /** Full course title, e.g. "Introduction to Algorithms" vs a short `name`. */
-    courseTitle?: string;
-    description?: string;
-    instructor: string;
-    coverImage?: string;
-    /** Tailwind gradient classes used as the cover stripe when no image provided */
-    accentGradient?: string;
-    semester: string;
-    role: ClassroomRole;
-    stats: ClassroomStats;
-    upcoming: UpcomingItem[];
+  id: string;
+  name: string;
+  courseCode: string;
+  /** Full course title, e.g. "Introduction to Algorithms" vs a short `name`. */
+  courseTitle?: string;
+  description?: string;
+  instructor: string;
+  coverImage?: string;
+  /** Tailwind gradient classes used as the cover stripe when no image provided */
+  accentGradient?: string;
+  semester: string;
+  role: ClassroomRole;
+  stats: ClassroomStats;
+  upcoming: UpcomingItem[];
 }
 
 // ─── Misc ────────────────────────────────────────────────────────────────────
@@ -89,35 +89,34 @@ export interface ClassroomCard {
  * `CreateClassModal`'s `onSuccess` callback needs to redirect the user.
  */
 export interface Classroom {
-    id: string;
-    name: string;
-    code?: string;
-    semester?: string;
-    instructor: { name: string };
-    stats: { students: number; assignments: number; quizzes: number };
+  id: string;
+  name: string;
+  code?: string;
+  semester?: string;
+  instructor: { name: string };
+  stats: { students: number; assignments: number; quizzes: number };
 }
 
 export interface ClassroomContextType {
+  id: string;
+
+  name: string;
+  course_code: string;
+  course_title?: string;
+  description?: string;
+  semester: string;
+
+  teacher: {
     id: string;
-
     name: string;
-    course_code: string;
-    course_title?: string;
-    description?: string;
-    semester: string;
-
-    teacher: {
-        id: string;
-        name: string;
-    };
-    current_user: {
-        email: string;
-        full_name: string;
-        id: string;
-        role: "teacher" | "student";
-    };
+  };
+  current_user: {
+    email: string;
+    full_name: string;
+    id: string;
+    role: "teacher" | "student";
+  };
 }
-
 
 export interface ChatSession {
   id: number;
@@ -127,3 +126,11 @@ export interface ChatSession {
   created_at: string;
   updated_at: string;
 }
+
+export type Visibility = "CENTRAL" | "PRIVATE";
+export type IngestionStatus =
+  | "indexed"
+  | "failed"
+  | "no_extractable_text"
+  | "skipped"
+  | undefined;

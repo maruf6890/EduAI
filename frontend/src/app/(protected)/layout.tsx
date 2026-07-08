@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#09090b] text-gray-900 dark:text-white">
+    <div className="min-h-screen bg-bg-main dark:bg-[#09090b] text-gray-900 dark:text-white">
       <Sidebar />
       <div className="min-h-screen p-6 pl-[88px] transition-all duration-300">
         {children}

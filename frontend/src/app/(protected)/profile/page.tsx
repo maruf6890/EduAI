@@ -1,5 +1,7 @@
 import { getCookie } from "@/lib/cookies";
 import ProfileInfo from "./ProfileInfo";
+import PageTitle from "../dashboard/classrooms/[classroomId]/materials/PageTitle";
+import { User } from "lucide-react";
 
 
 export default async function ProfilePage() {
@@ -7,16 +9,9 @@ export default async function ProfilePage() {
   const email = await getCookie("email");
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#09090b] px-4 py-8 md:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#09090b] px-4 py-8 md:px-8 space-y-4">
       {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          My Profile
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Manage your account information and password
-        </p>
-      </div>
+    <PageTitle title="Profile" icon={User} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left — Avatar + name card */}

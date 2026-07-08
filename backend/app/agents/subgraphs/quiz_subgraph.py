@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import TypedDict, List, Dict, Any, Optional, Literal, Tuple
-
+from datetime import datetime, UTC
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, ValidationError, field_validator
 from rank_bm25 import BM25Okapi
@@ -74,7 +74,9 @@ class QuizAgentState(TypedDict, total=False):
     num_questions: int
     conn: Any
 
-    vector_results: List[Tuple[str, int, str, float]]
+    # (chunk_number, content, distance) — 3 columns, matches the SQL SELECT
+    vector_results: List[Tuple[int, str, float]]
+    # (chunk_id, content, bm25_score)
     keyword_results: List[Tuple[int, str, float]]
     merged_results: List[dict]
     context: str
@@ -87,6 +89,7 @@ class QuizAgentState(TypedDict, total=False):
     max_attempts: int
 
     questions: Optional[List[Dict[str, Any]]]
+    quiz_id: Optional[int]
     saved: Optional[bool]
     failure_reason: Optional[str]
 
@@ -95,17 +98,23 @@ class QuizAgentState(TypedDict, total=False):
 # RAG nodes
 # ---------------------------------------------------------------------------
 def retrieval_node(state: QuizAgentState) -> QuizAgentState:
+    """Vector similarity search over classroom embeddings.
+
+    This is a supplementary retrieval source (keyword_search_node runs in
+    parallel and can cover for it), so a DB/embedding failure here should
+    degrade to "no vector results" rather than aborting the whole subgraph.
+    """
     conn = state["conn"]
     curr = conn.cursor()
     query = state.get("topic_scope") or state["title"]
-    results: List[Tuple[str, int, str, float]] = []
+    results: List[Tuple[int, str, float]] = []
     try:
         query_vector = embeddings.embed_query(query)
         curr.execute(
             """
             SELECT
-                d.document_name, e.chunk_number, e.content,
-                e.embedding <=> %s::vector AS distance
+            e.chunk_number, e.content,
+            e.embedding <=> %s::vector AS distance
             FROM classroom_embeddings e
             JOIN classroom_documents d ON e.document_id = d.id
             WHERE d.classroom_id = %s
@@ -118,7 +127,9 @@ def retrieval_node(state: QuizAgentState) -> QuizAgentState:
     except Exception as e:
         conn.rollback()
         print(f"quiz_subgraph retrieval failed, rolled back. Error: {e}")
-        raise e
+        # Degrade gracefully: return no vector results instead of killing
+        # the whole invoke() call. build_context_node / generate_questions_node
+        # can still proceed using keyword_results (if any) or the title alone.
     finally:
         curr.close()
 
@@ -126,6 +137,7 @@ def retrieval_node(state: QuizAgentState) -> QuizAgentState:
 
 
 def keyword_search_node(state: QuizAgentState) -> QuizAgentState:
+    """BM25 keyword search over classroom embeddings, in parallel with vector search."""
     conn = state["conn"]
     curr = conn.cursor()
     query = state.get("topic_scope") or state["title"]
@@ -150,7 +162,7 @@ def keyword_search_node(state: QuizAgentState) -> QuizAgentState:
     except Exception as e:
         conn.rollback()
         print(f"quiz_subgraph keyword search failed, rolled back. Error: {e}")
-        raise e
+        # Same reasoning as retrieval_node: degrade, don't abort.
     finally:
         curr.close()
 
@@ -158,18 +170,25 @@ def keyword_search_node(state: QuizAgentState) -> QuizAgentState:
 
 
 def merge_context_node(state: QuizAgentState) -> QuizAgentState:
+    """Merge vector + keyword hits, deduping on content itself.
+
+    The two sources reference the same classroom_embeddings rows through
+    different identifiers (chunk_number vs. row id), so the only reliable
+    way to avoid showing the LLM the same chunk twice is to dedupe on the
+    actual text content rather than on those source-specific keys.
+    """
     merged: Dict[str, dict] = {}
-    for doc_name, chunk_number, content, distance in state.get("vector_results", []):
-        merged[f"{doc_name}:{chunk_number}"] = {"document_name": doc_name, "content": content}
+    for chunk_number, content, distance in state.get("vector_results", []):
+        merged.setdefault(content, {"content": content})
     for chunk_id, content, score in state.get("keyword_results", []):
-        merged.setdefault(f"kw:{chunk_id}", {"document_name": None, "content": content})
+        merged.setdefault(content, {"content": content})
     return {"merged_results": list(merged.values())}
 
 
 def build_context_node(state: QuizAgentState) -> QuizAgentState:
     chunks = state.get("merged_results", [])
     context = "\n\n---\n\n".join(
-        f"[{c.get('document_name') or 'unknown source'}] {c['content']}"
+        f"{c['content']}"
         for c in chunks
     )
     return {"context": context}
@@ -303,10 +322,19 @@ def finalize_failure_node(state: QuizAgentState) -> QuizAgentState:
 # Persistence
 # ---------------------------------------------------------------------------
 def save_quiz_node(state: QuizAgentState) -> QuizAgentState:
-    payload = QuizQuestionsPayload.model_validate(state["parsed_questions"])
+    try:
+        payload = QuizQuestionsPayload.model_validate(state["parsed_questions"])
+    except ValidationError as e:
+        return {
+            "questions": None,
+            "quiz_id": None,
+            "saved": False,
+            "failure_reason": f"parsed_questions failed re-validation before save: {e}",
+        }
+
     questions = [q.model_dump() for q in payload.questions]
 
-    saved = create_quiz_by_agent(
+    success, quiz_id = create_quiz_by_agent(
         conn=state["conn"],
         classroom_id=state["classroom_id"],
         created_by=state["created_by"],
@@ -320,8 +348,9 @@ def save_quiz_node(state: QuizAgentState) -> QuizAgentState:
 
     return {
         "questions": questions,
-        "saved": saved,
-        "failure_reason": None if saved else "create_quiz_by_agent returned False",
+        "quiz_id": quiz_id,
+        "saved": success,
+        "failure_reason": None if success else "create_quiz_by_agent failed to insert the quiz",
     }
 
 
@@ -335,12 +364,14 @@ def create_quiz_by_agent(
     duration_minutes: int,
     is_published: bool,
     questions: list,
-) -> bool:
+) -> Tuple[bool, Optional[int]]:
     """Insert a quiz and its questions in a single transaction.
+
+    Returns (success, quiz_id). quiz_id is None on failure.
 
     Expects tables:
       quizzes(id, classroom_id, created_by, title, description,
-              scheduled_at, duration_minutes, is_published, created_at)
+              scheduled_at, duration_minutes, is_published, created_at,total_marks)
       quiz_questions(id, quiz_id, question_text, option_a, option_b,
                      option_c, option_d, correct_option, marks, order_index)
     """
@@ -350,14 +381,14 @@ def create_quiz_by_agent(
             """
             INSERT INTO quizzes (
                 classroom_id, created_by, title, description,
-                scheduled_at, duration_minutes, is_published, created_at
+                scheduled_at, duration_minutes, is_published, created_at,total_marks
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s,%s)
             RETURNING id;
             """,
             (
                 classroom_id, created_by, title, description,
-                scheduled_at, duration_minutes, is_published, datetime.utcnow(),
+                scheduled_at, duration_minutes, True, datetime.now(UTC),sum(q["marks"] for q in questions)
             ),
         )
         quiz_id = curr.fetchone()[0]
@@ -379,12 +410,12 @@ def create_quiz_by_agent(
             )
 
         conn.commit()
-        return True
+        return True, quiz_id
 
     except Exception as e:
         conn.rollback()
         print(f"create_quiz_by_agent failed, rolled back. Error: {e}")
-        return False
+        return False, None
 
     finally:
         curr.close()
