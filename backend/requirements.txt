@@ -36,6 +36,6 @@ langchain-core
 langgraph
 langchain-google-genai
 rank-bm25
-
+google-genai
 pypdf
 psycopg2
