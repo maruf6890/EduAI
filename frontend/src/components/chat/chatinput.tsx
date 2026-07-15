@@ -1,81 +1,36 @@
 "use client";
 
-import { useRef } from "react";
-import { cn } from "@/lib/utils";
-import {
-  Paperclip,
-  SendIcon,
-  XIcon,
-  LoaderIcon,
-  Sparkles,
-  Command,
-  Camera,
-  Globe,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import * as React from "react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { SendIcon, LoaderIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
-export interface CommandSuggestion {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  prefix: string;
-}
- 
-export interface AttachmentFile {
-  id: string;
-  name: string;
-  url?: string;
-  type: "image" | "pdf" | "audio" | "unknown";
-}
- 
-export interface ModelOption {
-  id: string;
-  name: string;
-  description?: string;
-}
- 
 export interface AnimatedAIChatProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
   placeholderText?: string;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onFocus: () => void;
   onBlur: () => void;
-  attachments: AttachmentFile[];
-  onAttachFiles: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onCapturePicture: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onCaptureAudio: () => void;
-  onRemoveAttachment: (id: string) => void;
-  models?: ModelOption[];
-  selectedModel?: string;
-  onSelectModel?: (modelId: string) => void;
-  commandSuggestions?: CommandSuggestion[];
   LoadingMessages: boolean;
-  showCommandPalette: boolean;
-  activeSuggestion: number;
-  onToggleCommandPalette: () => void;
-  onSelectCommand: (prefix: string) => void;
-  commandPaletteRef: React.RefObject<HTMLDivElement | null>;
   isGenerating: boolean;
-  inputFocused: boolean;
 }
- 
+
 // ─── Textarea sub-component ───────────────────────────────────────────────────
- 
+
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   containerClassName?: string;
   showRing?: boolean;
 }
- 
+
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, containerClassName, showRing = true, ...props }, ref) => {
-    const [isFocused, setIsFocused] = React.useState(false);
- 
+    const [isFocused, setIsFocused] = useState(false);
+
     return (
       <div className={cn("relative", containerClassName)}>
         <textarea
@@ -84,12 +39,20 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             "transition-all duration-200 ease-in-out",
             "placeholder:text-text-main-white/40",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            showRing ? "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none" : "",
+            showRing
+              ? "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+              : "",
             className,
           )}
           ref={ref}
-          onFocus={(e) => { setIsFocused(true); props.onFocus?.(e); }}
-          onBlur={(e) => { setIsFocused(false); props.onBlur?.(e); }}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+          }}
           {...props}
         />
         {showRing && isFocused && (
@@ -106,67 +69,22 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   },
 );
 Textarea.displayName = "Textarea";
- 
+
 // ─── Main presentational component ───────────────────────────────────────────
- 
+
 export default function AnimatedAIChat({
   value,
   onChange,
   onSend,
   placeholderText = "Ask AI a question...",
   textareaRef,
-  onKeyDown,
   onFocus,
   onBlur,
-  attachments,
-  onAttachFiles,
-  onCapturePicture,
-  onRemoveAttachment,
-  onCaptureAudio,
-  models,
-  selectedModel,
-  onSelectModel,
-  commandSuggestions = [],
-  showCommandPalette,
-  activeSuggestion,
-  onToggleCommandPalette,
-  onSelectCommand,
-  commandPaletteRef,
   LoadingMessages,
   isGenerating,
-  inputFocused,
 }: AnimatedAIChatProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  // ✅ FIX 2: audioInputRef is declared and wired to onAttachFiles (not a separate handler)
-  const audioInputRef = useRef<HTMLInputElement>(null);
- 
   return (
     <div className="flex w-full bg-transparent">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={onAttachFiles}
-        multiple
-        className="hidden"
-      />
-      <input
-        type="file"
-        ref={cameraInputRef}
-        onChange={onCapturePicture}
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-      />
-      {/* ✅ FIX 2: was previously calling wrong handler */}
-      <input
-        type="file"
-        ref={audioInputRef}
-        onChange={onAttachFiles}
-        accept="audio/*"
-        className="hidden"
-      />
-
       <div className="text-text-main-white relative flex w-full flex-col items-center overflow-hidden p-6">
         {/* Background gradients */}
         <div className="pointer-events-none absolute inset-0 h-full w-full overflow-hidden">
@@ -183,9 +101,8 @@ export default function AnimatedAIChat({
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {/* Chat box */}
-            {/* Chat box */}
             <motion.div
-              className="border-white/[0.08] flex  items-center gap-2 bg-white/[0.02] relative rounded-2xl border shadow-2xl backdrop-blur-2xl p-1"
+              className="border-white/[0.08] flex items-center gap-2 bg-white/[0.02] relative rounded-2xl border shadow-2xl backdrop-blur-2xl p-1"
               initial={{ scale: 0.98 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.1 }}
@@ -196,7 +113,6 @@ export default function AnimatedAIChat({
                   ref={textareaRef}
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
-                  onKeyDown={onKeyDown}
                   onFocus={onFocus}
                   onBlur={onBlur}
                   placeholder={placeholderText}
@@ -237,8 +153,6 @@ export default function AnimatedAIChat({
             </motion.div>
           </motion.div>
         </div>
-
-      
       </div>
     </div>
   );

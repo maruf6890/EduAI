@@ -27,7 +27,7 @@ export default function ChatMessages({
         ))}
 
         {/*  NEW: Typing indicator — shown while AI is generating a reply */}
-        {isGenerating && <TypingIndicator key="typing-indicator" />}
+        {isGenerating && <TypingIndicator key="typing-indicator" />} 
       </AnimatePresence>
     </div>
   );

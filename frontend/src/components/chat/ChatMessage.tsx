@@ -38,11 +38,11 @@ export function TypingIndicator() {
       </div>
 
       {/* Dot bubble */}
-      <div className="bg-white/[0.06] border border-white/[0.08] rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+      <div className="bg-card border border-border rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="block w-1.5 h-1.5 rounded-full bg-white/40"
+            className="block w-1.5 h-1.5 rounded-full bg-primary"
             animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
             transition={{
               duration: 1,
@@ -140,7 +140,7 @@ export default function ChatMessage({
             "px-4 py-2.5 text-sm leading-relaxed break-words space-y-3 whitespace-pre-wrap",
             isUser
               ? [
-                  "bg-brand-primary text-[#0d0e11] font-medium",
+                  "bg-brand-primary text-white font-medium",
                   "rounded-2xl rounded-br-sm",
                   // subtle pulse ring on the very latest user message
                   isLatest && "ring-1 ring-brand-primary/40",
@@ -153,29 +153,7 @@ export default function ChatMessage({
         >
           {message?.content}
 
-          {/* Attachment pills inside the bubble */}
-          {message.attachments && message.attachments.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {message.attachments.map((a) => (
-                <span
-                  key={a.id}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium",
-                    a.type === "audio"
-                      ? "bg-teal-500/20 text-teal-300"
-                      : a.type === "image"
-                        ? "bg-blue-500/20 text-blue-300"
-                        : "bg-white/10 text-white/60",
-                  )}
-                >
-                  {a.type === "audio" && "🎵"}
-                  {a.type === "image" && "🖼"}
-                  {a.type === "pdf" && "📄"}
-                  {a.name}
-                </span>
-              ))}
-            </div>
-          )}
+
           <div className="flex flex-col gap-1">
             {(toolsResponse && message.route_used === "planning") && (
               <div className="w-full">

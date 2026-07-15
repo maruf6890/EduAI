@@ -1,17 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 
 export default function ChatbotButton() {
     // us
     // eParams returns an object. Access the dynamic segment defined in your folder path.
     // Ensure the key matches your folder name: /dashboard/classrooms/[classroomId]/...
     const params = useParams();
+    const path= usePathname()
     const classroomId = params.classroomId as string;
 
     // Optional: Don't render the button if the ID isn't available yet
-    if (!classroomId) return null;
+    console.log("Current path:", path);
+    if (!classroomId || path == `/dashboard/classrooms/${classroomId}/assistant`) return null;
 
     return (
         <Link

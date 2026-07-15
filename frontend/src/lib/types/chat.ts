@@ -1,4 +1,4 @@
-import { AttachmentFile } from "@/components/chat/chatinput";
+
 
 
 export interface Message {
@@ -11,8 +11,6 @@ export interface Message {
   result_reference?: any;
 
   route_used?: string | null;
-
-  attachments?: AttachmentFile[];
 
   createdAt?: Date;
   timestamp?: string;
