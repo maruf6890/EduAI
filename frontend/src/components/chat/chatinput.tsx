@@ -63,7 +63,6 @@ export interface AnimatedAIChatProps {
   commandPaletteRef: React.RefObject<HTMLDivElement | null>;
   isGenerating: boolean;
   inputFocused: boolean;
-  mousePosition: { x: number; y: number };
 }
  
 // ─── Textarea sub-component ───────────────────────────────────────────────────
@@ -136,7 +135,6 @@ export default function AnimatedAIChat({
   LoadingMessages,
   isGenerating,
   inputFocused,
-  mousePosition,
 }: AnimatedAIChatProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -240,19 +238,7 @@ export default function AnimatedAIChat({
           </motion.div>
         </div>
 
-        {/* Mouse spotlight */}
-        {inputFocused && (
-          <motion.div
-            className="from-brand-primary via-brand-primary/80 to-brand-accent pointer-events-none fixed z-0 h-[50rem] w-[50rem] rounded-full bg-gradient-to-r opacity-[0.02] blur-[96px]"
-            animate={{ x: mousePosition.x - 400, y: mousePosition.y - 400 }}
-            transition={{
-              type: "spring",
-              damping: 25,
-              stiffness: 150,
-              mass: 0.5,
-            }}
-          />
-        )}
+      
       </div>
     </div>
   );

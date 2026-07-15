@@ -14,6 +14,7 @@ import { public_api_call } from "@/actions/public_api_call";
 import { ChatSession } from "@/lib/types/classrooms";
 import { toast } from "sonner";
 import { p } from "framer-motion/client";
+import EmptyChatState from "./EmptyChatPage";
 
 
 const AI_MODELS = [
@@ -404,7 +405,13 @@ export default function AIChatbotPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {loadingMessages ? (
+        {
+          selectedSessions === null ? (
+           <EmptyChatState/>
+          ) :
+        
+        
+          loadingMessages ? (
           <div className="flex items-center justify-center h-full">
            Loading messages...
           </div>
@@ -442,7 +449,7 @@ export default function AIChatbotPage() {
           LoadingMessages={loadingMessages}
           isGenerating={isGenerating}
           inputFocused={inputFocused}
-          mousePosition={mousePosition}
+   
         />
       </div>
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
