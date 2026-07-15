@@ -152,7 +152,7 @@ def save_message(
     conn,
     session_id: int,
     message_type: str,
-    message: Dict[str, Any],
+    message:str,
     tool_result: Dict[str, Any] = None,
     result_reference: Dict[str, Any] = None,
     route_used: str = None
@@ -177,7 +177,7 @@ def save_message(
             (
                 session_id,
                 message_type,
-                json.dumps(message),
+                message,
                 json.dumps(tool_result) if tool_result else None,
                 json.dumps(result_reference) if result_reference else None,
                 route_used,
@@ -220,7 +220,7 @@ def list_messages(conn, session_id: int) -> List[dict]:
         )
         rows = curr.fetchall()
         return [
-            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result": json.loads(r[3]) if r[3] else None, "created_at": r[4].isoformat(), "result_reference": json.loads(r[5]) if r[5] else None, "route_used": r[6]}
+            {"id": r[0], "message_type": r[1], "message": r[2], "tool_result":r[3], "created_at": r[4].isoformat(), "result_reference": r[5], "route_used": r[6]}
             for r in rows
         ]
     finally:

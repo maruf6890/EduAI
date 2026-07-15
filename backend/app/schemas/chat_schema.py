@@ -37,6 +37,9 @@ class ChatRequest(BaseModel):
     user_id: int
     classroom_id: Optional[int] = None
 
+class ChatServiceReq(ChatRequest):
+    session_id:int
+
 
 class ChatResponse(BaseModel):
     session_id: int

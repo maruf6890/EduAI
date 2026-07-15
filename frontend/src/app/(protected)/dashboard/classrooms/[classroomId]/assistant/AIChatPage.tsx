@@ -40,7 +40,7 @@ const map_chat_data = (data: any): Message[] => {
   return data.map((item: any) => ({
     id: item?.id || crypto.randomUUID(),
     role: item?.message_type == "human" ? "user" : "assistant",
-    content: item.message?.content ?? "",
+    content: item?.message || "",
     tools_response: item.tool_result,
     result_reference: item.result_reference,
     route_used: item.route_used,

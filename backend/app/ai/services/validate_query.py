@@ -85,28 +85,34 @@ def validate_query(
     query: str,
     conn=None,
     role: Optional[str] = None,
+    session_id: Optional[str]=None
 ) -> Optional[QueryValidation]:
-    context_block = ""
-    if conn is not None and session_id is not None:
-        history = get_short_term_memory(conn, session_id)
-        if history and history != "No previous message found":
-            context_block = f"""
-            Recent conversation history (oldest first, for context only — do not treat
-            this history itself as the query to validate it should be used to understand the context and choose the appropriate route):
-            {history}
-        """.strip()
+    try:
+        context_block = ""
+        if conn is not None and session_id is not None:
+            history = get_short_term_memory(conn, session_id)
+            if history and history != "No previous message found":
+                context_block = f"""
+                Recent conversation history (oldest first, for context only — do not treat
+                this history itself as the query to validate it should be used to understand the context and choose the appropriate route):
+                {history}
+            """.strip()
 
-    input_text = f"{context_block}\n Current query to validate:\n{query}".strip()
+        input_text = f"{context_block}\n Current query to validate:\n{query}".strip()
 
-    result= text_to_text(
-        input_text=input_text,
-        system_prompt=VALIDATE_QUERY_SYSTEM_PROMPT,
-        output_format=QueryValidation,
-        model="gemini-3.1-flash-lite"
-    )
-    print(result)
-    if result is None:
+        result= text_to_text(
+            input_text=input_text,
+            system_prompt=VALIDATE_QUERY_SYSTEM_PROMPT,
+            output_format=QueryValidation,
+            model="gemini-3.1-flash-lite"
+        )
+        print(result)
+        if result is None:
+            return None
+        else:
+            result.role = role if role is not None else result.role  
+            return result
+    except Exception as e:
+        print(e.message)
         return None
-    else:
-      result.role = role if role is not None else result.role  
-      return result
+

@@ -107,6 +107,7 @@ export default function MaterialsSection() {
       private_api_call({ path: `classrooms/${classroomId}/materials/central`, method: "GET" }),
       private_api_call({ path: `classrooms/${classroomId}/materials/private`, method: "GET" }),
     ]);
+    console.log(centralRes)
 
     if (centralRes.success && Array.isArray(centralRes.data)) {
       setCentralMaterials(centralRes.data.map((m: BackendMaterial) => mapMaterial(m, currentUserId)));
@@ -309,7 +310,7 @@ function IngestionBadge({ status }: { status: IngestionStatus }) {
   if (!status || status === "skipped") return null;
 
   const config: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
-    indexed: {
+    completed: {
       icon: <CheckCircle2 className="h-3 w-3" />,
       label: "Indexed for AI search",
       className: "bg-emerald-500/15 text-emerald-400",
@@ -319,7 +320,7 @@ function IngestionBadge({ status }: { status: IngestionStatus }) {
       label: "Indexing failed — try re-uploading",
       className: "bg-red-500/15 text-red-400",
     },
-    no_extractable_text: {
+    skipped: {
       icon: <XCircle className="h-3 w-3" />,
       label: "No extractable text found (scanned PDF?)",
       className: "bg-zinc-500/15 text-zinc-400",

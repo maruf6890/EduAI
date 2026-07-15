@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Message } from "@/lib/types/chat";
 import { ReactFlow, Background, Controls } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import React from "react";
+import React, { useEffect } from "react";
 
 // ─── Typing indicator bubble (three animated dots) ────────────────────────────
 
@@ -80,18 +80,20 @@ export default function ChatMessage({
     : null;
 
   const [nodes, setNodes] = React.useState(
-    message.tools_response && message.route_used === "planner"
+    message.tools_response && message.route_used === "planning"
       ? message.tools_response?.flow?.nodes
       : [],
   );
   const [edges, setEdges] = React.useState(
-    message.tools_response && message.route_used === "planner"
+    message.tools_response && message.route_used === "planning"
       ? message.tools_response?.flow?.edges
       : [],
   );
 
+
+
   const toolsResponse = message.tools_response? message?.tools_response : null;
-  // console.log("toolsResponse", toolsResponse);
+  console.log("toolsResponse", toolsResponse);
   // console.log("toolsResponse", nodes);
 
   return (
@@ -175,7 +177,7 @@ export default function ChatMessage({
             </div>
           )}
           <div className="flex flex-col gap-1">
-            {(toolsResponse && message.route_used === "planner") && (
+            {(toolsResponse && message.route_used === "planning") && (
               <div className="w-full">
               
                   <div

@@ -2,20 +2,19 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
-
+from fastapi import UploadFile
+from app.ai.utils.llm import text_to_text
 from loguru import logger
 from pydantic import BaseModel
 from pypdf import PdfReader
 
-from langchain.docstore.document import Document
-from langchain.retrievers import EnsembleRetriever
+from langchain_core.documents import Document
+from langchain_classic.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_chroma import Chroma
-from langchain_community.utilities import WikipediaAPIWrapper, DuckDuckGoSearchAPIWrapper
-from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
+from langchain_community.tools import WikipediaQueryRun
 from langchain_google_genai import GoogleGenerativeAIEmbeddings  # or swap for your embedding of choice
-
-from your_llm_module import text_to_text  # your existing Gemini wrapper
+from langchain_community.utilities import WikipediaAPIWrapper
 
 
 # ---------------------------------------------------------------------------
@@ -33,8 +32,7 @@ _embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 
 vectorstore = Chroma(
     collection_name=COLLECTION_NAME,
-    persist_directory=CHROMA_PERSIST_DIR,
-    embedding_function=_embeddings,
+    persist_directory=CHROMA_PERSIST_DIR
 )
 
 
@@ -73,7 +71,7 @@ def _chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OV
 
 
 def extract_docs_with_chunking(
-    pdf_file: str,
+    pdf_file: UploadFile,
     title: str,
     description: str,
     classroom_id: str,
@@ -214,21 +212,11 @@ def ensambled_retribal(
         return []
 
 
-# ---------------------------------------------------------------------------
-# Web fallback tools (LangChain)
-# ---------------------------------------------------------------------------
 
-_duckduckgo_tool = DuckDuckGoSearchRun(api_wrapper=DuckDuckGoSearchAPIWrapper(max_results=5))
+
 _wikipedia_tool = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=2000))
 
 
-def duckduckgo_search_tool(query: str) -> Optional[str]:
-    try:
-        result = _duckduckgo_tool.invoke(query)
-        return result if result and result.strip() else None
-    except Exception as e:
-        logger.exception(f"DuckDuckGo search failed for query '{query}': {e}")
-        return None
 
 
 def wikipedia_search_tool(query: str) -> Optional[str]:
@@ -240,9 +228,6 @@ def wikipedia_search_tool(query: str) -> Optional[str]:
         return None
 
 
-# ---------------------------------------------------------------------------
-# 4. RAG query pipeline
-# ---------------------------------------------------------------------------
 
 RAG_SYSTEM_PROMPT = """
 You are an educational assistant answering a student's or teacher's question using the provided context.
@@ -275,16 +260,12 @@ def llm_query_for_rag_pipeline(
             sources.append(title)
     else:
         used_web_fallback = True
-        web_result = duckduckgo_search_tool(query)
+        web_result =  wikipedia_search_tool(query)
 
         if web_result:
-            context_parts.append(f"[Web search] {web_result}")
-            sources.append("DuckDuckGo")
-        else:
-            wiki_result = wikipedia_search_tool(query)
-            if wiki_result:
-                context_parts.append(f"[Wikipedia] {wiki_result}")
-                sources.append("Wikipedia")
+            context_parts.append(f"[wikipedia] {web_result}")
+            sources.append("wikipedia")
+       
 
     if not context_parts:
         return RagAnswer(

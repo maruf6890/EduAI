@@ -46,7 +46,18 @@ def _verify_member(conn, classroom_id: int, user_id: int) -> bool:
     return False
 
 
-MATERIAL_COLUMNS = "id, classroom_id, title, description, visibility, url, uploaded_by, created_at, updated_at"
+MATERIAL_COLUMNS = """
+id,
+classroom_id,
+title,
+description,
+visibility,
+url,
+uploaded_by,
+ingestion_status,
+created_at,
+updated_at
+"""
 async def upload_material(
     conn,
     classroom_id: int,
@@ -56,87 +67,179 @@ async def upload_material(
     visibility: str,
     file: UploadFile,
 ) -> dict:
+
     classroom = _get_classroom(conn, classroom_id)
+
     is_owner = classroom["owner_id"] == uploaded_by
 
     if not is_owner:
         _verify_enrolled(conn, classroom_id, uploaded_by)
 
+
     if visibility not in VALID_VISIBILITIES:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail=f"visibility must be one of {sorted(VALID_VISIBILITIES)}",
         )
 
-    # Only teacher can upload CENTRAL materials
+
     if visibility == "CENTRAL" and not is_owner:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the teacher can upload central materials",
+            status_code=403,
+            detail="Only teacher can upload central materials",
         )
+
 
     if not file:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A file is required",
+            status_code=400,
+            detail="File required",
         )
 
-    # Read the raw bytes ONCE — both Cloudinary upload and PDF text
-    # extraction need the file contents, and UploadFile.read() drains the
-    # stream, so reusing `file` a second time afterward would return b"".
-    file_bytes = await file.read()
+
     is_pdf = file.content_type == "application/pdf"
 
-    # Upload first — we don't have a material id yet, so key the folder off
-    # classroom + a random slug instead of the (not-yet-existing) material id.
+
+    # ---------------------------
+    # Upload to cloudinary
+    # ---------------------------
+
     from app.utils.cloudinary import upload_file_to_cloudinary
 
-    await file.seek(0)  # reset stream position in case cloudinary reads from `file` itself
+
+    await file.seek(0)
+
     upload_slug = uuid.uuid4().hex
+
+
     file_data = await upload_file_to_cloudinary(
         file,
         folder=f"ai_classroom/materials/{visibility.lower()}/{classroom_id}/{upload_slug}",
     )
 
+
+    # ---------------------------
+    # Insert material
+    # ---------------------------
+
     with conn.cursor() as cur:
+
         cur.execute(
             f"""
-            INSERT INTO materials (title, description, visibility, uploaded_by, classroom_id, url)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO materials
+            (
+                title,
+                description,
+                visibility,
+                uploaded_by,
+                classroom_id,
+                url,
+                ingestion_status
+            )
+
+            VALUES
+            (%s,%s,%s,%s,%s,%s,%s)
+
             RETURNING {MATERIAL_COLUMNS}
             """,
-            (title, description, visibility, uploaded_by, classroom_id, file_data["url"]),
+
+            (
+                title,
+                description,
+                visibility,
+                uploaded_by,
+                classroom_id,
+                file_data["url"],
+                "processing" if is_pdf else "skipped"
+            )
         )
+
+
         material = _serialize(dict(cur.fetchone()))
 
-    ingestion_status = "skipped"
+        conn.commit()
+
+
+
+    # ---------------------------
+    # RAG ingestion
+    # ---------------------------
+
     if is_pdf:
-        from app.services.pdf_ingestion import ingest_pdf_material
 
         try:
-            document_id = await ingest_pdf_material(
-                conn,
-                classroom_id=classroom_id,
-                material_id=material["id"],
-                file_bytes=file_bytes,
+
+            from app.ai.services.rag_services import (
+                extract_docs_with_chunking,
+                store_in_vector_db
             )
-            ingestion_status = "indexed" if document_id else "no_extractable_text"
-        except Exception:
-            # Don't fail the whole upload if embedding/indexing breaks — the
-            # material itself was already saved successfully. Log and
-            # surface a soft status instead of raising.
-            logger.exception("PDF ingestion failed for material_id=%s", material["id"])
+
+
+            await file.seek(0)
+
+
+            docs = extract_docs_with_chunking(
+                pdf_file=file.file,
+                title=title,
+                description=description,
+                classroom_id=str(classroom_id),
+                doc_type=visibility.lower(),
+                created_by=str(uploaded_by)
+            )
+
+
+            count = store_in_vector_db(docs)
+
+
+            ingestion_status = (
+                "completed"
+                if count > 0
+                else "failed"
+            )
+
+
+        except Exception as e:
+
+            logger.exception(
+                "PDF ingestion failed material_id=%s",
+                material["id"]
+            )
+
             ingestion_status = "failed"
 
-    material["ingestion_status"] = ingestion_status
+
+
+        # update DB
+
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                UPDATE materials
+                SET ingestion_status=%s,
+                    updated_at=NOW()
+
+                WHERE id=%s
+                """,
+
+                (
+                    ingestion_status,
+                    material["id"]
+                )
+            )
+
+            conn.commit()
+
+
+        material["ingestion_status"] = ingestion_status
+
+
 
     return {
         "success": True,
         "message": "Material uploaded successfully",
         "data": material,
     }
-
-
 # ── Update material info ──────────────────────────────────────────────────────
 
 def update_material(conn, classroom_id: int, material_id: int, user_id: int, title, description) -> dict:
@@ -226,7 +329,7 @@ def get_central_materials(conn, classroom_id: int, user_id: int) -> dict:
         cur.execute(
             """
             SELECT
-                m.id, m.classroom_id, m.title, m.description,
+                m.id, m.classroom_id, m.title, m.description,m.ingestion_status,
                 m.visibility, m.url, m.uploaded_by, m.created_at, m.updated_at,
                 u.full_name AS uploader_name
             FROM materials m
@@ -259,7 +362,7 @@ def get_private_materials(conn, classroom_id: int, user_id: int) -> dict:
         cur.execute(
             """
             SELECT
-                m.id, m.classroom_id, m.title, m.description,
+                m.id, m.classroom_id, m.title, m.description,m.ingestion_status,
                 m.visibility, m.url, m.uploaded_by, m.created_at, m.updated_at
             FROM materials m
             WHERE m.classroom_id = %s AND m.visibility = 'PRIVATE' AND m.uploaded_by = %s
