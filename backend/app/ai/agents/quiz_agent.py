@@ -245,15 +245,15 @@ def create_quiz_by_agent(
             """
             INSERT INTO quizzes (
                 classroom_id, created_by, title, description,
-                scheduled_at, duration_minutes, is_published, created_at, total_marks
+                scheduled_at, duration_minutes, is_published, created_at, total_marks,status
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,%s)
             RETURNING id;
             """,
             (
                 classroom_id, created_by, title, description,
                 scheduled_at, duration_minutes, True, datetime.now(UTC),
-                sum(q["marks"] for q in questions),
+                sum(q["marks"] for q in questions), "active"
             ),
         )
         quiz_id = curr.fetchone()[0]

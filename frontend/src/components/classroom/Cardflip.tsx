@@ -22,8 +22,8 @@ export default function CardFlip({ classroom }: CardFlipProps) {
     <div
       onClick={() => router.push(`/dashboard/classrooms/${classroom.id}`)}
       className={cn(
-        'group relative flex h-full cursor-pointer flex-col gap-4 overflow-hidden',
-        'rounded-xl border-2 border-border-main bg-main p-5',
+        'group relative flex h-full cursor-pointer flex-col gap-1 overflow-hidden',
+        'rounded-sm border-2 border-border-main bg-main p-5',
         'transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary/50 hover:shadow-lg hover:shadow-brand-primary/5',
       )}
     >
@@ -105,7 +105,7 @@ export default function CardFlip({ classroom }: CardFlipProps) {
           router.push(`/dashboard/classrooms/${classroom.id}`);
         }}
         className={cn(
-          'flex w-full items-center justify-center gap-1.5 rounded-xl border border-brand-primary/30 px-4 py-2.5',
+          'flex w-full items-center justify-center gap-1.5 rounded-sm border border-brand-primary/30 px-4 py-2.5',
           'text-[13px] font-semibold text-brand-primary transition-all duration-200',
           'hover:bg-brand-primary/5 active:scale-[0.98]',
         )}
