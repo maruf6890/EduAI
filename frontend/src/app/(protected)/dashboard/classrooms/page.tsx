@@ -128,7 +128,7 @@ export default function ClassroomPage() {
                             onClick={() => setIsCreateOpen(true)}
                             className={cn(
                                 'flex items-center gap-2 rounded-xl px-5 py-2.5 bg-brand-primary text-[13px] font-semibold text-text-main',
-                                'shadow-lg shadow-indigo-950/50 transition-all duration-200 hover:bg-brand-secondary hover:scale-[1.02] active:scale-[0.98]',
+                                'shadow-lg shadow-indigo-950/50 transition-all duration-200 hover:bg-brand-secondary hover:scale-[1.02] active:scale-[0.98] text-white',
                             )}
                         >
                             <Plus className="h-4 w-4" /> Create Classroom

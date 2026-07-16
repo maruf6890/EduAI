@@ -397,7 +397,7 @@ export default function DiscussionsPage() {
 
                 <button
                     onClick={handleOpenCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 active:opacity-80"
+                    className="inline-flex items-center justify-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 active:opacity-80 text-white"
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                     New post
@@ -839,14 +839,14 @@ function EmptyState({ onCreate }: { onCreate?: () => void }) {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-soft">
                 <MessageSquare className="h-6 w-6 text-brand-primary" />
             </div>
-            <h3 className="mt-4 text-sm font-medium text-zinc-200">No discussions yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-zinc-500">
+            <h3 className="mt-4 text-sm font-medium text-gray-500">No discussions yet</h3>
+            <p className="mt-1 max-w-sm text-sm text-zinc-700">
                 {onCreate ? "Start the conversation with your class." : "Check back later for new posts."}
             </p>
             {onCreate && (
                 <button
                     onClick={onCreate}
-                    className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90"
+                    className="mt-5 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-2.5 text-sm font-medium text-text-main transition-colors hover:opacity-90 text-white"
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                     New post
