@@ -7,6 +7,7 @@ export const getClassroomDetails = async (classroomId: string) => {
          path: `classrooms/${classroomId}`,
          method: "GET",
        });
+       console.log("Classroom details response:", res);
        if(res.success) {
          return res.data;
        } else {
