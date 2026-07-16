@@ -26,7 +26,7 @@ COLLECTION_NAME = "documents"
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
 
-DocType = Literal["personal", "central"]
+DocType = Literal["private", "central"]
 
 _embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 
@@ -146,7 +146,7 @@ def store_in_vector_db(documents: List[Document]) -> int:
 # filter — then ensemble the two over that access-scoped candidate pool.
 
 def _access_filter(classroom_id: str, user_id: str) -> dict:
-    """Chroma metadata filter: central docs in this classroom, OR personal
+    """Chroma metadata filter: central docs in this classroom, OR private
     docs in this classroom created by this user."""
     return {
         "$or": [
@@ -176,8 +176,9 @@ def ensambled_retribal(
     """
     Hybrid retrieval (BM25 + vector similarity) restricted to documents the
     user is allowed to see: central docs in their classroom, or their own
-    personal docs in that classroom.
+    private docs in that classroom.
     """
+    logger.info(f"Hybrid retrieval for classroom={classroom_id}, user={user_id}, query='{query}'")
     where_filter = _access_filter(classroom_id, user_id)
 
     try:
