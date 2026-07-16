@@ -253,7 +253,7 @@ def create_quiz_by_agent(
             (
                 classroom_id, created_by, title, description,
                 scheduled_at, duration_minutes, True, datetime.now(UTC),
-                sum(q["marks"] for q in questions), "active"
+                sum(q["marks"] for q in questions), "ACTIVE"
             ),
         )
         quiz_id = curr.fetchone()[0]

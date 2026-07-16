@@ -110,10 +110,11 @@ def extract_docs_with_chunking(
                 "uploaded_at": uploaded_at,
             }
             documents.append(Document(page_content=piece, metadata=metadata))
+          
 
     if not documents:
         logger.warning(f"No extractable text found in {pdf_file}")
-
+    logger.debug(f"Sample chunk metadata: {documents[0].metadata if documents else 'N/A'}")
     return documents
 
 
@@ -148,6 +149,8 @@ def store_in_vector_db(documents: List[Document]) -> int:
 def _access_filter(classroom_id: str, user_id: str) -> dict:
     """Chroma metadata filter: central docs in this classroom, OR private
     docs in this classroom created by this user."""
+    classroom_id = str(classroom_id)
+    user_id = str(user_id)
     return {
         "$or": [
             {
@@ -180,6 +183,7 @@ def ensambled_retribal(
     """
     logger.info(f"Hybrid retrieval for classroom={classroom_id}, user={user_id}, query='{query}'")
     where_filter = _access_filter(classroom_id, user_id)
+    logger.info(f"WHERE FILTER = {where_filter}")
 
     try:
         # Vector retriever, scoped via Chroma's native metadata filter
@@ -187,8 +191,17 @@ def ensambled_retribal(
             search_kwargs={"k": k, "filter": where_filter}
         )
 
+        # # Show every document in Chroma
+        # all_docs = vectorstore.get(include=["metadatas"])
+
+        # logger.info(f"TOTAL DOCS = {len(all_docs['metadatas'])}")
+
+        # for m in all_docs["metadatas"]:
+        #     logger.info(f"Stored metadata = {m}")
+
         # Pull the same access-scoped candidate pool for BM25 (keyword search)
         raw = vectorstore.get(where=where_filter, include=["documents", "metadatas"])
+
         candidate_docs = [
             Document(page_content=doc_text, metadata=meta)
             for doc_text, meta in zip(raw.get("documents", []), raw.get("metadatas", []))
