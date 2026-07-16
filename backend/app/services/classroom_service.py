@@ -143,7 +143,7 @@ def get_classroom(conn, classroom_id: int, user_id: int) -> dict:
                 c.updated_at,
                 u.full_name AS owner_name
             FROM classrooms c
-            JOIN users u
+            LEFT JOIN users u
                 ON c.owner_id = u.id
             WHERE c.id = %s
             """,
