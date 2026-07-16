@@ -5,4 +5,6 @@ venv/
 .venv/
 .pytest_cache/
 *.log
+# ChromaDB
+backend/chroma_db/
 chroma_db/
