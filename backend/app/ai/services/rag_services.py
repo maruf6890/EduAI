@@ -159,7 +159,7 @@ def _access_filter(classroom_id: str, user_id: str) -> dict:
             {
                 "$and": [
                     {"classroom_id": {"$eq": classroom_id}},
-                    {"type": {"$eq": "personal"}},
+                    {"type": {"$eq": "private"}},
                     {"created_by": {"$eq": user_id}},
                 ]
             },
