@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError("");
 
     if (!email || !password) {
-      setError("Please provide both an email/staff ID and password.");
+      setError("Please provide both an email and password.");
       return;
     }
 
@@ -39,28 +39,6 @@ export default function LoginPage() {
       router.push("/dashboard");
     } else {
       setError(response.message || "Invalid credentials or server connection timed out.");
-    }
-  };
-
-  const handleSocialLogin = async (provider: "google" | "facebook" | "apple") => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await public_api_call({ path: "auth/google", method: "POST" });
-      if (response.success) {
-        await setCookie('access_token', response.data.access_token);
-        await setCookie('refresh_token', response.data.refresh_token);
-        await setCookie('id', response.data.user.id.toString());
-        await setCookie('email', response.data.user.email);
-        await setCookie('name', response.data.user.full_name);
-        router.push("/dashboard");
-      } else {
-        setError(response.message || "Social login failed.");
-      }
-    } catch (err: unknown) {
-      setError((err as Error).message || "Social login failed.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -106,7 +84,7 @@ export default function LoginPage() {
           {error && (
             <div className="p-3 text-xs font-semibold text-danger flex items-center gap-2">
               {/* <img width="25" height="25" src="https://img.icons8.com/sci-fi/48/cancel.png" alt="cancel" /> */}
-              <img width="25" height="25" src="https://img.icons8.com/dusk/64/error--v1.png" alt="error--v1" />
+              {/* <img width="25" height="25" src="https://img.icons8.com/dusk/64/error--v1.png" alt="error--v1" /> */}
               {error}
             </div>
           )}
@@ -116,9 +94,12 @@ export default function LoginPage() {
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-main/30" />
             <input
               type="text"
-              placeholder="Email or staff ID"
+              placeholder="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError("");
+              }}
               disabled={loading}
               className="h-11 w-full pl-10 pr-4 rounded-[var(--radius-sm)]
                        border border-surface-border bg-surface
@@ -135,7 +116,10 @@ export default function LoginPage() {
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError("");
+              }}
               disabled={loading}
               className="h-11 w-full pl-10 pr-10 rounded-[var(--radius-sm)]
                        border border-surface-border bg-surface
@@ -190,7 +174,7 @@ export default function LoginPage() {
           <span className="flex-1 border-t border-dashed border-surface-border" />
         </div> */}
 
-       
+
 
         <p className="text-center text-xs text-text-main/40">
           New here?{" "}
